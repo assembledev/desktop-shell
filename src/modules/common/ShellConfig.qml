@@ -1,0 +1,66 @@
+import QtQuick
+import Quickshell
+
+QtObject {
+  id: root
+
+  readonly property string outputName: Quickshell.env("DESKTOP_SHELL_OUTPUT")
+  readonly property var screen: {
+    const screens = Quickshell.screens || [];
+    if (outputName.length > 0) {
+      const configured = screens.find(function(candidate) {
+        return String(candidate?.name || "") === outputName;
+      });
+      if (configured)
+        return configured;
+      console.warn("desktop-shell: configured output is unavailable: " + outputName);
+    }
+    return screens.length > 0 ? screens[0] : null;
+  }
+
+  readonly property var workspaces: {
+    const raw = Quickshell.env("DESKTOP_SHELL_WORKSPACES_JSON");
+    try {
+      const parsed = JSON.parse(raw || "[]").filter(function(item) {
+        return Number.isInteger(Number(item?.id)) && Number(item.id) > 0;
+      }).map(function(item, index) {
+        return {
+          id: Number(item.id),
+          label: String(item.label || item.id),
+          x: Number.isFinite(Number(item.x)) ? Number(item.x) : index,
+          y: Number.isFinite(Number(item.y)) ? Number(item.y) : 0
+        };
+      });
+      if (parsed.length > 0)
+        return parsed;
+    } catch (error) {
+      console.error("desktop-shell: invalid workspace topology: " + error);
+    }
+    return [
+      { id: 1, label: "I", x: 0, y: 0 },
+      { id: 2, label: "II", x: 1, y: 0 },
+      { id: 3, label: "III", x: 2, y: 0 },
+      { id: 4, label: "IV", x: 3, y: 0 },
+      { id: 5, label: "V", x: 4, y: 0 }
+    ];
+  }
+
+  readonly property var workspaceIds: workspaces.map(function(workspace) {
+    return workspace.id;
+  })
+
+  function workspace(id) {
+    const numericId = Number(id);
+    return workspaces.find(function(item) { return item.id === numericId; }) || null;
+  }
+
+  function workspaceLabel(id) {
+    const item = workspace(id);
+    return item ? item.label : String(id);
+  }
+
+  function workspacePoint(id) {
+    const item = workspace(id);
+    return item ? { x: item.x, y: item.y } : { x: 0, y: 0 };
+  }
+}
