@@ -149,7 +149,7 @@ bluetooth_require_address() {
 }
 
 bluetooth_private_mode() {
-  bluetoothctl discoverable off >/dev/null 2>&1 || true
+  bluetoothctl --timeout 2 discoverable off >/dev/null 2>&1 || true
 }
 
 bluetooth_pairing_mode() {

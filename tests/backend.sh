@@ -36,6 +36,8 @@ source "$source_root/src/backend/lib/common.sh"
 source "$source_root/src/backend/lib/network.sh"
 # shellcheck source=../src/backend/lib/brightness.sh
 source "$source_root/src/backend/lib/brightness.sh"
+# shellcheck source=../src/backend/lib/bluetooth.sh
+source "$source_root/src/backend/lib/bluetooth.sh"
 
 network_control_command demo status | jq -e '.text == "Demo" and .active == true' >/dev/null
 network_control_command demo toggle
@@ -57,6 +59,19 @@ printf '#!%s\nprintf \"%%s\\n\" \"$@\" >\"$DESKTOP_SHELL_TEST_HYPRCTL_ARGS\"\n' 
   "$(command -v bash)" >"$test_bin/hyprctl"
 chmod +x "$test_bin/quickshell" "$test_bin/hyprctl"
 export DESKTOP_SHELL_TEST_HYPRCTL_ARGS="$hyprctl_args"
+
+bluetoothctl_args="$test_root/bluetoothctl-args"
+printf '#!%s\nprintf \"%%s\\n\" \"$@\" >\"$DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS\"\nexit 1\n' \
+  "$(command -v bash)" >"$test_bin/bluetoothctl"
+chmod +x "$test_bin/bluetoothctl"
+export DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS="$bluetoothctl_args"
+PATH="$test_bin:$PATH" bluetooth_private_mode
+mapfile -t captured_bluetoothctl_args <"$bluetoothctl_args"
+test "${captured_bluetoothctl_args[0]}" = --timeout
+test "${captured_bluetoothctl_args[1]}" = 2
+test "${captured_bluetoothctl_args[2]}" = discoverable
+test "${captured_bluetoothctl_args[3]}" = off
+
 PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" direction l
 mapfile -t captured_hyprctl_args <"$hyprctl_args"
 test "${captured_hyprctl_args[0]}" = dispatch
