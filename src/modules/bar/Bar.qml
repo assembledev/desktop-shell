@@ -90,7 +90,7 @@ Scope {
   readonly property var trayItems: prioritizedTrayItems()
   readonly property int trayItemCount: trayItems.length
   readonly property real desktopTrayWidthBudget: Number(barWindow.width || 0) / 2
-    - Number(clockLabel.implicitWidth || 0) / 2
+    - Number(clockTarget.width || 0) / 2
     - trayClockSafeMargin
     - 15
     - Number(rightStatusRow.implicitWidth || 0)
@@ -574,7 +574,7 @@ Scope {
           visible: !root.portraitMode
           anchors.left: parent.left
           anchors.leftMargin: 15
-          anchors.right: clockLabel.left
+          anchors.right: clockTarget.left
           anchors.rightMargin: 20
           anchors.verticalCenter: parent.verticalCenter
           spacing: root.workspaceIcons ? 6 : 10
@@ -629,22 +629,36 @@ Scope {
             topPadding: root.textOpticalYOffset
           }
 
-          RecordingIndicator {
-            visible: root.recording
-            elapsed: root.recordingElapsed
-          }
         }
 
-        Text {
-          id: clockLabel
+        Item {
+          id: clockTarget
           visible: !root.portraitMode
           anchors.centerIn: parent
-          anchors.verticalCenterOffset: root.textOpticalYOffset
-          text: root.clockText
-          color: theme.text
-          font.family: theme.fontFamily
-          font.pixelSize: 16
-          font.bold: true
+          width: root.recording ? recordingClock.implicitWidth : clockLabel.implicitWidth
+          height: root.barHeight
+
+          Text {
+            id: clockLabel
+            visible: !root.recording
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: root.textOpticalYOffset
+            text: root.clockText
+            color: theme.text
+            font.family: theme.fontFamily
+            font.pixelSize: 16
+            font.bold: true
+          }
+
+          RecordingIndicator {
+            id: recordingClock
+            visible: root.recording
+            anchors.centerIn: parent
+            width: implicitWidth
+            height: implicitHeight
+            elapsed: root.recordingElapsed
+            clockTime: root.clockTimeText
+          }
 
           MouseArea {
             anchors.fill: parent
@@ -1424,9 +1438,12 @@ Scope {
   component RecordingIndicator: Rectangle {
     id: indicator
     property string elapsed: "00:00"
+    property string clockTime: ""
 
-    Layout.preferredWidth: content.implicitWidth + 20
-    Layout.preferredHeight: 24
+    implicitWidth: content.implicitWidth + 20
+    implicitHeight: 24
+    Layout.preferredWidth: implicitWidth
+    Layout.preferredHeight: implicitHeight
     Layout.leftMargin: 4
     radius: 8
     color: Qt.alpha(theme.brightRed, 0.12)
@@ -1474,6 +1491,25 @@ Scope {
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: root.textOpticalYOffset
         text: indicator.elapsed
+        color: theme.text
+        font.family: theme.fontFamily
+        font.pixelSize: 12
+        font.bold: true
+      }
+
+      Rectangle {
+        visible: indicator.clockTime.length > 0
+        width: visible ? 1 : 0
+        height: 12
+        anchors.verticalCenter: parent.verticalCenter
+        color: Qt.alpha(theme.brightRed, 0.34)
+      }
+
+      Text {
+        visible: indicator.clockTime.length > 0
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenterOffset: root.textOpticalYOffset
+        text: indicator.clockTime
         color: theme.text
         font.family: theme.fontFamily
         font.pixelSize: 12
