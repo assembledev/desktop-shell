@@ -48,3 +48,16 @@ printf '50\n' >"$backlight/brightness"
 printf '100\n' >"$backlight/max_brightness"
 brightness_capabilities_json | jq -e '.supported == true and .backend == "backlight"' >/dev/null
 test "$(brightness_get)" = 50
+
+test_bin="$test_root/bin"
+hyprctl_args="$test_root/hyprctl-args"
+mkdir -p "$test_bin"
+printf '#!%s\nexit 1\n' "$(command -v bash)" >"$test_bin/quickshell"
+printf '#!%s\nprintf \"%%s\\n\" \"$@\" >\"$DESKTOP_SHELL_TEST_HYPRCTL_ARGS\"\n' \
+  "$(command -v bash)" >"$test_bin/hyprctl"
+chmod +x "$test_bin/quickshell" "$test_bin/hyprctl"
+export DESKTOP_SHELL_TEST_HYPRCTL_ARGS="$hyprctl_args"
+PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" direction l
+mapfile -t captured_hyprctl_args <"$hyprctl_args"
+test "${captured_hyprctl_args[0]}" = dispatch
+test "${captured_hyprctl_args[1]}" = 'hl.dsp.focus({ direction = "l" })'

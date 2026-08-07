@@ -37,9 +37,9 @@ select machine names, output identifiers, applications, or network providers.
 
 Hyprland is the supported compositor backend. Workspace and window operations
 are centralized in the Hyprland integration so UI components do not each grow
-their own dispatch vocabulary. Supporting another compositor would require a
-complete integration with equivalent focus, workspace, layer-shell, and
-screencopy behavior.
+their own dispatch vocabulary. The adapter targets Hyprland's Lua dispatcher
+API. Supporting another compositor would require a complete integration with
+equivalent focus, workspace, layer-shell, and screencopy behavior.
 
 ### Command backend
 

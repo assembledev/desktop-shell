@@ -270,7 +270,7 @@ case "${1:-help}" in
     esac
     if ! quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml call windowSwitcher direction "$direction" >/dev/null 2>&1; then
       ensure_hypr_env
-      hyprctl dispatch movefocus "$direction" >/dev/null
+      hyprctl dispatch "hl.dsp.focus({ direction = \"$direction\" })" >/dev/null
     fi
     ;;
   cheatsheet)
