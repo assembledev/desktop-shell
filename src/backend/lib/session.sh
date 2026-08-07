@@ -8,7 +8,6 @@ keyboard_json() {
         | {
             name: ($kb.name // ""),
             layout: ($kb.layout // ""),
-            active: ($kb.active_keymap // "Unknown"),
             index: ($kb.active_layout_index // 0)
           }
       ' 2>/dev/null || jq -nc '{layout: "", active: "Unknown"}'

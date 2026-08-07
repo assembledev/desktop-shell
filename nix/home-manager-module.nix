@@ -110,6 +110,7 @@ let
         workspaceIcons
         ;
     };
+    keyboard.layoutLabels = cfg.keyboard.layoutLabels;
     browserTabs = {
       inherit (cfg.browserTabs)
         desktopEntryId
@@ -228,6 +229,12 @@ in
         default = [ ];
         description = "Trusted generic status/toggle providers shown in the bar.";
       };
+    };
+
+    keyboard.layoutLabels = mkOption {
+      type = types.nonEmptyListOf (types.strMatching "^.{1,4}$");
+      default = defaultConfig.keyboard.layoutLabels;
+      description = "Short labels indexed in the same order as the compositor keyboard layouts.";
     };
 
     browserTabs = {

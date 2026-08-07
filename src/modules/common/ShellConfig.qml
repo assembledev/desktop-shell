@@ -49,6 +49,23 @@ QtObject {
     return workspace.id;
   })
 
+  readonly property var keyboardLayoutLabels: {
+    try {
+      const parsed = JSON.parse(Quickshell.env("DESKTOP_SHELL_KEYBOARD_LABELS_JSON") || "[]");
+      if (Array.isArray(parsed) && parsed.length > 0)
+        return parsed.map(function(label) { return String(label); });
+    } catch (error) {
+      console.error("desktop-shell: invalid keyboard layout labels: " + error);
+    }
+    return ["EN"];
+  }
+
+  function keyboardLayoutLabel(index) {
+    const numericIndex = Math.max(0, Number(index || 0));
+    const label = String(keyboardLayoutLabels[numericIndex] || "").trim();
+    return label.length > 0 ? label : "--";
+  }
+
   function workspace(id) {
     const numericId = Number(id);
     return workspaces.find(function(item) { return item.id === numericId; }) || null;

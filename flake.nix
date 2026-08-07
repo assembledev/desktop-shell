@@ -192,6 +192,7 @@
             mkdir -p "$HOME" "$XDG_RUNTIME_DIR"
             ${desktopShell}/bin/desktop-shell help | grep -F 'restart'
             ${desktopShell}/bin/desktop-shell config show | ${pkgs.jq}/bin/jq -e '.workspaces.items | length == 5'
+            ${desktopShell}/bin/desktop-shell config show | ${pkgs.jq}/bin/jq -e '.keyboard.layoutLabels == ["EN"]'
             if ${desktopShell}/bin/desktop-shell definitely-not-a-command; then
               exit 1
             fi

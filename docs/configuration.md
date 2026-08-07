@@ -104,6 +104,17 @@ module does not take ownership of its monitor policy.
 | `bar.workspaceIcons` | `true` | Show application icons in workspace controls |
 | `bar.networkControls` | `[]` | Ordered generic status/toggle providers |
 
+## Keyboard layout labels
+
+`keyboard.layoutLabels` is an ordered list of short display labels. Its indexes
+must match the compositor's configured keyboard layout order. Desktop Shell
+does not embed a language or country dictionary; the neutral default is
+`[ "EN" ]`.
+
+```nix
+programs.desktop-shell.keyboard.layoutLabels = [ "EN" ];
+```
+
 ### Network controls
 
 A provider is trusted Nix configuration, not a plugin downloaded by the shell:

@@ -85,7 +85,7 @@ Scope {
       clockText: root.clockText
       dateText: root.dateText
       userText: Quickshell.env("USER") || Quickshell.env("LOGNAME")
-      keyboardText: "EN"
+      keyboardText: shellConfig.keyboardLayoutLabel(0)
       batteryVisible: true
       batteryText: "󰂄 44%"
       passwordLength: 0

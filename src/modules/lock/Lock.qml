@@ -32,7 +32,7 @@ Scope {
   readonly property string clockText: Qt.formatDateTime(clock.date, "HH:mm")
   readonly property string dateText: Qt.formatDateTime(clock.date, "dddd, MMMM dd")
   property var battery: ({ available: false, capacity: 0, status: "", power: "" })
-  property var keyboard: ({ name: "", layout: "", active: "Unknown", index: 0 })
+  property var keyboard: ({ name: "", layout: "", index: 0 })
 
   signal refocus()
 
@@ -52,13 +52,7 @@ Scope {
   }
 
   function keyboardLabel() {
-    return "EN";
-  }
-
-  function setKeyboardActive(active) {
-    const next = String(active || "").trim();
-    if (next.length > 0)
-      keyboard = Object.assign({}, keyboard, { active: next });
+    return shellConfig.keyboardLayoutLabel(keyboard.index);
   }
 
   function setLockKeyboardLayout(index) {
@@ -184,7 +178,7 @@ Scope {
         try {
           root.keyboard = JSON.parse(text);
         } catch (error) {
-          root.keyboard = ({ name: "", layout: "", active: "Unknown", index: 0 });
+          root.keyboard = ({ name: "", layout: "", index: 0 });
         }
       }
     }
@@ -199,8 +193,6 @@ Scope {
     target: Hyprland
     function onRawEvent(event) {
       if (event.name === "activelayout") {
-        const parts = String(event.data || "").split(",");
-        root.setKeyboardActive(parts.length > 1 ? parts[parts.length - 1] : event.data);
         keyboardProc.running = true;
       }
     }

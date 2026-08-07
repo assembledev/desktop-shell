@@ -53,7 +53,7 @@ Scope {
   readonly property string clockDateText: Qt.formatDateTime(clock.date, "ddd, MMM d")
   property var metrics: ({ ramText: "--", hasVram: false, vramText: "--" })
   property var battery: ({ available: false, capacity: 0, status: "", power: "" })
-  property var keyboard: ({ layout: "", active: "Unknown" })
+  property var keyboard: ({ layout: "", index: 0 })
   property var notificationStatus: ({ text: "", class: "normal", tooltip: "Control center" })
   property bool notificationUnread: false
   property bool dnd: false
@@ -323,7 +323,7 @@ Scope {
   }
 
   function keyboardLabel() {
-    return "EN";
+    return shellConfig.keyboardLayoutLabel(keyboard.index);
   }
 
   function updateNotificationStatus() {

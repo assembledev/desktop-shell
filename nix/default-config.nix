@@ -49,6 +49,8 @@
     networkControls = [ ];
   };
 
+  keyboard.layoutLabels = [ "EN" ];
+
   browserTabs = {
     enable = false;
     desktopEntryId = "firefox";
