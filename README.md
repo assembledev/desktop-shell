@@ -11,6 +11,8 @@ Desktop Shell is actively developed and used daily on NixOS with Hyprland.
 The public configuration and CLI may evolve as the standalone packaging is
 exercised across more systems.
 
+https://github.com/user-attachments/assets/1d040923-9848-4299-ad8d-07ab32ff338f
+
 ## Features
 
 - Output-aware bar with workspaces, tray, calendar, battery, audio, metrics,
