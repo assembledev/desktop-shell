@@ -47,7 +47,6 @@ Shell surfaces:
 Inspection:
   config path | config show
   ipc list | ipc call <target> <method> [arguments...]
-  version
 
 Run `desktop-shell help-all` for backend and integration commands.
 EOF
@@ -112,9 +111,6 @@ case "${1:-help}" in
     ;;
   help-all)
     print_help_all
-    ;;
-  version | --version)
-    printf 'desktop-shell %s\n' "${DESKTOP_SHELL_VERSION:-unknown}"
     ;;
   config)
     case "${2:-path}" in

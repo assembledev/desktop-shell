@@ -19,7 +19,6 @@ Run `desktop-shell help` for the primary interface and
 | `desktop-shell logs` | Show the last 200 service log lines |
 | `desktop-shell logs --follow` | Follow service logs |
 | `desktop-shell doctor` | Check configuration, commands, Hyprland, and service state |
-| `desktop-shell version` | Print the packaged version |
 
 `status` returns success only while the service is active; an inactive service
 returns status `3`. `doctor` reports each check separately and returns non-zero

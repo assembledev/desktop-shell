@@ -26,7 +26,7 @@ let
       "$out/lib/mozilla/native-messaging-hosts/${nativeHostName}.json"
   '';
   unsignedExtension =
-    pkgs.runCommand "desktop-shell-tabs-0.2.0-unsigned.xpi"
+    pkgs.runCommand "desktop-shell-tabs-unsigned.xpi"
       {
         nativeBuildInputs = [ pkgs.zip ];
       }

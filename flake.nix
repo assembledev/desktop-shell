@@ -26,7 +26,6 @@
         import ./nix/package.nix {
           pkgs = nixpkgs.legacyPackages.${system};
           source = self;
-          version = "0.1.0";
         };
     in
     {
@@ -192,7 +191,6 @@
             export XDG_RUNTIME_DIR="$TMPDIR/runtime"
             mkdir -p "$HOME" "$XDG_RUNTIME_DIR"
             ${desktopShell}/bin/desktop-shell help | grep -F 'restart'
-            ${desktopShell}/bin/desktop-shell version | grep -F '0.1.0'
             ${desktopShell}/bin/desktop-shell config show | ${pkgs.jq}/bin/jq -e '.workspaces.items | length == 5'
             if ${desktopShell}/bin/desktop-shell definitely-not-a-command; then
               exit 1

@@ -2,7 +2,6 @@
   pkgs,
   lib ? pkgs.lib,
   source ? ../.,
-  version ? "0.1.0-dev",
   hyprlandPackage ? pkgs.hyprland,
 }:
 
@@ -11,7 +10,7 @@ let
     builtins.toJSON (import ./default-config.nix)
   );
   browserTabBridge = import ./browser-tab-bridge.nix { inherit pkgs source; };
-  payload = pkgs.runCommand "desktop-shell-payload-${version}" { } ''
+  payload = pkgs.runCommand "desktop-shell-payload" { } ''
     mkdir -p "$out/share/desktop-shell/qml" "$out/libexec/desktop-shell"
     cp -R ${source}/src/modules "$out/share/desktop-shell/qml/modules"
     cp ${source}/src/shell.qml ${source}/src/lock.qml "$out/share/desktop-shell/qml/"
@@ -51,20 +50,18 @@ let
       export DESKTOP_SHELL_DEFAULT_CONFIG=${lib.escapeShellArg "${payload}/share/desktop-shell/default-config.json"}
       export DESKTOP_SHELL_BROWSER_BRIDGE=${lib.escapeShellArg "${browserTabBridge.host}/bin/desktop-shell-browser-bridge"}
       export DESKTOP_SHELL_NOTIFICATION_SOUND=${lib.escapeShellArg "${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo/message-new-instant.oga"}
-      export DESKTOP_SHELL_VERSION=${lib.escapeShellArg version}
-
       exec ${pkgs.bash}/bin/bash ${payload}/libexec/desktop-shell/desktop-shell.sh "$@"
     '';
   };
 in
 pkgs.symlinkJoin {
-  name = "desktop-shell-${version}";
+  name = "desktop-shell";
   paths = [
     cli
     payload
   ];
   passthru = {
-    inherit browserTabBridge payload version;
+    inherit browserTabBridge payload;
   };
   meta = {
     description = "A keyboard-first Quickshell desktop shell for Hyprland";

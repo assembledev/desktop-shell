@@ -1,7 +1,7 @@
 # Contributing
 
 Desktop Shell is developed as one Nix flake. Shell sources, the command-line
-backend, packaging, and modules should continue to work as one versioned unit.
+backend, packaging, and modules should continue to work as one coherent unit.
 
 ## Development environment
 

@@ -7,6 +7,10 @@ Desktop Shell treats the bar, launcher, control center, lock screen, and window
 navigation as one coherent interface. It follows live compositor and system
 services instead of maintaining a second desktop state database.
 
+Desktop Shell is actively developed and used daily on NixOS with Hyprland.
+The public configuration and CLI may evolve as the standalone packaging is
+exercised across more systems.
+
 ## Features
 
 - Output-aware bar with workspaces, tray, calendar, battery, audio, metrics,
