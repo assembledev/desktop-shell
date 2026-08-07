@@ -1,8 +1,6 @@
 # Installation
 
-Desktop Shell is distributed as a Nix flake. The examples use a checkout next
-to the system configuration; replace the `path:` URL with the repository's
-remote flake URL when appropriate.
+Desktop Shell is distributed as a Nix flake.
 
 ## Flake input
 
@@ -17,7 +15,7 @@ remote flake URL when appropriate.
     };
 
     desktop-shell = {
-      url = "path:../desktop-shell";
+      url = "github:assembledev/desktop-shell";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.home-manager.follows = "home-manager";
     };
@@ -26,6 +24,9 @@ remote flake URL when appropriate.
 ```
 
 The flake exports packages and modules for `x86_64-linux` and `aarch64-linux`.
+
+For development against a local checkout, replace the input URL with
+`path:../desktop-shell` and refresh the owning flake lock.
 
 ## NixOS with Home Manager
 
