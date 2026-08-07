@@ -20,7 +20,7 @@ Quickshell. The entry point owns the long-lived shell surfaces:
 - launcher and existing-window focus search;
 - control center, notification server, Wi-Fi, Bluetooth, and audio mixer;
 - clipboard history and wallpaper picker;
-- spatial window switcher with live workspace previews;
+- spatial window switcher with workspace previews;
 - lock preview, media notifications, and keybinding reference.
 
 The lock screen also has a small standalone entry point at `src/lock.qml`.

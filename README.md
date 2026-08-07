@@ -19,7 +19,7 @@ https://github.com/user-attachments/assets/1d040923-9848-4299-ad8d-07ab32ff338f
   recording status, and configurable network controls.
 - Launcher with separate application-launch and existing-window focus modes,
   usage-aware ordering, and optional Firefox-compatible tab search.
-- Spatial Alt-Tab overview with live workspace previews, directional
+- Spatial Alt-Tab overview with workspace previews, directional
   navigation, drag-to-workspace, and scrolling-layout geometry.
 - Control center with notification history, persistent NetworkManager Wi-Fi
   state, BlueZ device management, brightness and power controls, and a
