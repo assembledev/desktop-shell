@@ -1,15 +1,17 @@
 {
   pkgs,
+  lib ? pkgs.lib,
   source ? ../.,
 }:
 
 let
+  sources = import ./source-files.nix { inherit lib source; };
   extensionId = "desktop-shell-tabs@desktop-shell.local";
   nativeHostName = "io.desktop_shell.browser_tabs";
   host = pkgs.writeShellApplication {
     name = "desktop-shell-browser-bridge";
     text = ''
-      exec ${pkgs.python3}/bin/python3 ${source}/browser-extension/native-host.py "$@"
+      exec ${pkgs.python3}/bin/python3 ${sources.browserHost}/browser-extension/native-host.py "$@"
     '';
   };
   nativeManifest = pkgs.writeText "${nativeHostName}.json" (
@@ -31,7 +33,7 @@ let
         nativeBuildInputs = [ pkgs.zip ];
       }
       ''
-        cd ${source}/browser-extension/extension
+        cd ${sources.browserExtension}/browser-extension/extension
         zip -q -r "$out" .
       '';
 in

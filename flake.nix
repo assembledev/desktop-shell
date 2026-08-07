@@ -25,7 +25,7 @@
         system:
         import ./nix/package.nix {
           pkgs = nixpkgs.legacyPackages.${system};
-          source = self;
+          source = ./.;
         };
     in
     {
@@ -36,7 +36,7 @@
           desktopShell = packageFor system;
           browserTabBridge = import ./nix/browser-tab-bridge.nix {
             inherit pkgs;
-            source = self;
+            source = ./.;
           };
         in
         {
@@ -65,7 +65,7 @@
           desktopShell = packageFor system;
           browserTabBridge = import ./nix/browser-tab-bridge.nix {
             inherit pkgs;
-            source = self;
+            source = ./.;
           };
           homeConfiguration = home-manager.lib.homeManagerConfiguration {
             inherit pkgs;

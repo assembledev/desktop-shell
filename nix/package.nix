@@ -6,18 +6,33 @@
 }:
 
 let
+  sources = import ./source-files.nix { inherit lib source; };
   defaultConfig = pkgs.writeText "desktop-shell-default-config.json" (
     builtins.toJSON (import ./default-config.nix)
   );
   browserTabBridge = import ./browser-tab-bridge.nix { inherit pkgs source; };
-  payload = pkgs.runCommand "desktop-shell-payload" { } ''
-    mkdir -p "$out/share/desktop-shell/qml" "$out/libexec/desktop-shell"
-    cp -R ${source}/src/modules "$out/share/desktop-shell/qml/modules"
-    cp ${source}/src/shell.qml ${source}/src/lock.qml "$out/share/desktop-shell/qml/"
-    cp -R ${source}/src/backend/. "$out/libexec/desktop-shell/"
+  qml = pkgs.runCommand "desktop-shell-qml" { } ''
+    mkdir -p "$out/share/desktop-shell/qml"
+    cp -R ${sources.qml}/src/modules "$out/share/desktop-shell/qml/modules"
+    cp ${sources.qml}/src/shell.qml ${sources.qml}/src/lock.qml "$out/share/desktop-shell/qml/"
+  '';
+  backend = pkgs.runCommand "desktop-shell-backend" { } ''
+    mkdir -p "$out/libexec/desktop-shell"
+    cp -R ${sources.backend}/src/backend/. "$out/libexec/desktop-shell/"
     chmod +x "$out/libexec/desktop-shell/desktop-shell.sh"
+  '';
+  configPayload = pkgs.runCommand "desktop-shell-config" { } ''
+    mkdir -p "$out/share/desktop-shell"
     install -Dm0644 ${defaultConfig} "$out/share/desktop-shell/default-config.json"
   '';
+  payload = pkgs.symlinkJoin {
+    name = "desktop-shell-payload";
+    paths = [
+      qml
+      backend
+      configPayload
+    ];
+  };
   cli = pkgs.writeShellApplication {
     name = "desktop-shell";
     runtimeInputs =
@@ -46,11 +61,11 @@ let
     text = ''
       export LC_ALL=C.UTF-8
       export DESKTOP_SHELL_EXECUTABLE="$0"
-      export DESKTOP_SHELL_QML=${lib.escapeShellArg "${payload}/share/desktop-shell/qml"}
-      export DESKTOP_SHELL_DEFAULT_CONFIG=${lib.escapeShellArg "${payload}/share/desktop-shell/default-config.json"}
+      export DESKTOP_SHELL_QML=${lib.escapeShellArg "${qml}/share/desktop-shell/qml"}
+      export DESKTOP_SHELL_DEFAULT_CONFIG=${lib.escapeShellArg "${configPayload}/share/desktop-shell/default-config.json"}
       export DESKTOP_SHELL_BROWSER_BRIDGE=${lib.escapeShellArg "${browserTabBridge.host}/bin/desktop-shell-browser-bridge"}
       export DESKTOP_SHELL_NOTIFICATION_SOUND=${lib.escapeShellArg "${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo/message-new-instant.oga"}
-      exec ${pkgs.bash}/bin/bash ${payload}/libexec/desktop-shell/desktop-shell.sh "$@"
+      exec ${pkgs.bash}/bin/bash ${backend}/libexec/desktop-shell/desktop-shell.sh "$@"
     '';
   };
 in
@@ -61,7 +76,13 @@ pkgs.symlinkJoin {
     payload
   ];
   passthru = {
-    inherit browserTabBridge payload;
+    inherit
+      backend
+      browserTabBridge
+      configPayload
+      payload
+      qml
+      ;
   };
   meta = {
     description = "A keyboard-first Quickshell desktop shell for Hyprland";
