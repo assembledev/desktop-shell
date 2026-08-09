@@ -2,6 +2,25 @@
 
 set -eu
 
+# Alt-Tab is a latency-sensitive IPC path and does not consume shell config.
+# Try it before loading the full backend; fall through on open failures so the
+# regular service-start retry still applies.
+if [ "${1:-}" = alttab ] && [ -n "${DESKTOP_SHELL_QML:-}" ] && command -v quickshell >/dev/null 2>&1; then
+  action="${2:-next}"
+  case "$action" in
+    next | prev)
+      if quickshell ipc --path "${DESKTOP_SHELL_QML}/shell.qml" call windowSwitcher alttab "$action" >/dev/null 2>&1; then
+        exit 0
+      fi
+      ;;
+    commit | cancel)
+      quickshell ipc --path "${DESKTOP_SHELL_QML}/shell.qml" call windowSwitcher "$action" >/dev/null 2>&1 || true
+      exit 0
+      ;;
+    *) exit 2 ;;
+  esac
+fi
+
 backend_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$backend_dir/lib/common.sh"

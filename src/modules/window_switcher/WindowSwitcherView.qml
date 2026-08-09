@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Widgets
@@ -18,7 +17,6 @@ Scope {
   ShellConfig { id: shellConfig }
   HyprlandAdapter { id: hyprland }
 
-  property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
   readonly property int configuredScrollingWorkspace: {
     const workspace = Number(Quickshell.env("DESKTOP_SHELL_SCROLLING_WORKSPACE"));
     return Number.isInteger(workspace) && workspace > 0 ? workspace : 0;
@@ -37,6 +35,7 @@ Scope {
   property var windows: []
   property var monitors: []
   property var activeWindow: ({})
+  property bool nativeRefreshPending: false
   readonly property var desktopApplications: DesktopEntries.applications.values || []
 
   function addressOf(win) {
@@ -132,7 +131,11 @@ Scope {
   }
 
   function iconSource(win) {
+    if (!win)
+      return "";
     const icon = String(applicationForWindow(win)?.icon || "");
+    if (icon.length === 0)
+      return Quickshell.iconPath("application-x-executable");
     if (icon.startsWith("/"))
       return "file://" + icon;
     if (icon.indexOf(":") >= 0)
@@ -329,9 +332,88 @@ Scope {
     moveSpatialSelection(direction);
   }
 
+  function normalizedAddress(value) {
+    const address = String(value || "");
+    if (address.length === 0 || address.startsWith("0x"))
+      return address;
+    return "0x" + address;
+  }
+
+  function windowDataForToplevel(toplevel) {
+    const ipc = toplevel?.lastIpcObject || {};
+    const workspace = toplevel?.workspace;
+    const monitor = toplevel?.monitor;
+    const monitorId = Number(monitor?.id);
+    return Object.assign({}, ipc, {
+      address: normalizedAddress(toplevel?.address || ipc.address),
+      at: ipc.at || [0, 0],
+      size: ipc.size || [480, 300],
+      workspace: {
+        id: Number(workspace?.id || ipc.workspace?.id || 0),
+        name: String(workspace?.name || ipc.workspace?.name || "")
+      },
+      monitor: Number.isFinite(monitorId) && monitorId >= 0 ? monitorId : ipc.monitor,
+      class: String(toplevel?.wayland?.appId || ipc.class || ""),
+      initialClass: String(ipc.initialClass || ""),
+      title: String(toplevel?.title || ipc.title || ""),
+      initialTitle: String(ipc.initialTitle || ""),
+      hidden: Boolean(ipc.hidden),
+      floating: Boolean(ipc.floating)
+    });
+  }
+
+  function monitorData(monitor) {
+    const ipc = monitor?.lastIpcObject || {};
+    return Object.assign({}, ipc, {
+      id: Number(monitor?.id ?? ipc.id ?? -1),
+      name: String(monitor?.name || ipc.name || ""),
+      x: Number(monitor?.x ?? ipc.x ?? 0),
+      y: Number(monitor?.y ?? ipc.y ?? 0),
+      width: Number(monitor?.width ?? ipc.width ?? 1920),
+      height: Number(monitor?.height ?? ipc.height ?? 1080),
+      scale: Number(monitor?.scale ?? ipc.scale ?? 1),
+      focused: Boolean(monitor?.focused)
+    });
+  }
+
+  function finishStateRefresh() {
+    if (!nativeRefreshPending)
+      return;
+
+    nativeRefreshPending = false;
+    stateSettleTimer.stop();
+    windows = (Hyprland.toplevels.values || []).map(windowDataForToplevel);
+    monitors = (Hyprland.monitors.values || []).map(monitorData);
+    const current = Hyprland.activeToplevel
+      || (Hyprland.toplevels.values || []).find(function(toplevel) { return toplevel?.activated; });
+    activeWindow = current ? windowDataForToplevel(current) : {};
+
+    if (refreshForOpen) {
+      originalAddress = addressOf(activeWindow);
+      selectedAddress = originalAddress;
+      open = true;
+      advance(pendingAction);
+      const directions = pendingDirections;
+      pendingDirections = [];
+      for (const direction of directions)
+        moveSpatialSelection(direction);
+      refreshForOpen = false;
+      if (commitWhenReady)
+        commit();
+    } else {
+      refreshForOpen = false;
+    }
+  }
+
   function refreshState(forOpen) {
     refreshForOpen = forOpen;
-    stateProc.exec([backend, "hypr", "state-json"]);
+    nativeRefreshPending = true;
+    if ((Hyprland.toplevels.values || []).length === 0) {
+      finishStateRefresh();
+      return;
+    }
+    Hyprland.refreshToplevels();
+    stateSettleTimer.restart();
   }
 
   function advance(action) {
@@ -438,41 +520,32 @@ Scope {
     onTriggered: root.refreshState(false)
   }
 
-  Process {
-    id: stateProc
-    stdout: StdioCollector {
-      onStreamFinished: {
-        let state = { clients: [], active: {}, monitors: [] };
-        try {
-          state = JSON.parse(text);
-        } catch (error) {
-          console.error("window-switcher: failed to parse Hyprland state: " + error);
-        }
-        root.windows = state.clients || [];
-        root.monitors = state.monitors || [];
-        root.activeWindow = state.active || {};
-        if (root.refreshForOpen) {
-          root.originalAddress = root.addressOf(root.activeWindow);
-          root.selectedAddress = root.originalAddress;
-          root.open = true;
-          root.advance(root.pendingAction);
-          const directions = root.pendingDirections;
-          root.pendingDirections = [];
-          for (const direction of directions)
-            root.moveSpatialSelection(direction);
-          root.refreshForOpen = false;
-          if (root.commitWhenReady)
-            root.commit();
-        } else {
-          root.refreshForOpen = false;
-        }
+  Timer {
+    id: stateSettleTimer
+    // Quickshell exposes refreshToplevels() but no completion signal when the
+    // returned client objects are unchanged. Allow one frame for the native
+    // IPC response; changed objects restart this settle window below.
+    interval: 12
+    onTriggered: root.finishStateRefresh()
+  }
+
+  Instantiator {
+    model: Hyprland.toplevels
+
+    Connections {
+      required property var modelData
+      target: modelData
+
+      function onLastIpcObjectChanged() {
+        if (root.nativeRefreshPending)
+          stateSettleTimer.restart();
       }
     }
   }
 
   function canUnload() {
     return !open && !refreshForOpen && !commitWhenReady && pendingDirections.length === 0
-      && !stateProc.running && draggingAddress.length === 0;
+      && !nativeRefreshPending && !stateSettleTimer.running && draggingAddress.length === 0;
   }
 
   PanelWindow {
