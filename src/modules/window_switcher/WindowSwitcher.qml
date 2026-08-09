@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import "../common"
 
@@ -25,8 +26,6 @@ Scope {
 
   function enqueue(method, argument) {
     pendingCalls.push({ method: method, argument: argument });
-    unloadTimer.stop();
-    switcherLoader.active = true;
     flushTimer.restart();
   }
 
@@ -44,17 +43,12 @@ Scope {
     }
   }
 
-  function scheduleUnload() {
-    if (pendingCalls.length === 0)
-      unloadTimer.restart();
-  }
-
   function hasAltTabSession() {
     if (pendingCalls.some(function(call) { return call.method === "altTab"; }))
       return true;
 
     const view = switcherLoader.item;
-    return view && (view.open || view.refreshForOpen);
+    return view && view.sessionActive;
   }
 
   function routeDirection(code) {
@@ -79,37 +73,59 @@ Scope {
   IpcHandler {
     target: "windowSwitcher"
     function alttab(action: string): void {
-      if (!switcherLoader.active && root.pendingCalls.length === 0 && root.dropLateOpen())
+      if (!root.hasAltTabSession() && root.pendingCalls.length === 0 && root.dropLateOpen())
         return;
 
       root.enqueue("altTab", action || "next");
     }
     function commit(): void {
-      if (!switcherLoader.active && root.pendingCalls.length === 0) {
+      if (!root.hasAltTabSession() && root.pendingCalls.length === 0) {
         root.markCloseBeforeOpen();
         return;
       }
 
       root.enqueue("commit");
-      root.scheduleUnload();
     }
     function cancel(): void {
-      if (!switcherLoader.active && root.pendingCalls.length === 0) {
+      if (!root.hasAltTabSession() && root.pendingCalls.length === 0) {
         root.markCloseBeforeOpen();
         return;
       }
 
       root.enqueue("cancel");
-      root.scheduleUnload();
     }
     function direction(code: string): void {
       root.routeDirection(code);
     }
   }
 
+  Connections {
+    target: Hyprland
+
+    function onRawEvent(event) {
+      if (event.name !== "custom")
+        return;
+
+      const prefix = "desktop-shell:window-switcher:";
+      const payload = String(event.data || "");
+      if (!payload.startsWith(prefix))
+        return;
+
+      const action = payload.slice(prefix.length);
+      if (action === "next" || action === "prev")
+        root.enqueue("altTab", action);
+      else if (action === "commit" || action === "cancel")
+        root.enqueue(action);
+      else if (action.startsWith("direction:"))
+        root.routeDirection(action.slice("direction:".length));
+    }
+  }
+
   Loader {
     id: switcherLoader
-    active: false
+    // The controller is cheap while closed and must be ready before the first
+    // Alt-Tab chord. Preview captures remain gated by WindowSwitcherView.open.
+    active: true
     asynchronous: false
     sourceComponent: WindowSwitcherView {}
     onLoaded: flushTimer.restart()
@@ -122,26 +138,4 @@ Scope {
     onTriggered: root.flushPending()
   }
 
-  Timer {
-    id: unloadTimer
-    interval: 1200
-    repeat: false
-    onTriggered: {
-      if (!switcherLoader.item)
-        return;
-      if (switcherLoader.item.canUnload())
-        switcherLoader.active = false;
-      else
-        restart();
-    }
-  }
-
-  Connections {
-    target: switcherLoader.item
-    ignoreUnknownSignals: true
-    function onOpenChanged() {
-      if (!switcherLoader.item.open)
-        root.scheduleUnload();
-    }
-  }
 }

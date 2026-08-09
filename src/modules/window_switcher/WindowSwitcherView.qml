@@ -27,10 +27,7 @@ Scope {
   }
   readonly property var workspaces: shellConfig.workspaceIds
   property bool open: false
-  property bool refreshForOpen: false
-  property bool commitWhenReady: false
-  property string pendingAction: "next"
-  property var pendingDirections: []
+  property bool sessionActive: false
   property string selectedAddress: ""
   property string originalAddress: ""
   property string draggingAddress: ""
@@ -39,6 +36,7 @@ Scope {
   property var windows: []
   property var monitors: []
   property var activeWindow: ({})
+  property var focusOrder: []
   property bool nativeRefreshPending: false
   readonly property var desktopApplications: DesktopEntries.applications.values || []
 
@@ -52,7 +50,21 @@ Scope {
   }
 
   function orderedWindows() {
+    const positions = {};
+    for (let index = 0; index < focusOrder.length; index++)
+      positions[focusOrder[index]] = index;
+
     return (windows || []).filter(validWindow).slice().sort(function(a, b) {
+      const ai = positions[addressOf(a)];
+      const bi = positions[addressOf(b)];
+      if (ai !== undefined || bi !== undefined) {
+        if (ai === undefined)
+          return 1;
+        if (bi === undefined)
+          return -1;
+        if (ai !== bi)
+          return ai - bi;
+      }
       const ah = Number.isFinite(Number(a.focusHistoryID)) ? Number(a.focusHistoryID) : 999999;
       const bh = Number.isFinite(Number(b.focusHistoryID)) ? Number(b.focusHistoryID) : 999999;
       if (ah !== bh)
@@ -328,10 +340,8 @@ Scope {
   }
 
   function selectDirection(direction) {
-    if (!open) {
-      pendingDirections = pendingDirections.concat([direction]);
+    if (!sessionActive)
       return;
-    }
 
     moveSpatialSelection(direction);
   }
@@ -380,37 +390,67 @@ Scope {
     });
   }
 
+  function snapshotState() {
+    windows = (Hyprland.toplevels.values || []).map(windowDataForToplevel);
+    monitors = (Hyprland.monitors.values || []).map(monitorData);
+    const current = Hyprland.activeToplevel
+      || (Hyprland.toplevels.values || []).find(function(toplevel) { return toplevel?.activated; });
+    activeWindow = current ? windowDataForToplevel(current) : {};
+    normalizeFocusOrder();
+  }
+
+  function normalizeFocusOrder() {
+    const candidates = (windows || []).filter(validWindow);
+    const valid = {};
+    for (const win of candidates)
+      valid[addressOf(win)] = true;
+
+    let order = focusOrder.filter(function(address) { return valid[address]; });
+    const fallback = candidates.slice().sort(function(a, b) {
+      const ah = Number.isFinite(Number(a.focusHistoryID)) ? Number(a.focusHistoryID) : 999999;
+      const bh = Number.isFinite(Number(b.focusHistoryID)) ? Number(b.focusHistoryID) : 999999;
+      return ah - bh;
+    });
+    for (const win of fallback) {
+      const address = addressOf(win);
+      if (order.indexOf(address) < 0)
+        order.push(address);
+    }
+
+    const activeAddress = addressOf(activeWindow);
+    if (activeAddress.length > 0)
+      order = [activeAddress].concat(order.filter(function(address) { return address !== activeAddress; }));
+    replaceFocusOrder(order);
+  }
+
+  function replaceFocusOrder(order) {
+    // This is internal MRU state read imperatively by selection. Mutating it
+    // in place avoids invalidating the hidden overview on every focus event.
+    focusOrder.splice(0, focusOrder.length);
+    for (const address of order)
+      focusOrder.push(address);
+  }
+
+  function recordFocusedAddress(address) {
+    const focused = normalizedAddress(address);
+    if (focused.length === 0)
+      return;
+    replaceFocusOrder([focused].concat(focusOrder.filter(function(item) { return item !== focused; })));
+  }
+
   function finishStateRefresh() {
     if (!nativeRefreshPending)
       return;
 
     nativeRefreshPending = false;
     stateSettleTimer.stop();
-    windows = (Hyprland.toplevels.values || []).map(windowDataForToplevel);
-    monitors = (Hyprland.monitors.values || []).map(monitorData);
-    const current = Hyprland.activeToplevel
-      || (Hyprland.toplevels.values || []).find(function(toplevel) { return toplevel?.activated; });
-    activeWindow = current ? windowDataForToplevel(current) : {};
-
-    if (refreshForOpen) {
-      originalAddress = addressOf(activeWindow);
-      selectedAddress = originalAddress;
-      const hasSelection = advance(pendingAction);
-      const directions = pendingDirections;
-      pendingDirections = [];
-      for (const direction of directions)
-        moveSpatialSelection(direction);
-      refreshForOpen = false;
-      open = hasSelection;
-      if (commitWhenReady)
-        commit();
-    } else {
-      refreshForOpen = false;
-    }
+    const selection = selectedAddress;
+    snapshotState();
+    if (sessionActive && windowByAddress(selection))
+      selectedAddress = selection;
   }
 
-  function refreshState(forOpen) {
-    refreshForOpen = forOpen;
+  function refreshState() {
     nativeRefreshPending = true;
     if ((Hyprland.toplevels.values || []).length === 0) {
       finishStateRefresh();
@@ -446,25 +486,25 @@ Scope {
   }
 
   function altTab(action) {
-    pendingAction = action || "next";
-    if (!open) {
-      commitWhenReady = false;
-      refreshState(true);
-    } else {
-      advance(pendingAction);
-      refreshTimer.restart();
-    }
-  }
-
-  function commit() {
-    if (!open) {
-      if (refreshForOpen)
-        commitWhenReady = true;
+    const requestedAction = action || "next";
+    if (!sessionActive) {
+      snapshotState();
+      originalAddress = addressOf(activeWindow);
+      selectedAddress = originalAddress;
+      if (!advance(requestedAction))
+        return;
+      sessionActive = true;
+      presentationTimer.restart();
       return;
     }
+
+    advance(requestedAction);
+  }
+
+  function commitSelection() {
     const address = selectedAddress;
-    commitWhenReady = false;
-    pendingDirections = [];
+    presentationTimer.stop();
+    sessionActive = false;
     open = false;
     draggingAddress = "";
     dropWorkspace = 0;
@@ -473,9 +513,15 @@ Scope {
       hyprland.focusWindow(address);
   }
 
+  function commit() {
+    if (!sessionActive)
+      return;
+    commitSelection();
+  }
+
   function cancel() {
-    commitWhenReady = false;
-    pendingDirections = [];
+    presentationTimer.stop();
+    sessionActive = false;
     open = false;
     selectedAddress = originalAddress;
     draggingAddress = "";
@@ -522,7 +568,20 @@ Scope {
   Timer {
     id: refreshTimer
     interval: 160
-    onTriggered: root.refreshState(false)
+    onTriggered: root.refreshState()
+  }
+
+  Timer {
+    id: presentationTimer
+    // A tap switches immediately without ever constructing the overview.
+    // Holding Alt presents the visual navigator after the tap/hold boundary.
+    interval: 70
+    onTriggered: {
+      if (!root.sessionActive)
+        return;
+      root.open = true;
+      root.refreshState();
+    }
   }
 
   Timer {
@@ -548,10 +607,15 @@ Scope {
     }
   }
 
-  function canUnload() {
-    return !open && !refreshForOpen && !commitWhenReady && pendingDirections.length === 0
-      && !nativeRefreshPending && !stateSettleTimer.running && draggingAddress.length === 0;
+  Connections {
+    target: Hyprland
+
+    function onActiveToplevelChanged() {
+      root.recordFocusedAddress(Hyprland.activeToplevel?.address || "");
+    }
   }
+
+  Component.onCompleted: snapshotState()
 
   PanelWindow {
     screen: shellConfig.screen
@@ -1032,9 +1096,12 @@ Scope {
       id: previewLoader
       anchors.fill: parent
       active: root.open && root.toplevelForAddress(tile.address) !== null
+      asynchronous: true
       sourceComponent: ScreencopyView {
         captureSource: root.toplevelForAddress(tile.address)
-        live: root.open
+        // Each preview needs a current snapshot, not a continuously captured
+        // video stream for every window in the overview.
+        live: false
         constraintSize: Qt.size(Math.max(1, width), Math.max(1, height))
       }
     }

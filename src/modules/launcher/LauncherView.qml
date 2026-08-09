@@ -63,6 +63,7 @@ Scope {
 
   function openLauncher() {
     pendingFocusTarget = null;
+    surfaceTransition.exitSpeedMultiplier = 1;
     open = true;
     mode = "launch";
     selectedIndex = 0;
@@ -487,6 +488,7 @@ Scope {
     if (address.length === 0)
       return false;
     pendingFocusTarget = { kind: "window", address: address };
+    surfaceTransition.exitSpeedMultiplier = 5;
     closeLauncher();
     return true;
   }
@@ -504,6 +506,7 @@ Scope {
       tabId: tabId,
       windowId: windowId
     };
+    surfaceTransition.exitSpeedMultiplier = 5;
     closeLauncher();
     return true;
   }
