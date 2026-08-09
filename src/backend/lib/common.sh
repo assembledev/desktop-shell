@@ -110,26 +110,3 @@ ensure_hypr_env() {
     done
   fi
 }
-
-desktop_shell_ipc_call() {
-  target="$1"
-  method="$2"
-  shift 2
-
-  if quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml call "$target" "$method" "$@" >/dev/null 2>&1; then
-    return 0
-  fi
-
-  systemctl --user start desktop-shell.service
-  attempt=0
-  while [ "$attempt" -lt 20 ]; do
-    sleep 0.1
-    if quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml call "$target" "$method" "$@" >/dev/null 2>&1; then
-      return 0
-    fi
-    attempt=$((attempt + 1))
-  done
-
-  printf 'desktop-shell: IPC target %s.%s did not become ready\n' "$target" "$method" >&2
-  return 1
-}

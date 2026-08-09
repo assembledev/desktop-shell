@@ -2,6 +2,133 @@
 
 set -eu
 
+desktop_shell_ipc_call() {
+  target="$1"
+  method="$2"
+  shift 2
+
+  if quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml call "$target" "$method" "$@" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  systemctl --user start desktop-shell.service
+  attempt=0
+  while [ "$attempt" -lt 20 ]; do
+    sleep 0.1
+    if quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml call "$target" "$method" "$@" >/dev/null 2>&1; then
+      return 0
+    fi
+    attempt=$((attempt + 1))
+  done
+
+  printf 'desktop-shell: IPC target %s.%s did not become ready\n' "$target" "$method" >&2
+  return 1
+}
+
+# Surface commands are latency-sensitive and need neither config parsing nor
+# the backend libraries. Dispatch them before the heavyweight backend setup;
+# desktop_shell_ipc_call still starts the service and retries when necessary.
+case "${1:-}" in
+  toggle | open | close)
+    if [ "$#" -eq 1 ]; then
+      desktop_shell_ipc_call controlCenter "$1"
+      exit
+    fi
+    ;;
+  wifi-page)
+    if [ "$#" -eq 1 ]; then
+      desktop_shell_ipc_call controlCenter wifiPage
+      exit
+    fi
+    ;;
+  bluetooth-page)
+    if [ "$#" -eq 1 ]; then
+      desktop_shell_ipc_call controlCenter bluetoothPage
+      exit
+    fi
+    ;;
+  launcher)
+    method="${2:-toggle}"
+    if [ "$#" -le 2 ]; then
+      case "$method" in
+        open | close | toggle | focus)
+          desktop_shell_ipc_call launcher "$method"
+          exit
+          ;;
+      esac
+    fi
+    ;;
+  cheatsheet | lock-preview)
+    method="${2:-toggle}"
+    if [ "$#" -le 2 ]; then
+      case "$method" in
+        open | close | toggle)
+          desktop_shell_ipc_call "${1/lock-preview/lockPreview}" "$method"
+          exit
+          ;;
+      esac
+    fi
+    ;;
+  clipboard)
+    method="${2:-toggle}"
+    if [ "$#" -le 2 ]; then
+      case "$method" in
+        open | close | toggle)
+          desktop_shell_ipc_call clipboardHistory "$method"
+          exit
+          ;;
+      esac
+    fi
+    ;;
+  pick)
+    if [ "$#" -eq 1 ]; then
+      desktop_shell_ipc_call wallpaperPicker pick
+      exit
+    fi
+    ;;
+  wallpaper-close)
+    if [ "$#" -eq 1 ]; then
+      desktop_shell_ipc_call wallpaperPicker close
+      exit
+    fi
+    ;;
+  bar)
+    if [ "$#" -eq 2 ]; then
+      case "${2:-}" in
+        calendar)
+          desktop_shell_ipc_call calendar toggle
+          exit
+          ;;
+        show)
+          desktop_shell_ipc_call desktopBar reveal
+          exit
+          ;;
+        hide)
+          desktop_shell_ipc_call desktopBar conceal
+          exit
+          ;;
+      esac
+    fi
+    ;;
+  ipc)
+    case "${2:-}" in
+      list)
+        if [ "$#" -eq 2 ]; then
+          exec quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml show
+        fi
+        ;;
+      call)
+        if [ "$#" -ge 4 ]; then
+          target="$3"
+          method="$4"
+          shift 4
+          exec quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml call "$target" "$method" "$@"
+        fi
+        ;;
+    esac
+    ;;
+esac
+
 # Alt-Tab is a latency-sensitive IPC path and does not consume shell config.
 # Try it before loading the full backend; fall through on open failures so the
 # regular service-start retry still applies.

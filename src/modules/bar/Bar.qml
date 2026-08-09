@@ -116,6 +116,26 @@ Scope {
     ? 10 + Number(portraitFixedStatusRow.implicitWidth || 0) + portraitTrayStatusGap
     : 15 + Number(rightStatusRow.implicitWidth || 0) + trayStatusGap
 
+  MotionTransition {
+    id: barTransition
+    requested: root.barOpen
+  }
+
+  MotionTransition {
+    id: trayShelfTransition
+    requested: root.barOpen && root.trayShelfOpen && root.trayOverflowCount > 0
+  }
+
+  MotionTransition {
+    id: batteryAnalysisTransition
+    requested: root.battery.available && root.batteryAnalysisOpen && root.barOpen
+  }
+
+  MotionTransition {
+    id: powerMenuTransition
+    requested: root.powerMenuOpen
+  }
+
   function parseJson(text, fallback) {
     const rawText = String(text || "").trim();
     if (!rawText)
@@ -571,15 +591,12 @@ Scope {
       anchors.left: parent.left
       anchors.right: parent.right
       height: root.barHeight
-      y: root.barOpen ? 0 : -root.barHeight
-      opacity: root.barOpen ? 1 : 0
+      y: -root.barHeight * (1 - barTransition.progress)
+      opacity: barTransition.progress
       color: theme.surfaceBar
       border.color: "transparent"
       border.width: 0
       clip: true
-
-      Behavior on y { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
-      Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
       Item {
         anchors.fill: parent
@@ -804,20 +821,31 @@ Scope {
             }
 
             Text {
+              id: powerIcon
               Layout.leftMargin: 2
               Layout.rightMargin: 0
               Layout.preferredWidth: 32
               text: ""
-              color: theme.red
+              color: powerMouse.containsMouse || root.powerMenuOpen ? theme.brightRed : theme.red
               font.family: theme.fontFamily
               font.pixelSize: 21
               font.bold: true
               horizontalAlignment: Text.AlignHCenter
               verticalAlignment: Text.AlignVCenter
               topPadding: root.textOpticalYOffset
+              scale: powerMouse.pressed ? 0.86 : (powerMouse.containsMouse ? 1.08 : 1)
+
+              Behavior on color {
+                MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+              }
+              Behavior on scale {
+                MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+              }
 
               MouseArea {
+                id: powerMouse
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.powerMenuOpen = !root.powerMenuOpen
               }
@@ -951,21 +979,32 @@ Scope {
             }
 
             Text {
+              id: portraitPowerIcon
               Layout.leftMargin: 2
               Layout.rightMargin: 0
               Layout.preferredWidth: 32
               Layout.preferredHeight: root.portraitPrimaryHeight
               text: ""
-              color: theme.red
+              color: portraitPowerMouse.containsMouse || root.powerMenuOpen ? theme.brightRed : theme.red
               font.family: theme.fontFamily
               font.pixelSize: 21
               font.bold: true
               horizontalAlignment: Text.AlignHCenter
               verticalAlignment: Text.AlignVCenter
               topPadding: root.textOpticalYOffset
+              scale: portraitPowerMouse.pressed ? 0.86 : (portraitPowerMouse.containsMouse ? 1.08 : 1)
+
+              Behavior on color {
+                MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+              }
+              Behavior on scale {
+                MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+              }
 
               MouseArea {
+                id: portraitPowerMouse
                 anchors.fill: parent
+                hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: root.powerMenuOpen = !root.powerMenuOpen
               }
@@ -1087,7 +1126,7 @@ Scope {
   PanelWindow {
     id: trayShelfWindow
     screen: shellConfig.screen
-    visible: root.barOpen && root.trayShelfOpen && root.trayOverflowCount > 0
+    visible: trayShelfTransition.presented
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:trayShelf"
@@ -1116,12 +1155,12 @@ Scope {
       color: theme.surfaceGlassStrong
       border.color: Qt.alpha(theme.borderSubtle, 0.68)
       border.width: 1
-      opacity: trayShelfWindow.visible ? 1 : 0
-      scale: trayShelfWindow.visible ? 1 : 0.96
+      opacity: trayShelfTransition.progress
+      scale: 0.9 + trayShelfTransition.progress * 0.1
       transformOrigin: Item.TopRight
-
-      Behavior on opacity { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
-      Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+      transform: Translate {
+        y: (1 - trayShelfTransition.progress) * -10
+      }
 
       HoverHandler {
         onHoveredChanged: {
@@ -1151,7 +1190,7 @@ Scope {
   PanelWindow {
     id: batteryAnalysisWindow
     screen: shellConfig.screen
-    visible: root.battery.available && root.batteryAnalysisOpen && root.barOpen
+    visible: batteryAnalysisTransition.presented
     color: "transparent"
     exclusiveZone: 0
     implicitWidth: 250
@@ -1180,11 +1219,12 @@ Scope {
       color: theme.surfaceGlassStrong
       border.color: Qt.alpha(theme.borderSubtle, 0.68)
       border.width: 1
-      opacity: batteryAnalysisWindow.visible ? 1 : 0
-      scale: batteryAnalysisWindow.visible ? 1 : 0.97
-
-      Behavior on opacity { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
-      Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+      opacity: batteryAnalysisTransition.progress
+      scale: 0.9 + batteryAnalysisTransition.progress * 0.1
+      transformOrigin: Item.TopRight
+      transform: Translate {
+        y: (1 - batteryAnalysisTransition.progress) * -10
+      }
 
       MouseArea {
         anchors.fill: parent
@@ -1239,7 +1279,7 @@ Scope {
   PanelWindow {
     id: powerMenuWindow
     screen: shellConfig.screen
-    visible: root.powerMenuOpen
+    visible: powerMenuTransition.presented
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:powerMenu"
@@ -1270,6 +1310,7 @@ Scope {
 
       MouseArea {
         anchors.fill: parent
+        enabled: root.powerMenuOpen
         onClicked: root.powerMenuOpen = false
       }
 
@@ -1285,11 +1326,12 @@ Scope {
         color: theme.surfaceGlassStrong
         border.color: Qt.alpha(theme.borderSubtle, 0.62)
         border.width: 1
-        opacity: root.powerMenuOpen ? 1 : 0
-        scale: root.powerMenuOpen ? 1 : 0.96
-
-        Behavior on opacity { NumberAnimation { duration: 110; easing.type: Easing.OutCubic } }
-        Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+        opacity: powerMenuTransition.progress
+        scale: 0.9 + powerMenuTransition.progress * 0.1
+        transformOrigin: Item.TopRight
+        transform: Translate {
+          y: (1 - powerMenuTransition.progress) * -10
+        }
 
         MouseArea {
           anchors.fill: parent
@@ -1369,6 +1411,11 @@ Scope {
     Layout.preferredHeight: targetHeight
     color: "transparent"
     radius: 0
+    scale: wsPointer.pressed ? 0.94 : (wsPointer.containsMouse ? 1.04 : 1)
+
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     Text {
       id: wsText
@@ -1380,6 +1427,13 @@ Scope {
       font.family: theme.fontFamily
       font.pixelSize: 16
       font.bold: true
+
+      Behavior on color {
+        MotionColorAnimation { role: MotionNumberAnimation.FocusTravel }
+      }
+      Behavior on opacity {
+        MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      }
     }
 
     Rectangle {
@@ -1391,11 +1445,19 @@ Scope {
       radius: 2
       color: wsText.color
       opacity: wsButton.active ? 1 : wsButton.inactiveOpacity
-      Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+
+      Behavior on width {
+        MotionNumberAnimation {
+          role: MotionNumberAnimation.FocusTravel
+          speedMultiplier: 5
+        }
+      }
     }
 
     MouseArea {
+      id: wsPointer
       anchors.fill: parent
+      hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: wsButton.clicked()
     }
@@ -1422,6 +1484,11 @@ Scope {
       id: content
       anchors.centerIn: parent
       spacing: 5
+      scale: segmentMouse.pressed ? 0.92 : (segment.hovered ? 1.035 : 1)
+
+      Behavior on scale {
+        MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      }
 
       Text {
         text: segment.icon
@@ -1610,6 +1677,7 @@ Scope {
     Layout.rightMargin: 2
 
     Text {
+      id: notificationIcon
       anchors.centerIn: parent
       anchors.verticalCenterOffset: root.textOpticalYOffset
       text: notif.icon
@@ -1617,6 +1685,11 @@ Scope {
       font.family: theme.fontFamily
       font.pixelSize: 19
       font.bold: true
+      scale: notificationMouse.pressed ? 0.88 : (notificationMouse.containsMouse ? 1.06 : 1)
+
+      Behavior on scale {
+        MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      }
     }
 
     Rectangle {
@@ -1632,7 +1705,9 @@ Scope {
     }
 
     MouseArea {
+      id: notificationMouse
       anchors.fill: parent
+      hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: notif.clicked()
     }
@@ -1648,6 +1723,11 @@ Scope {
     hoverEnabled: true
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     cursorShape: Qt.PointingHandCursor
+    scale: pressed ? 0.86 : (containsMouse ? 1.08 : 1)
+
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     function openMenu() {
       const point = trayIcon.mapToItem(null, trayIcon.width / 2, trayIcon.height);
@@ -1698,7 +1778,17 @@ Scope {
     border.color: root.trayShelfPinned ? Qt.alpha(theme.blue, 0.72) : "transparent"
     border.width: 1
 
-    Behavior on color { ColorAnimation { duration: 100 } }
+    scale: overflowMouse.pressed ? 0.9 : (overflow.hovered ? 1.04 : 1)
+
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on border.color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     Item {
       anchors.fill: parent
@@ -1763,6 +1853,14 @@ Scope {
     color: powerHover.containsMouse ? (danger ? Qt.alpha(theme.red, 0.14) : theme.surfaceAccent) : "transparent"
     border.color: "transparent"
     border.width: 0
+    scale: powerHover.pressed ? 0.97 : 1
+
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     RowLayout {
       anchors.fill: parent
@@ -1775,6 +1873,10 @@ Scope {
         Layout.preferredHeight: 28
         radius: 8
         color: Qt.alpha(action.accent, powerHover.containsMouse ? 0.25 : 0.15)
+
+        Behavior on color {
+          MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+        }
 
         Text {
           anchors.centerIn: parent

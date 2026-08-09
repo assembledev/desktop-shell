@@ -16,6 +16,10 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  MotionTransition {
+    id: surfaceTransition
+    requested: root.open
+  }
 
   property string hotkeysPath: Quickshell.env("DESKTOP_SHELL_HOTKEYS_JSON")
   property bool open: false
@@ -275,13 +279,15 @@ Scope {
   PanelWindow {
     screen: shellConfig.screen
     id: window
-    visible: root.open
+    visible: surfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
 
     WlrLayershell.namespace: "quickshell:cheatsheet"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: root.open
+      ? WlrKeyboardFocus.Exclusive
+      : WlrKeyboardFocus.None
 
     anchors {
       top: true
@@ -293,9 +299,11 @@ Scope {
     Rectangle {
       anchors.fill: parent
       color: theme.surfaceScrim
+      opacity: surfaceTransition.progress
 
       MouseArea {
         anchors.fill: parent
+        enabled: root.open
         onClicked: root.closeSheet()
       }
     }
@@ -311,6 +319,11 @@ Scope {
       border.color: theme.borderSubtle
       border.width: 1
       clip: true
+      opacity: surfaceTransition.progress
+      scale: 0.95 + surfaceTransition.progress * 0.05
+      transform: Translate {
+        y: (1 - surfaceTransition.progress) * 20
+      }
 
       MouseArea {
         anchors.fill: parent
@@ -322,6 +335,10 @@ Scope {
         anchors.fill: parent
         anchors.margins: 18
         spacing: 12
+        opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.16) / 0.84))
+        transform: Translate {
+          y: (1 - body.opacity) * 8
+        }
 
         RowLayout {
           id: header

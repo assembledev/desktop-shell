@@ -19,6 +19,10 @@ Scope {
 
   ShellConfig { id: shellConfig }
   HyprlandAdapter { id: hyprland }
+  MotionTransition {
+    id: surfaceTransition
+    requested: root.open
+  }
 
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
   property bool open: false
@@ -665,13 +669,15 @@ Scope {
   PanelWindow {
     id: window
     screen: shellConfig.screen
-    visible: root.open
+    visible: surfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
 
     WlrLayershell.namespace: "quickshell:launcher"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: root.open
+      ? WlrKeyboardFocus.Exclusive
+      : WlrKeyboardFocus.None
 
     anchors {
       top: true
@@ -683,10 +689,12 @@ Scope {
     Rectangle {
       anchors.fill: parent
       color: theme.surfaceScrim
+      opacity: surfaceTransition.progress
     }
 
     MouseArea {
       anchors.fill: parent
+      enabled: root.open
       onClicked: root.closeLauncher()
     }
 
@@ -704,12 +712,15 @@ Scope {
       border.width: 1
       clip: true
 
-      scale: root.open ? 1 : 0.985
-      opacity: root.open ? 1 : 0
+      scale: 0.955 + surfaceTransition.progress * 0.045
+      opacity: surfaceTransition.progress
+      transform: Translate {
+        y: (1 - surfaceTransition.progress) * 20
+      }
 
-      Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-      Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-      Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+      Behavior on height {
+        MotionNumberAnimation { role: MotionNumberAnimation.Content }
+      }
 
       MouseArea {
         anchors.fill: parent
@@ -721,6 +732,10 @@ Scope {
         anchors.fill: parent
         anchors.margins: 16
         spacing: 10
+        opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.16) / 0.84))
+        transform: Translate {
+          y: (1 - content.opacity) * 8
+        }
 
         Rectangle {
           Layout.fillWidth: true
@@ -827,6 +842,82 @@ Scope {
           model: root.filtered
           currentIndex: root.selectedIndex
           interactive: contentHeight > height
+          highlightFollowsCurrentItem: false
+
+          onCurrentIndexChanged: {
+            if (currentIndex >= 0)
+              Qt.callLater(function() { list.positionViewAtIndex(list.currentIndex, ListView.Contain); });
+          }
+
+          highlight: Rectangle {
+            width: list.width
+            height: list.currentItem?.height || 0
+            y: list.currentItem?.y || 0
+            radius: 10
+            color: Qt.alpha(root.mode === "focus" ? root.green : root.yellow, root.mode === "focus" ? 0.105 : 0.065)
+            border.color: Qt.alpha(root.mode === "focus" ? root.green : root.yellow, 0.42)
+            border.width: 1
+            z: 1
+
+            Behavior on y {
+              MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+            }
+            Behavior on height {
+              MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+            }
+            Behavior on color {
+              MotionColorAnimation { role: MotionNumberAnimation.Content }
+            }
+            Behavior on border.color {
+              MotionColorAnimation { role: MotionNumberAnimation.Content }
+            }
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.top: parent.top
+              anchors.bottom: parent.bottom
+              width: 3
+              radius: 2
+              color: root.mode === "focus" ? root.green : root.yellow
+            }
+          }
+
+          add: Transition {
+            ParallelAnimation {
+              MotionNumberAnimation {
+                property: "opacity"
+                from: 0
+                to: 1
+                role: MotionNumberAnimation.Content
+              }
+              MotionNumberAnimation {
+                property: "x"
+                from: 12
+                to: 0
+                role: MotionNumberAnimation.Content
+              }
+            }
+          }
+          remove: Transition {
+            ParallelAnimation {
+              MotionNumberAnimation {
+                property: "opacity"
+                to: 0
+                role: MotionNumberAnimation.SurfaceExit
+              }
+              MotionNumberAnimation {
+                property: "x"
+                to: -8
+                role: MotionNumberAnimation.SurfaceExit
+              }
+            }
+          }
+          displaced: Transition {
+            MotionNumberAnimation {
+              properties: "x,y"
+              role: MotionNumberAnimation.FocusTravel
+            }
+          }
 
           delegate: ResultRow {
             required property int index
@@ -964,7 +1055,9 @@ Scope {
       radius: 1
       color: switchText.accent
 
-      Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+      Behavior on width {
+        MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+      }
     }
   }
 
@@ -1006,16 +1099,20 @@ Scope {
 
     height: focusMode ? 64 : 70
     radius: 10
-    color: selected
-      ? Qt.alpha(root.green, focusMode ? 0.105 : 0.065)
-      : (rowHover.containsMouse
-          ? theme.surfaceAccent
-          : (targetActive ? Qt.alpha(root.blue, 0.035) : "transparent"))
-    border.color: selected ? Qt.alpha(row.accent, 0.42) : "transparent"
+    color: !selected && rowHover.containsMouse
+      ? theme.surfaceAccent
+      : (targetActive ? Qt.alpha(root.blue, 0.035) : "transparent")
+    border.color: "transparent"
     border.width: 1
+    scale: rowHover.pressed ? 0.985 : 1
+    z: 2
 
-    Behavior on color { ColorAnimation { duration: 110 } }
-    Behavior on border.color { ColorAnimation { duration: 110 } }
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     MouseArea {
       id: rowHover
@@ -1133,14 +1230,5 @@ Scope {
       }
     }
 
-    Rectangle {
-      anchors.left: parent.left
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      width: row.selected ? 3 : 0
-      radius: 2
-      color: row.accent
-      Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-    }
   }
 }

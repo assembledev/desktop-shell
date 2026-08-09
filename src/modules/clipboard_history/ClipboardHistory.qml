@@ -16,6 +16,10 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  MotionTransition {
+    id: surfaceTransition
+    requested: root.open
+  }
 
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
   property bool open: false
@@ -168,13 +172,15 @@ Scope {
   PanelWindow {
     screen: shellConfig.screen
     id: window
-    visible: root.open
+    visible: surfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
 
     WlrLayershell.namespace: "quickshell:clipboardHistory"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: root.open
+      ? WlrKeyboardFocus.Exclusive
+      : WlrKeyboardFocus.None
 
     anchors {
       top: true
@@ -186,10 +192,12 @@ Scope {
     Rectangle {
       anchors.fill: parent
       color: theme.surfaceScrim
+      opacity: surfaceTransition.progress
     }
 
     MouseArea {
       anchors.fill: parent
+      enabled: root.open
       onClicked: root.closePicker()
     }
 
@@ -205,6 +213,11 @@ Scope {
       border.color: theme.borderSubtle
       border.width: 1
       clip: true
+      opacity: surfaceTransition.progress
+      scale: 0.95 + surfaceTransition.progress * 0.05
+      transform: Translate {
+        y: (1 - surfaceTransition.progress) * 20
+      }
 
       MouseArea {
         anchors.fill: parent
@@ -215,6 +228,7 @@ Scope {
         anchors.fill: parent
         anchors.margins: 16
         spacing: 12
+        opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.14) / 0.86))
 
         RowLayout {
           Layout.fillWidth: true
@@ -303,6 +317,76 @@ Scope {
           clip: true
           spacing: 4
           model: filteredModel
+          highlightFollowsCurrentItem: false
+
+          onCurrentIndexChanged: {
+            if (currentIndex >= 0)
+              Qt.callLater(function() { list.positionViewAtIndex(list.currentIndex, ListView.Contain); });
+          }
+
+          highlight: Rectangle {
+            width: list.width
+            height: list.currentItem?.height || 0
+            y: list.currentItem?.y || 0
+            radius: 10
+            color: theme.surfaceMuted
+            border.width: 1
+            border.color: Qt.alpha(theme.blue, 0.46)
+            z: 1
+
+            Behavior on y {
+              MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+            }
+            Behavior on height {
+              MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+            }
+
+            Rectangle {
+              anchors.left: parent.left
+              anchors.top: parent.top
+              anchors.bottom: parent.bottom
+              width: 3
+              radius: 2
+              color: theme.blue
+            }
+          }
+
+          add: Transition {
+            ParallelAnimation {
+              MotionNumberAnimation {
+                property: "opacity"
+                from: 0
+                to: 1
+                role: MotionNumberAnimation.Content
+              }
+              MotionNumberAnimation {
+                property: "x"
+                from: 12
+                to: 0
+                role: MotionNumberAnimation.Content
+              }
+            }
+          }
+          remove: Transition {
+            ParallelAnimation {
+              MotionNumberAnimation {
+                property: "opacity"
+                to: 0
+                role: MotionNumberAnimation.SurfaceExit
+              }
+              MotionNumberAnimation {
+                property: "x"
+                to: -8
+                role: MotionNumberAnimation.SurfaceExit
+              }
+            }
+          }
+          displaced: Transition {
+            MotionNumberAnimation {
+              properties: "x,y"
+              role: MotionNumberAnimation.FocusTravel
+            }
+          }
 
           Keys.onEscapePressed: root.closePicker()
           Keys.onReturnPressed: root.copyItem(root.currentItem())
@@ -340,13 +424,18 @@ Scope {
             width: ListView.view.width
             height: image ? 172 : 78
             radius: 10
-            color: selected ? theme.surfaceMuted : rowMouse.containsMouse ? theme.surfaceAccent : "transparent"
+            color: !selected && rowMouse.containsMouse ? theme.surfaceAccent : "transparent"
             border.width: 1
-            border.color: selected ? Qt.alpha(theme.blue, 0.46) : "transparent"
+            border.color: "transparent"
             clip: true
+            scale: rowMouse.pressed ? 0.99 : 1
+            z: 2
 
             Behavior on color {
-              ColorAnimation { duration: 120 }
+              MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+            }
+            Behavior on scale {
+              MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
             }
 
             MouseArea {
@@ -458,14 +547,6 @@ Scope {
               }
             }
 
-            Rectangle {
-              anchors.left: parent.left
-              anchors.top: parent.top
-              anchors.bottom: parent.bottom
-              width: item.selected ? 3 : 0
-              color: theme.blue
-              Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-            }
           }
         }
 
@@ -501,6 +582,17 @@ Scope {
     color: mouse.pressed ? theme.selectedBg : mouse.containsMouse ? theme.surfaceAccent : "transparent"
     border.width: 1
     border.color: mouse.containsMouse ? (danger ? Qt.alpha(theme.red, 0.45) : theme.borderSubtle) : "transparent"
+    scale: mouse.pressed ? 0.9 : 1
+
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on border.color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     Text {
       anchors.centerIn: parent

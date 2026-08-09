@@ -52,6 +52,9 @@ Item {
 
   implicitWidth: expanded ? expandedWidth : compactWidth
   implicitHeight: targetHeight
+  clip: true
+  scale: pointer.pressed ? 0.965 : (root.hovered ? 1.018 : 1)
+  transformOrigin: Item.Center
   Layout.preferredWidth: implicitWidth
   Layout.minimumWidth: implicitWidth
   Layout.maximumWidth: implicitWidth
@@ -69,7 +72,14 @@ Item {
   }
 
   Behavior on implicitWidth {
-    NumberAnimation { duration: 170; easing.type: Easing.OutCubic }
+    MotionNumberAnimation {
+      role: MotionNumberAnimation.FocusTravel
+      speedMultiplier: 5
+    }
+  }
+
+  Behavior on scale {
+    MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
   }
 
   Rectangle {
@@ -79,7 +89,9 @@ Item {
     radius: 9
     color: root.hovered ? root.hoverColor : "transparent"
 
-    Behavior on color { ColorAnimation { duration: 100 } }
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
   }
 
   Rectangle {
@@ -91,6 +103,13 @@ Item {
     radius: 2
     color: root.active ? root.activeColor : root.textColor
     opacity: root.active ? 1 : 0.6
+
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on opacity {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
   }
 
   Item {
@@ -137,6 +156,31 @@ Item {
         mipmap: true
         source: root.iconSource(root.applications[index]?.icon)
         opacity: index === count - 1 ? 1 : 0.88
+
+        Behavior on x {
+          MotionNumberAnimation {
+            role: MotionNumberAnimation.FocusTravel
+            speedMultiplier: 5
+          }
+        }
+        Behavior on y {
+          MotionNumberAnimation {
+            role: MotionNumberAnimation.FocusTravel
+            speedMultiplier: 5
+          }
+        }
+        Behavior on width {
+          MotionNumberAnimation {
+            role: MotionNumberAnimation.FocusTravel
+            speedMultiplier: 5
+          }
+        }
+        Behavior on height {
+          MotionNumberAnimation {
+            role: MotionNumberAnimation.FocusTravel
+            speedMultiplier: 5
+          }
+        }
       }
     }
 
@@ -197,7 +241,6 @@ Item {
   }
 
   Text {
-    visible: root.expanded
     anchors.left: portrait.right
     anchors.leftMargin: 8
     anchors.right: parent.right
@@ -206,12 +249,16 @@ Item {
     anchors.verticalCenterOffset: 1
     text: root.displayTitle
     color: root.occupied ? root.textColor : root.mutedColor
-    opacity: root.occupied ? 1 : 0.74
+    opacity: root.expanded ? (root.occupied ? 1 : 0.74) : 0
     font.family: theme.fontFamily
     font.pixelSize: root.occupied ? 16 : 14
     font.bold: true
     elide: Text.ElideRight
     verticalAlignment: Text.AlignVCenter
+
+    Behavior on opacity {
+      MotionNumberAnimation { role: MotionNumberAnimation.Content }
+    }
   }
 
   MouseArea {

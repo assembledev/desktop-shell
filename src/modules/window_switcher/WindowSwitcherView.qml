@@ -16,6 +16,10 @@ Scope {
 
   ShellConfig { id: shellConfig }
   HyprlandAdapter { id: hyprland }
+  MotionTransition {
+    id: surfaceTransition
+    requested: root.open
+  }
 
   readonly property int configuredScrollingWorkspace: {
     const workspace = Number(Quickshell.env("DESKTOP_SHELL_SCROLLING_WORKSPACE"));
@@ -552,12 +556,14 @@ Scope {
   PanelWindow {
     screen: shellConfig.screen
     id: switcherWindow
-    visible: root.open
+    visible: surfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:windowSwitcher"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: root.open
+      ? WlrKeyboardFocus.OnDemand
+      : WlrKeyboardFocus.None
 
     anchors {
       top: true
@@ -570,6 +576,7 @@ Scope {
       id: switcherSurface
       anchors.fill: parent
       color: theme.surfaceScrim
+      opacity: surfaceTransition.progress
       focus: true
 
       onVisibleChanged: {
@@ -624,6 +631,10 @@ Scope {
         border.color: Qt.alpha(theme.borderSubtle, 0.58)
         border.width: 1
         clip: true
+        scale: 0.965 + surfaceTransition.progress * 0.035
+        transform: Translate {
+          y: (1 - surfaceTransition.progress) * 18
+        }
 
         ColumnLayout {
           id: overviewContent
@@ -804,11 +815,11 @@ Scope {
 
     Behavior on color {
       enabled: root.open
-      ColorAnimation { duration: 120 }
+      MotionColorAnimation { role: MotionNumberAnimation.FocusTravel }
     }
     Behavior on border.color {
       enabled: root.open
-      ColorAnimation { duration: 120 }
+      MotionColorAnimation { role: MotionNumberAnimation.FocusTravel }
     }
 
     DropArea {
@@ -978,13 +989,20 @@ Scope {
     border.color: selected ? theme.blue : (root.dropWindow === address ? theme.purple : Qt.alpha(theme.borderSubtle, 0.78))
     border.width: 1
     z: dragging ? 60 : (selected ? 10 : 2)
-    scale: dragging ? 1.04 : 1
+    scale: dragging ? 1.04 : (selected ? 1.018 : 1)
     clip: true
 
-    Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+    Behavior on scale {
+      enabled: root.open || dragging
+      MotionNumberAnimation {
+        role: tile.dragging
+          ? MotionNumberAnimation.Feedback
+          : MotionNumberAnimation.FocusTravel
+      }
+    }
     Behavior on border.color {
       enabled: root.open
-      ColorAnimation { duration: 120 }
+      MotionColorAnimation { role: MotionNumberAnimation.FocusTravel }
     }
 
     Drag.active: dragHandler.active

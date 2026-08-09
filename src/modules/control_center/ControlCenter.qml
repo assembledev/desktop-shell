@@ -18,6 +18,18 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  MotionTransition {
+    id: mainSurfaceTransition
+    requested: root.open
+  }
+  MotionTransition {
+    id: osdSurfaceTransition
+    requested: root.osdVisible
+  }
+  MotionTransition {
+    id: popupSurfaceTransition
+    requested: notificationPopupModel.count > 0
+  }
 
   WifiModel {
     id: wifi
@@ -29,6 +41,8 @@ Scope {
   property bool open: false
   property bool dnd: false
   property string page: "main"
+  property string displayedPage: "main"
+  property int pageDirection: 1
   readonly property bool wifiEnabled: wifi.enabled
   readonly property bool wifiConnected: wifi.connected
   readonly property string wifiSsid: wifi.ssid
@@ -104,6 +118,45 @@ Scope {
   property var inputDevices: []
   property var appStreams: []
   readonly property bool audioDetailsActive: open
+
+  SequentialAnimation {
+    id: pageTransition
+
+    ParallelAnimation {
+      MotionNumberAnimation {
+        target: pageLoader
+        property: "opacity"
+        to: 0
+        role: MotionNumberAnimation.SurfaceExit
+      }
+      MotionNumberAnimation {
+        target: pageLoader
+        property: "x"
+        to: -root.pageDirection * 18
+        role: MotionNumberAnimation.SurfaceExit
+      }
+    }
+    ScriptAction {
+      script: {
+        root.displayedPage = root.page;
+        pageLoader.x = root.pageDirection * 18;
+      }
+    }
+    ParallelAnimation {
+      MotionNumberAnimation {
+        target: pageLoader
+        property: "opacity"
+        to: 1
+        role: MotionNumberAnimation.Content
+      }
+      MotionNumberAnimation {
+        target: pageLoader
+        property: "x"
+        to: 0
+        role: MotionNumberAnimation.Content
+      }
+    }
+  }
 
   function clamp(value, minValue, maxValue) {
     return Math.max(minValue, Math.min(maxValue, value));
@@ -1277,6 +1330,16 @@ Scope {
     }
     if (page === "bluetooth" && open)
       beginBluetoothSession();
+
+    if (!open || !mainSurfaceTransition.presented) {
+      pageTransition.stop();
+      displayedPage = page;
+      pageLoader.opacity = 1;
+      pageLoader.x = 0;
+    } else {
+      pageDirection = page === "main" ? -1 : 1;
+      pageTransition.restart();
+    }
   }
 
   onOpenChanged: {
@@ -1823,7 +1886,7 @@ Scope {
   PanelWindow {
     id: mainWindow
     screen: shellConfig.screen
-    visible: root.open
+    visible: mainSurfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:controlCenter"
@@ -1839,9 +1902,10 @@ Scope {
       right: true
     }
 
-    Rectangle {
-      anchors.fill: parent
-      color: theme.surfaceScrim
+      Rectangle {
+        anchors.fill: parent
+        color: theme.surfaceScrim
+        opacity: mainSurfaceTransition.progress
 
       HoverHandler {
         id: controlCenterHover
@@ -1850,6 +1914,7 @@ Scope {
 
       MouseArea {
         anchors.fill: parent
+        enabled: root.open
         onClicked: root.open = false
       }
 
@@ -1866,9 +1931,10 @@ Scope {
         radius: 0
         clip: true
 
-        transform: Translate { x: root.open ? 0 : panel.width + 24 }
-        opacity: root.open ? 1 : 0
-        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+        transform: Translate {
+          x: (1 - mainSurfaceTransition.progress) * 48
+        }
+        opacity: 0.42 + mainSurfaceTransition.progress * 0.58
 
         Rectangle {
           anchors.left: parent.left
@@ -1890,18 +1956,23 @@ Scope {
           anchors.topMargin: 14
           anchors.bottomMargin: 16
           spacing: 12
+          opacity: Math.max(0, Math.min(1, (mainSurfaceTransition.progress - 0.12) / 0.88))
+          transform: Translate {
+            x: (1 - mainSurfaceTransition.progress) * 10
+          }
 
           ControlHeader {
             Layout.fillWidth: true
-            pageTitle: root.page === "wifi" ? "Wi-Fi" : (root.page === "bluetooth" ? "Bluetooth" : "Control")
-            backVisible: root.page !== "main"
+            pageTitle: root.displayedPage === "wifi" ? "Wi-Fi" : (root.displayedPage === "bluetooth" ? "Bluetooth" : "Control")
+            backVisible: root.displayedPage !== "main"
             onBack: root.page = "main"
           }
 
           Loader {
+            id: pageLoader
             Layout.fillWidth: true
             Layout.fillHeight: true
-            sourceComponent: root.page === "wifi" ? wifiPage : (root.page === "bluetooth" ? bluetoothPage : mainPage)
+            sourceComponent: root.displayedPage === "wifi" ? wifiPage : (root.displayedPage === "bluetooth" ? bluetoothPage : mainPage)
           }
         }
       }
@@ -1916,7 +1987,7 @@ Scope {
   PanelWindow {
     id: osdWindow
     screen: shellConfig.screen
-    visible: root.osdVisible
+    visible: osdSurfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:controlCenterOsd"
@@ -1942,9 +2013,14 @@ Scope {
       color: theme.surfaceGlassStrong
       border.color: theme.borderSubtle
       border.width: 1
-      opacity: root.osdVisible ? 1 : 0
-      Behavior on opacity { NumberAnimation { duration: 120 } }
-      Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+      opacity: osdSurfaceTransition.progress
+      scale: 0.96 + osdSurfaceTransition.progress * 0.04
+      transform: Translate {
+        y: (1 - osdSurfaceTransition.progress) * 18
+      }
+      Behavior on height {
+        MotionNumberAnimation { role: MotionNumberAnimation.Content }
+      }
 
       ColumnLayout {
         anchors.fill: parent
@@ -1972,7 +2048,7 @@ Scope {
   PanelWindow {
     id: popupWindow
     screen: shellConfig.screen
-    visible: notificationPopupModel.count > 0
+    visible: popupSurfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:notificationPopups"
@@ -1999,6 +2075,10 @@ Scope {
       anchors.right: parent.right
       anchors.margins: 14
       spacing: 10
+      opacity: popupSurfaceTransition.progress
+      transform: Translate {
+        x: (1 - popupSurfaceTransition.progress) * 32
+      }
 
       HoverHandler {
         id: popupKeyboardHover
@@ -2010,6 +2090,7 @@ Scope {
           required property var popupId
           item: root.popupData(popupId)
           onDismiss: root.dismissNotification(popupId)
+          onHide: root.hidePopup(popupId)
         }
       }
     }
@@ -2071,8 +2152,12 @@ Scope {
       color: theme.blue
       opacity: root.focusBarOpen ? 0.35 : 0.8
 
-      Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-      Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+      Behavior on height {
+        MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+      }
+      Behavior on opacity {
+        MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      }
     }
   }
 
@@ -3086,7 +3171,9 @@ Scope {
 
     }
 
-    Behavior on opacity { NumberAnimation { duration: 140 } }
+    Behavior on opacity {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
   }
 
   component ControlHeader: Rectangle {
@@ -3197,6 +3284,14 @@ Scope {
     color: active ? Qt.alpha(accent, 0.13) : commandHover.containsMouse ? theme.surfaceAccent : "transparent"
     border.color: "transparent"
     border.width: 0
+    scale: commandHover.pressed ? 0.97 : (commandHover.containsMouse ? 1.012 : 1)
+
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     RowLayout {
       anchors.fill: parent
@@ -3269,10 +3364,21 @@ Scope {
       return maximumWidth > 0 ? Math.min(maximumWidth, naturalWidth) : naturalWidth;
     }
     radius: 8
-    color: active ? theme.terminalBlue : theme.surfaceMuted
-    border.color: active ? theme.blue : theme.borderMuted
+    color: active ? theme.terminalBlue : (btnMouse.containsMouse ? theme.surfaceAccent : theme.surfaceMuted)
+    border.color: active ? theme.blue : (btnMouse.containsMouse ? theme.borderSubtle : theme.borderMuted)
     border.width: 1
     opacity: enabled ? 1 : 0.46
+    scale: btnMouse.pressed ? 0.94 : (btnMouse.containsMouse ? 1.025 : 1)
+
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on border.color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     RowLayout {
       id: contentRow
@@ -3310,6 +3416,7 @@ Scope {
     }
 
     MouseArea {
+      id: btnMouse
       anchors.fill: parent
       enabled: btn.enabled
       hoverEnabled: true
@@ -3326,6 +3433,11 @@ Scope {
     implicitWidth: 48
     implicitHeight: 30
     opacity: enabled ? 1 : 0.5
+    scale: radioMouse.pressed ? 0.92 : 1
+
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     Rectangle {
       id: radioSwitchTrack
@@ -3336,6 +3448,13 @@ Scope {
       color: radioSwitch.checked ? theme.terminalBlue : theme.surfaceMuted
       border.color: radioSwitch.checked ? theme.blue : theme.borderMuted
       border.width: 1
+
+      Behavior on color {
+        MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+      }
+      Behavior on border.color {
+        MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+      }
 
       Rectangle {
         id: radioSwitchThumb
@@ -3348,7 +3467,10 @@ Scope {
         opacity: radioSwitch.busy ? 0.55 : 1
 
         Behavior on x {
-          NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+          MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+        }
+        Behavior on color {
+          MotionColorAnimation { role: MotionNumberAnimation.FocusTravel }
         }
 
         SequentialAnimation on opacity {
@@ -3361,6 +3483,7 @@ Scope {
     }
 
     MouseArea {
+      id: radioMouse
       anchors.fill: parent
       enabled: radioSwitch.enabled
       hoverEnabled: true
@@ -3381,6 +3504,17 @@ Scope {
     color: active ? Qt.alpha(theme.blue, 0.16) : tileHover.containsMouse ? theme.surfaceAccent : "transparent"
     border.color: active ? Qt.alpha(theme.blue, 0.48) : tileHover.containsMouse ? theme.borderSubtle : "transparent"
     border.width: 1
+    scale: tileHover.pressed ? 0.975 : (tileHover.containsMouse ? 1.012 : 1)
+
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on border.color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     RowLayout {
       anchors.fill: parent
@@ -3420,10 +3554,16 @@ Scope {
       }
 
       Text {
+        id: tileChevron
         text: "›"
         color: tile.active ? theme.blue : theme.muted
         font.family: theme.fontFamily
         font.pixelSize: 17
+        scale: tileHover.containsMouse ? 1.16 : 1
+
+        Behavior on scale {
+          MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+        }
       }
     }
 
@@ -3442,7 +3582,9 @@ Scope {
       width: tile.active ? 3 : 0
       radius: 2
       color: theme.blue
-      Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+      Behavior on width {
+        MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+      }
     }
   }
 
@@ -3455,10 +3597,21 @@ Scope {
     implicitWidth: 34
     implicitHeight: 34
     radius: 8
-    color: active ? theme.terminalBlue : theme.surfaceMuted
-    border.color: active ? theme.blue : theme.borderMuted
+    color: active ? theme.terminalBlue : (iconMouse.containsMouse ? theme.surfaceAccent : theme.surfaceMuted)
+    border.color: active ? theme.blue : (iconMouse.containsMouse ? theme.borderSubtle : theme.borderMuted)
     border.width: 1
     opacity: enabled ? 1 : 0.46
+    scale: iconMouse.pressed ? 0.88 : (iconMouse.containsMouse ? 1.04 : 1)
+
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on border.color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+    }
 
     Text {
       anchors.centerIn: parent
@@ -3606,6 +3759,13 @@ Scope {
       height: parent.height
       radius: parent.radius
       color: parent.accent
+
+      Behavior on width {
+        MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+      }
+      Behavior on color {
+        MotionColorAnimation { role: MotionNumberAnimation.Content }
+      }
     }
   }
 
@@ -4187,6 +4347,13 @@ Scope {
       : Qt.alpha(theme.borderSubtle, 0.58)
     border.width: 1
 
+    Behavior on implicitHeight {
+      MotionNumberAnimation { role: MotionNumberAnimation.Content }
+    }
+    Behavior on border.color {
+      MotionColorAnimation { role: MotionNumberAnimation.Content }
+    }
+
     ColumnLayout {
       id: groupContent
       anchors.left: parent.left
@@ -4384,7 +4551,10 @@ Scope {
     readonly property bool persistent: root.notificationPopupPersistent(notification)
     readonly property bool hasDefaultAction: root.defaultNotificationAction(notification) !== null
     readonly property int actionBottomGap: actions.length > 0 ? 8 : 0
+    property bool closing: false
+    property bool dismissOnClose: false
     signal dismiss
+    signal hide
     Layout.fillWidth: true
     implicitHeight: Math.max(86, toastColumn.implicitHeight + 22 + actionBottomGap)
     radius: 12
@@ -4393,7 +4563,21 @@ Scope {
     border.width: 1
     opacity: 0
     x: 24
-    Behavior on y { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+    scale: 0.96
+    transformOrigin: Item.TopRight
+
+    function close(removeNotification) {
+      if (closing)
+        return;
+      closing = true;
+      dismissOnClose = removeNotification;
+      lifetime.stop();
+      hideAnim.start();
+    }
+
+    Behavior on y {
+      MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+    }
 
     Component.onCompleted: {
       lifetime.start(Number(item?.popupTime || Date.now()), Number(item?.pausedMs || 0));
@@ -4415,8 +4599,22 @@ Scope {
 
     ParallelAnimation {
       id: showAnim
-      NumberAnimation { target: toast; property: "opacity"; from: 0; to: 1; duration: 150; easing.type: Easing.OutCubic }
-      NumberAnimation { target: toast; property: "x"; from: 24; to: 0; duration: 180; easing.type: Easing.OutCubic }
+      MotionNumberAnimation { target: toast; property: "opacity"; from: 0; to: 1; role: MotionNumberAnimation.Content }
+      MotionNumberAnimation { target: toast; property: "x"; from: 32; to: 0; role: MotionNumberAnimation.Content }
+      MotionNumberAnimation { target: toast; property: "scale"; from: 0.96; to: 1; role: MotionNumberAnimation.Content }
+    }
+
+    ParallelAnimation {
+      id: hideAnim
+      MotionNumberAnimation { target: toast; property: "opacity"; to: 0; role: MotionNumberAnimation.SurfaceExit }
+      MotionNumberAnimation { target: toast; property: "x"; to: 40; role: MotionNumberAnimation.SurfaceExit }
+      MotionNumberAnimation { target: toast; property: "scale"; to: 0.97; role: MotionNumberAnimation.SurfaceExit }
+      onFinished: {
+        if (toast.dismissOnClose)
+          toast.dismiss();
+        else
+          toast.hide();
+      }
     }
 
     MouseArea {
@@ -4468,7 +4666,7 @@ Scope {
         IconButton {
           icon: ""
           tooltip: "Dismiss"
-          onClicked: toast.dismiss()
+          onClicked: toast.close(true)
         }
       }
 
@@ -4529,7 +4727,7 @@ Scope {
       hoverAccentColor: theme.purple
       onExpired: {
         if (toast.item?.id !== undefined)
-          root.hidePopup(toast.item.id);
+          toast.close(false);
       }
     }
 

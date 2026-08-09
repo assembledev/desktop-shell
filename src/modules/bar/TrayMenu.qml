@@ -54,6 +54,22 @@ Scope {
     id: theme
   }
 
+  MotionTransition {
+    id: surfaceTransition
+    requested: root.expanded
+    onDismissed: {
+      if (root.expanded || !root.rendered)
+        return;
+      const fromShelf = root.sourceFromShelf;
+      root.rendered = false;
+      root.trayItem = null;
+      root.sourceFromShelf = false;
+      root.menuStack = [];
+      root.pendingMenuStack = [];
+      root.closed(fromShelf);
+    }
+  }
+
   function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(value, Math.max(minimum, maximum)));
   }
@@ -67,7 +83,6 @@ Scope {
       return;
     }
 
-    closeTimer.stop();
     pageTransition.stop();
     navigating = false;
     trayItem = item;
@@ -98,16 +113,15 @@ Scope {
     pageTransition.stop();
     navigating = false;
     expanded = false;
-    closeTimer.restart();
   }
 
   function closeImmediately() {
     if (!rendered)
       return;
     const fromShelf = sourceFromShelf;
-    closeTimer.stop();
     pageTransition.stop();
     expanded = false;
+    surfaceTransition.snapDismissed();
     rendered = false;
     trayItem = null;
     sourceFromShelf = false;
@@ -157,40 +171,21 @@ Scope {
     }
   }
 
-  Timer {
-    id: closeTimer
-    interval: 130
-    repeat: false
-    onTriggered: {
-      if (root.expanded)
-        return;
-      const fromShelf = root.sourceFromShelf;
-      root.rendered = false;
-      root.trayItem = null;
-      root.sourceFromShelf = false;
-      root.menuStack = [];
-      root.pendingMenuStack = [];
-      root.closed(fromShelf);
-    }
-  }
-
   SequentialAnimation {
     id: pageTransition
 
     ParallelAnimation {
-      NumberAnimation {
+      MotionNumberAnimation {
         target: menuPage
         property: "opacity"
         to: 0
-        duration: 65
-        easing.type: Easing.InCubic
+        role: MotionNumberAnimation.SurfaceExit
       }
-      NumberAnimation {
+      MotionNumberAnimation {
         target: menuPage
         property: "x"
         to: -root.navigationDirection * 10
-        duration: 80
-        easing.type: Easing.InCubic
+        role: MotionNumberAnimation.SurfaceExit
       }
     }
 
@@ -202,19 +197,17 @@ Scope {
     }
 
     ParallelAnimation {
-      NumberAnimation {
+      MotionNumberAnimation {
         target: menuPage
         property: "opacity"
         to: 1
-        duration: 105
-        easing.type: Easing.OutCubic
+        role: MotionNumberAnimation.Content
       }
-      NumberAnimation {
+      MotionNumberAnimation {
         target: menuPage
         property: "x"
         to: 0
-        duration: 135
-        easing.type: Easing.OutCubic
+        role: MotionNumberAnimation.Content
       }
     }
 
@@ -229,7 +222,7 @@ Scope {
     id: menuWindow
 
     screen: root.shellScreen
-    visible: root.rendered
+    visible: surfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:trayMenu"
@@ -246,10 +239,11 @@ Scope {
     FocusScope {
       id: inputLayer
       anchors.fill: parent
-      focus: root.rendered
+      focus: root.expanded
 
       MouseArea {
         anchors.fill: parent
+        enabled: root.expanded
         onClicked: root.closeMenu()
       }
 
@@ -257,7 +251,7 @@ Scope {
         id: menuCard
 
         x: root.menuX
-        y: root.menuTop + (root.expanded ? 0 : -5)
+        y: root.menuTop - (1 - surfaceTransition.progress) * 12
         width: root.menuWidth
         height: root.menuHeight
         radius: 14
@@ -265,21 +259,12 @@ Scope {
         border.color: Qt.alpha(theme.borderSubtle, 0.78)
         border.width: 1
         clip: true
-        opacity: root.expanded ? 1 : 0
-        scale: root.expanded ? 1 : 0.965
+        opacity: surfaceTransition.progress
+        scale: 0.9 + surfaceTransition.progress * 0.1
         transformOrigin: Item.TopRight
 
-        Behavior on y {
-          NumberAnimation { duration: 145; easing.type: Easing.OutCubic }
-        }
         Behavior on height {
-          NumberAnimation { duration: 155; easing.type: Easing.OutCubic }
-        }
-        Behavior on opacity {
-          NumberAnimation { duration: 105; easing.type: Easing.OutCubic }
-        }
-        Behavior on scale {
-          NumberAnimation { duration: 145; easing.type: Easing.OutBack }
+          MotionNumberAnimation { role: MotionNumberAnimation.Content }
         }
 
         MouseArea {
@@ -361,9 +346,16 @@ Scope {
               ? Qt.alpha(theme.blue, 0.6)
               : Qt.alpha(theme.borderSubtle, 0.55)
             border.width: 1
+            scale: backMouse.pressed ? 0.88 : (backMouse.containsMouse ? 1.04 : 1)
 
             Behavior on color {
-              ColorAnimation { duration: 90 }
+              MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+            }
+            Behavior on border.color {
+              MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+            }
+            Behavior on scale {
+              MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
             }
 
             Text {
@@ -476,7 +468,10 @@ Scope {
                     border.width: 1
 
                     Behavior on color {
-                      ColorAnimation { duration: 85 }
+                      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+                    }
+                    Behavior on border.color {
+                      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
                     }
                   }
 
@@ -519,6 +514,13 @@ Scope {
                         : theme.mutedAlt
                       border.width: 1
 
+                      Behavior on color {
+                        MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+                      }
+                      Behavior on border.color {
+                        MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+                      }
+
                       Rectangle {
                         visible: entryRow.radioEntry && entryRow.checked
                         width: 6
@@ -556,7 +558,7 @@ Scope {
                     elide: Text.ElideRight
 
                     Behavior on x {
-                      NumberAnimation { duration: 90; easing.type: Easing.OutCubic }
+                      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
                     }
                   }
 
@@ -571,6 +573,11 @@ Scope {
                     font.family: theme.fontFamily
                     font.pixelSize: 20
                     font.bold: true
+                    scale: entryMouse.containsMouse ? 1.14 : 1
+
+                    Behavior on scale {
+                      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+                    }
                   }
 
                   MouseArea {
@@ -598,7 +605,7 @@ Scope {
       }
 
       Shortcut {
-        enabled: root.rendered
+        enabled: root.expanded
         sequence: "Esc"
         onActivated: root.closeMenu()
       }

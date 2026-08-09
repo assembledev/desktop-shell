@@ -173,6 +173,11 @@ Item {
 
           Layout.preferredWidth: statusContent.implicitWidth + 10
           Layout.preferredHeight: network.targetHeight
+          scale: itemMouse.pressed ? 0.94 : (itemMouse.containsMouse ? 1.025 : 1)
+
+          Behavior on scale {
+            MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+          }
 
           Rectangle {
             anchors.centerIn: parent
@@ -180,7 +185,10 @@ Item {
             height: 24
             radius: 7
             color: itemMouse.containsMouse ? theme.surfaceAccent : "transparent"
-            Behavior on color { ColorAnimation { duration: 100 } }
+
+            Behavior on color {
+              MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+            }
           }
 
           Row {

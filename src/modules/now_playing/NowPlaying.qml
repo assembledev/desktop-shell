@@ -32,6 +32,15 @@ Scope {
   }
   readonly property color artworkTone: artworkPalette.colors[0] ?? theme.purple
 
+  MotionTransition {
+    id: surfaceTransition
+    requested: root.revealed
+    onDismissed: {
+      if (!root.revealed)
+        root.currentTrack = null;
+    }
+  }
+
   function formatTime(seconds) {
     if (!Number.isFinite(seconds) || seconds < 0)
       return "--:--";
@@ -52,7 +61,6 @@ Scope {
   function showTrack(track) {
     currentTrack = track;
     updateLength(track.length);
-    cleanupTimer.stop();
     revealed = true;
     lifetime.restart();
   }
@@ -75,7 +83,6 @@ Scope {
       return;
     revealed = false;
     lifetime.stop();
-    cleanupTimer.restart();
   }
 
   MediaWatcher {
@@ -97,16 +104,10 @@ Scope {
     rescaleSize: 16
   }
 
-  Timer {
-    id: cleanupTimer
-    interval: 190
-    onTriggered: root.currentTrack = null
-  }
-
   PanelWindow {
     screen: shellConfig.screen
     id: nowPlayingWindow
-    visible: root.currentTrack !== null
+    visible: surfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
     implicitWidth: 372
@@ -136,17 +137,17 @@ Scope {
       border.color: Qt.alpha(root.artworkTone, 0.54)
       border.width: 1
       contentUnderBorder: true
-      opacity: root.revealed ? 1 : 0
-      scale: root.revealed ? 1 : 0.97
+      opacity: surfaceTransition.progress
+      scale: 0.92 + surfaceTransition.progress * 0.08
+      transformOrigin: Item.BottomRight
 
       transform: Translate {
-        x: root.revealed ? 0 : 18
-        Behavior on x { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
+        x: (1 - surfaceTransition.progress) * 30
       }
 
-      Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-      Behavior on scale { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
-      Behavior on border.color { ColorAnimation { duration: 180 } }
+      Behavior on border.color {
+        MotionColorAnimation { role: MotionNumberAnimation.Content }
+      }
 
       Rectangle {
         anchors.fill: parent
@@ -159,9 +160,14 @@ Scope {
       }
 
       RowLayout {
+        id: cardContent
         anchors.fill: parent
         anchors.margins: 10
         spacing: 13
+        opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.14) / 0.86))
+        transform: Translate {
+          x: (1 - surfaceTransition.progress) * 10
+        }
 
         ClippingRectangle {
           Layout.preferredWidth: 64

@@ -21,6 +21,8 @@ Item {
   property string message: ""
   property bool failed: false
   property bool authRunning: false
+  property real entranceProgress: 0
+  property real fieldShake: 0
 
   readonly property color bg: theme.bgSolid
   readonly property color surface: theme.surfaceGlass
@@ -37,6 +39,27 @@ Item {
   signal backspace(bool word)
   signal clear()
   signal submit()
+
+  Behavior on entranceProgress {
+    MotionNumberAnimation { role: MotionNumberAnimation.SurfaceEnter }
+  }
+
+  Component.onCompleted: entranceProgress = 1
+
+  onFailedChanged: {
+    if (!failed)
+      return;
+    fieldShake = 12;
+    fieldReturn.restart();
+  }
+
+  MotionNumberAnimation {
+    id: fieldReturn
+    target: root
+    property: "fieldShake"
+    to: 0
+    role: MotionNumberAnimation.Expressive
+  }
 
   function fileUrl(path) {
     return path && path.length > 0 ? "file://" + encodeURI(path) : "";
@@ -114,6 +137,10 @@ Item {
       anchors.right: parent.right
       anchors.margins: 26
       spacing: 10
+      opacity: Math.max(0, Math.min(1, root.entranceProgress * 1.35))
+      transform: Translate {
+        y: (1 - root.entranceProgress) * -14
+      }
 
       StatusChip {
         compact: true
@@ -138,6 +165,12 @@ Item {
       anchors.verticalCenter: parent.verticalCenter
       anchors.verticalCenterOffset: -12
       spacing: 14
+      opacity: Math.max(0, Math.min(1, (root.entranceProgress - 0.12) / 0.88))
+      scale: 0.965 + root.entranceProgress * 0.035
+      transform: Translate {
+        x: root.fieldShake
+        y: (1 - root.entranceProgress) * 26
+      }
 
       Item {
         width: parent.width
@@ -226,8 +259,12 @@ Item {
           shadowVerticalOffset: 8
         }
 
-        Behavior on border.color { ColorAnimation { duration: 150 } }
-        Behavior on border.width { NumberAnimation { duration: 110 } }
+        Behavior on border.color {
+          MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+        }
+        Behavior on border.width {
+          MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+        }
 
         MouseArea {
           anchors.fill: parent
@@ -282,7 +319,9 @@ Item {
               elide: Text.ElideRight
               opacity: root.passwordLength === 0 || root.authRunning || root.message.length > 0 ? 1 : 0
 
-              Behavior on opacity { NumberAnimation { duration: 120 } }
+              Behavior on opacity {
+                MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+              }
             }
 
             Row {
@@ -295,14 +334,19 @@ Item {
                 model: Math.min(root.passwordLength, 32)
 
                 Rectangle {
+                  property real revealScale: 0.35
                   width: 9
                   height: 9
                   radius: 3
                   color: root.text
                   opacity: 0.88
-                  scale: 1
+                  scale: revealScale
 
-                  Behavior on scale { NumberAnimation { duration: 90 } }
+                  Component.onCompleted: revealScale = 1
+
+                  Behavior on revealScale {
+                    MotionNumberAnimation { role: MotionNumberAnimation.Expressive }
+                  }
                 }
               }
 
@@ -325,8 +369,14 @@ Item {
             radius: height / 2
             anchors.verticalCenter: parent.verticalCenter
             color: root.passwordLength > 0 && !root.authRunning ? root.primary : theme.surfaceMuted
+            scale: submitMouse.pressed ? 0.88 : (submitMouse.containsMouse && submitMouse.enabled ? 1.04 : 1)
 
-            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on color {
+              MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+            }
+            Behavior on scale {
+              MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+            }
 
             Text {
               anchors.centerIn: parent
@@ -338,7 +388,9 @@ Item {
             }
 
             MouseArea {
+              id: submitMouse
               anchors.fill: parent
+              hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
               enabled: root.passwordLength > 0 && !root.authRunning
               onClicked: root.submit()
@@ -358,7 +410,9 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         opacity: text.length > 0 ? 1 : 0
 
-        Behavior on opacity { NumberAnimation { duration: 120 } }
+        Behavior on opacity {
+          MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+        }
       }
     }
   }

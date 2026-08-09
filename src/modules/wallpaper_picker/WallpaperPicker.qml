@@ -16,6 +16,10 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  MotionTransition {
+    id: surfaceTransition
+    requested: shell.open
+  }
 
   property string backend: Quickshell.env("WALLPAPER_PICKER_BACKEND")
   property string currentPath: ""
@@ -204,14 +208,16 @@ Scope {
     screen: shellConfig.screen
     id: panel
 
-    visible: shell.open
+    visible: surfaceTransition.presented
     color: "transparent"
     implicitHeight: 300
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell:wallpaperPicker"
     WlrLayershell.exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+    WlrLayershell.keyboardFocus: shell.open
+      ? WlrKeyboardFocus.Exclusive
+      : WlrKeyboardFocus.None
 
     anchors.left: true
     anchors.right: true
@@ -241,6 +247,12 @@ Scope {
       anchors.bottomMargin: 18
       width: contentWidth
       height: 250
+      opacity: surfaceTransition.progress
+      scale: 0.92 + surfaceTransition.progress * 0.08
+      transformOrigin: Item.Bottom
+      transform: Translate {
+        y: (1 - surfaceTransition.progress) * 28
+      }
 
       Keys.onPressed: event => {
         if (event.key === Qt.Key_Escape) {
@@ -365,17 +377,11 @@ Scope {
           opacity: PathView.onPath ? 1 : 0
 
           Behavior on scale {
-            NumberAnimation {
-              duration: 180
-              easing.type: Easing.OutCubic
-            }
+            MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
           }
 
           Behavior on opacity {
-            NumberAnimation {
-              duration: 140
-              easing.type: Easing.OutCubic
-            }
+            MotionNumberAnimation { role: MotionNumberAnimation.Content }
           }
 
           Rectangle {
@@ -416,10 +422,7 @@ Scope {
               opacity: image.status === Image.Ready ? (tile.PathView.shadeOpacity ?? 0) : 0
 
               Behavior on opacity {
-                NumberAnimation {
-                  duration: 160
-                  easing.type: Easing.OutCubic
-                }
+                MotionNumberAnimation { role: MotionNumberAnimation.Content }
               }
             }
 
@@ -463,10 +466,7 @@ Scope {
             opacity: tile.PathView.isCurrentItem ? 1 : 0
 
             Behavior on width {
-              NumberAnimation {
-                duration: 140
-                easing.type: Easing.OutCubic
-              }
+              MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
             }
           }
 
@@ -486,10 +486,7 @@ Scope {
             renderType: Text.QtRendering
 
             Behavior on opacity {
-              NumberAnimation {
-                duration: 150
-                easing.type: Easing.OutCubic
-              }
+              MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
             }
           }
 
@@ -573,9 +570,7 @@ Scope {
         visible: opacity > 0
 
         Behavior on opacity {
-          NumberAnimation {
-            duration: 160
-          }
+          MotionNumberAnimation { role: MotionNumberAnimation.Content }
         }
 
         Text {

@@ -37,7 +37,9 @@ Rectangle {
     controller.stop();
   }
 
-  Behavior on height { NumberAnimation { duration: 120 } }
+  Behavior on height {
+    MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+  }
 
   Rectangle {
     anchors.left: parent.left
@@ -47,7 +49,9 @@ Rectangle {
     radius: parent.radius
     color: controller.hovered ? root.hoverAccentColor : root.accentColor
 
-    Behavior on color { ColorAnimation { duration: 120 } }
+    Behavior on color {
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
   }
 
   ToastLifetime {

@@ -16,24 +16,45 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  MotionTransition {
+    id: surfaceTransition
+    requested: root.open
+  }
 
   property bool open: false
   property date today: new Date()
   property int viewMonth: today.getMonth()
   property int viewYear: today.getFullYear()
+  property int pendingMonth: viewMonth
+  property int pendingYear: viewYear
+  property int monthDirection: 1
   readonly property bool currentMonth: viewMonth === today.getMonth() && viewYear === today.getFullYear()
   readonly property bool portraitMode: Number(window.screen?.width || 0) > 0 && Number(window.screen?.width || 0) < Number(window.screen?.height || 0)
 
   function resetToToday() {
     today = new Date();
-    viewMonth = today.getMonth();
-    viewYear = today.getFullYear();
+    showMonth(today.getMonth(), today.getFullYear());
   }
 
   function changeMonth(offset) {
     const next = new Date(viewYear, viewMonth + offset, 1);
-    viewMonth = next.getMonth();
-    viewYear = next.getFullYear();
+    showMonth(next.getMonth(), next.getFullYear(), offset < 0 ? -1 : 1);
+  }
+
+  function showMonth(month, year, direction) {
+    if (month === viewMonth && year === viewYear)
+      return;
+
+    pendingMonth = month;
+    pendingYear = year;
+    monthDirection = direction || ((year * 12 + month) < (viewYear * 12 + viewMonth) ? -1 : 1);
+    if (!open) {
+      viewMonth = pendingMonth;
+      viewYear = pendingYear;
+      return;
+    }
+
+    monthTransition.restart();
   }
 
   function openCalendar() {
@@ -85,17 +106,59 @@ Scope {
     onTriggered: root.refreshToday()
   }
 
+  SequentialAnimation {
+    id: monthTransition
+
+    ParallelAnimation {
+      MotionNumberAnimation {
+        target: calendarGrid
+        property: "opacity"
+        to: 0
+        role: MotionNumberAnimation.SurfaceExit
+      }
+      MotionNumberAnimation {
+        target: calendarGrid
+        property: "x"
+        to: -root.monthDirection * 18
+        role: MotionNumberAnimation.SurfaceExit
+      }
+    }
+    ScriptAction {
+      script: {
+        root.viewMonth = root.pendingMonth;
+        root.viewYear = root.pendingYear;
+        calendarGrid.x = root.monthDirection * 18;
+      }
+    }
+    ParallelAnimation {
+      MotionNumberAnimation {
+        target: calendarGrid
+        property: "opacity"
+        to: 1
+        role: MotionNumberAnimation.Content
+      }
+      MotionNumberAnimation {
+        target: calendarGrid
+        property: "x"
+        to: 0
+        role: MotionNumberAnimation.Content
+      }
+    }
+  }
+
   PanelWindow {
     screen: shellConfig.screen
     id: window
 
-    visible: root.open
+    visible: surfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
 
     WlrLayershell.namespace: "quickshell:calendar"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: root.open
+      ? WlrKeyboardFocus.OnDemand
+      : WlrKeyboardFocus.None
 
     anchors {
       top: true
@@ -110,6 +173,7 @@ Scope {
 
       MouseArea {
         anchors.fill: parent
+        enabled: root.open
         onClicked: root.closeCalendar()
       }
 
@@ -155,22 +219,11 @@ Scope {
           border.color: Qt.alpha(theme.borderSubtle, 0.72)
           border.width: 1
           clip: true
-          opacity: root.open ? 1 : 0
-          scale: root.open ? 1 : 0.97
+          opacity: surfaceTransition.progress
+          scale: 0.92 + surfaceTransition.progress * 0.08
           transformOrigin: Item.Top
-
-          Behavior on opacity {
-            NumberAnimation {
-              duration: 110
-              easing.type: Easing.OutCubic
-            }
-          }
-
-          Behavior on scale {
-            NumberAnimation {
-              duration: 130
-              easing.type: Easing.OutCubic
-            }
+          transform: Translate {
+            y: (1 - surfaceTransition.progress) * -12
           }
 
           MouseArea {
@@ -188,6 +241,7 @@ Scope {
             anchors.top: parent.top
             anchors.margins: 16
             spacing: 14
+            opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.14) / 0.86))
 
             ColumnLayout {
               Layout.fillWidth: true
@@ -256,6 +310,7 @@ Scope {
             }
 
             GridLayout {
+              id: calendarGrid
               Layout.fillWidth: true
               Layout.preferredHeight: 262
               columns: 2
@@ -396,11 +451,13 @@ Scope {
     color: mouse.containsMouse ? theme.surfaceHover : theme.surfaceMuted
     border.color: mouse.containsMouse ? theme.blue : theme.borderMuted
     border.width: 1
+    scale: mouse.pressed ? 0.92 : 1
 
     Behavior on color {
-      ColorAnimation {
-        duration: 90
-      }
+      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+    }
+    Behavior on scale {
+      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
     }
 
     Text {

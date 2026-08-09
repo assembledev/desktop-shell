@@ -60,6 +60,26 @@ printf '#!%s\nprintf \"%%s\\n\" \"$@\" >\"$DESKTOP_SHELL_TEST_HYPRCTL_ARGS\"\n' 
 chmod +x "$test_bin/quickshell" "$test_bin/hyprctl"
 export DESKTOP_SHELL_TEST_HYPRCTL_ARGS="$hyprctl_args"
 
+fast_ipc_args="$test_root/fast-ipc-args"
+invalid_config="$test_root/invalid-config.json"
+printf '{\n' >"$invalid_config"
+printf '#!%s\nprintf "%%s\\n" "$@" >"$DESKTOP_SHELL_TEST_FAST_IPC_ARGS"\n' \
+  "$(command -v bash)" >"$test_bin/quickshell"
+chmod +x "$test_bin/quickshell"
+DESKTOP_SHELL_TEST_FAST_IPC_ARGS="$fast_ipc_args" \
+  DESKTOP_SHELL_CONFIG="$invalid_config" \
+  DESKTOP_SHELL_DEFAULT_CONFIG="$invalid_config" \
+  PATH="$test_bin:$PATH" \
+  bash "$source_root/src/backend/desktop-shell.sh" launcher open
+mapfile -t captured_fast_ipc_args <"$fast_ipc_args"
+test "${captured_fast_ipc_args[0]}" = ipc
+test "${captured_fast_ipc_args[3]}" = call
+test "${captured_fast_ipc_args[4]}" = launcher
+test "${captured_fast_ipc_args[5]}" = open
+
+printf '#!%s\nexit 1\n' "$(command -v bash)" >"$test_bin/quickshell"
+chmod +x "$test_bin/quickshell"
+
 bluetoothctl_args="$test_root/bluetoothctl-args"
 printf '#!%s\nprintf \"%%s\\n\" \"$@\" >\"$DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS\"\nexit 1\n' \
   "$(command -v bash)" >"$test_bin/bluetoothctl"
