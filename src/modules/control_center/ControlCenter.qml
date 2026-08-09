@@ -3535,11 +3535,11 @@ Scope {
     opacity: dimmed ? 0.5 : 1
 
     background: Rectangle {
-      x: gainSlider.leftPadding
+      x: gainSlider.leftPadding + gainSlider.handle.width / 2
       y: gainSlider.topPadding + gainSlider.availableHeight / 2 - height / 2
       implicitWidth: 200
       implicitHeight: 5
-      width: gainSlider.availableWidth
+      width: gainSlider.availableWidth - gainSlider.handle.width
       height: 5
       radius: 3
       color: theme.surfaceMuted
@@ -3712,11 +3712,12 @@ Scope {
         font.pixelSize: 11
         elide: Text.ElideRight
       }
-      Slider {
+      GainSlider {
         Layout.fillWidth: true
         from: 0
         to: 1
         value: card.displayedValue
+        accent: card.accent
         onPressedChanged: {
           if (pressed) {
             card.dragValue = value;
