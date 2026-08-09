@@ -153,6 +153,8 @@ Item {
         id: poller
         required property var modelData
         property bool refreshPending: false
+        property bool reconcilingToggle: false
+        property int transitionEpoch: 0
         property string statusOutput: ""
         property string statusError: ""
         property string toggleOutput: ""
@@ -161,6 +163,10 @@ Item {
         function refresh() {
           if (!network.pollingEnabled || !modelData?.id)
             return;
+          if (toggleProcess.running) {
+            refreshPending = true;
+            return;
+          }
           if (statusProcess.running) {
             refreshPending = true;
             return;
@@ -169,6 +175,7 @@ Item {
           refreshPending = false;
           statusOutput = "";
           statusError = "";
+          statusProcess.epoch = transitionEpoch;
           statusProcess.exec([network.backend, "network-control", "status", modelData.id]);
         }
 
@@ -176,6 +183,11 @@ Item {
           if (!modelData?.id || toggleProcess.running)
             return;
 
+          // Status reads already in flight belong to the pre-toggle state and
+          // must never finish the transition visually.
+          transitionEpoch++;
+          reconcilingToggle = false;
+          refreshPending = false;
           toggleOutput = "";
           toggleError = "";
           toggleProcess.exec([network.backend, "network-control", "toggle", modelData.id]);
@@ -199,6 +211,7 @@ Item {
 
         Process {
           id: statusProcess
+          property int epoch: -1
           stdout: StdioCollector {
             onStreamFinished: poller.statusOutput = text
           }
@@ -206,15 +219,23 @@ Item {
             onStreamFinished: poller.statusError = text
           }
           onExited: function(exitCode) {
-            if (exitCode === 0) {
+            const current = statusProcess.epoch === poller.transitionEpoch;
+            const completesToggle = current && poller.reconcilingToggle;
+
+            if (!current) {
+              // A status read may have started before or during the toggle.
+              // Its result is stale even if the command itself succeeded.
+            } else if (exitCode === 0) {
               const next = network.parseJson(poller.statusOutput, null);
               if (next && typeof next === "object") {
                 network.setStatus(poller.modelData, Object.assign({}, next, {
+                  busy: completesToggle ? false : network.status(poller.modelData).busy,
                   error: "",
                   errorKind: ""
                 }));
               } else {
                 network.setStatus(poller.modelData, {
+                  busy: completesToggle ? false : network.status(poller.modelData).busy,
                   error: "Status command returned invalid JSON",
                   errorKind: "status"
                 });
@@ -222,6 +243,7 @@ Item {
               }
             } else {
               network.setStatus(poller.modelData, {
+                busy: completesToggle ? false : network.status(poller.modelData).busy,
                 error: network.commandError(
                   poller.modelData,
                   "status",
@@ -232,6 +254,9 @@ Item {
                 errorKind: "status"
               });
             }
+
+            if (completesToggle)
+              poller.reconcilingToggle = false;
 
             if (poller.refreshPending)
               Qt.callLater(function() { poller.refresh(); });
@@ -248,13 +273,21 @@ Item {
           }
           onExited: function(exitCode) {
             if (exitCode === 0) {
+              // Keep the yellow transition state until a status read started
+              // after this command confirms the new provider state.
+              poller.transitionEpoch++;
+              poller.reconcilingToggle = true;
+              poller.refreshPending = false;
               network.setStatus(poller.modelData, {
-                busy: false,
+                busy: true,
                 error: "",
                 errorKind: ""
               });
-              poller.refresh();
+              Qt.callLater(function() { poller.refresh(); });
             } else {
+              poller.transitionEpoch++;
+              poller.reconcilingToggle = false;
+              poller.refreshPending = false;
               network.setStatus(poller.modelData, {
                 busy: false,
                 error: network.commandError(
