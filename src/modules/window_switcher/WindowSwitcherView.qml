@@ -391,13 +391,13 @@ Scope {
     if (refreshForOpen) {
       originalAddress = addressOf(activeWindow);
       selectedAddress = originalAddress;
-      open = true;
-      advance(pendingAction);
+      const hasSelection = advance(pendingAction);
       const directions = pendingDirections;
       pendingDirections = [];
       for (const direction of directions)
         moveSpatialSelection(direction);
       refreshForOpen = false;
+      open = hasSelection;
       if (commitWhenReady)
         commit();
     } else {
@@ -420,7 +420,7 @@ Scope {
     const candidates = orderedWindows();
     if (candidates.length === 0) {
       open = false;
-      return;
+      return false;
     }
 
     let index = candidates.findIndex(function(win) {
@@ -438,6 +438,7 @@ Scope {
     else
       index = (index + 1) % candidates.length;
     selectedAddress = addressOf(candidates[index]);
+    return true;
   }
 
   function altTab(action) {
@@ -801,8 +802,14 @@ Scope {
     clip: !dragSource
     z: dragSource ? 100 : 0
 
-    Behavior on color { ColorAnimation { duration: 120 } }
-    Behavior on border.color { ColorAnimation { duration: 120 } }
+    Behavior on color {
+      enabled: root.open
+      ColorAnimation { duration: 120 }
+    }
+    Behavior on border.color {
+      enabled: root.open
+      ColorAnimation { duration: 120 }
+    }
 
     DropArea {
       anchors.fill: screenFrame
@@ -975,7 +982,10 @@ Scope {
     clip: true
 
     Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-    Behavior on border.color { ColorAnimation { duration: 120 } }
+    Behavior on border.color {
+      enabled: root.open
+      ColorAnimation { duration: 120 }
+    }
 
     Drag.active: dragHandler.active
     Drag.hotSpot.x: width / 2
