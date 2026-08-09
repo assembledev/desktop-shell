@@ -4,7 +4,9 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Widgets
 import "../common"
+import "../launcher/LauncherSearch.js" as LauncherSearch
 
 Scope {
   id: root
@@ -35,6 +37,7 @@ Scope {
   property var windows: []
   property var monitors: []
   property var activeWindow: ({})
+  readonly property var desktopApplications: DesktopEntries.applications.values || []
 
   function addressOf(win) {
     return String(win?.address || "");
@@ -124,8 +127,17 @@ Scope {
     return activeMonitorData();
   }
 
-  function iconFor(win) {
-    return "";
+  function applicationForWindow(win) {
+    return LauncherSearch.applicationForWindow(desktopApplications, win);
+  }
+
+  function iconSource(win) {
+    const icon = String(applicationForWindow(win)?.icon || "");
+    if (icon.startsWith("/"))
+      return "file://" + icon;
+    if (icon.indexOf(":") >= 0)
+      return icon;
+    return Quickshell.iconPath(icon, "application-x-executable");
   }
 
   function selectedIndex() {
@@ -560,13 +572,19 @@ Scope {
               anchors.bottomMargin: 8
               spacing: 12
 
-              Text {
-                text: root.iconFor(root.windowByAddress(root.selectedAddress))
-                color: theme.blue
-                font.family: theme.fontFamily
-                font.pixelSize: 21
+              Item {
                 Layout.preferredWidth: 32
-                horizontalAlignment: Text.AlignHCenter
+                Layout.fillHeight: true
+
+                IconImage {
+                  width: 26
+                  height: 26
+                  anchors.centerIn: parent
+                  source: root.iconSource(root.windowByAddress(root.selectedAddress))
+                  asynchronous: false
+                  smooth: true
+                  mipmap: true
+                }
               }
 
               ColumnLayout {
@@ -869,6 +887,7 @@ Scope {
     property bool suppressClick: false
     property real dragX: 0
     property real dragY: 0
+    readonly property string applicationIcon: root.iconSource(windowData)
 
     x: workspaceItem.contentX + scaledX + dragX
     y: workspaceItem.contentY + workspaceItem.tapeOffsetY + scaledY + dragY
@@ -923,12 +942,15 @@ Scope {
       visible: !previewLoader.active
       anchors.fill: parent
       color: theme.surfaceSoft
-      Text {
+
+      IconImage {
         anchors.centerIn: parent
-        text: root.iconFor(tile.windowData)
-        color: theme.blue
-        font.family: theme.fontFamily
-        font.pixelSize: Math.min(28, Math.max(16, tile.height * 0.28))
+        width: Math.min(40, Math.max(22, tile.height * 0.32))
+        height: width
+        source: tile.applicationIcon
+        asynchronous: false
+        smooth: true
+        mipmap: true
       }
     }
 
@@ -938,9 +960,24 @@ Scope {
       anchors.bottom: parent.bottom
       height: Math.min(28, Math.max(18, parent.height * 0.24))
       color: theme.surfaceGlassStrong
+
+      IconImage {
+        id: tileIcon
+        visible: parent.width >= 28
+        width: Math.min(15, Math.max(11, parent.height - 7))
+        height: width
+        anchors.left: parent.left
+        anchors.leftMargin: 7
+        anchors.verticalCenter: parent.verticalCenter
+        source: tile.applicationIcon
+        asynchronous: false
+        smooth: true
+        mipmap: true
+      }
+
       Text {
         anchors.fill: parent
-        anchors.leftMargin: 7
+        anchors.leftMargin: tileIcon.visible ? 12 + tileIcon.width : 7
         anchors.rightMargin: 7
         verticalAlignment: Text.AlignVCenter
         text: tile.windowData?.title || tile.windowData?.class || "Window"

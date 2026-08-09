@@ -174,16 +174,7 @@ Scope {
 
   function applicationForToplevel(toplevel) {
     const win = toplevelWindowData(toplevel);
-    let best = null;
-    let bestScore = -1;
-
-    for (const app of desktopApplications) {
-      const score = LauncherSearch.appWindowIdentityScore(app, win);
-      if (score > bestScore) {
-        best = app;
-        bestScore = score;
-      }
-    }
+    const best = LauncherSearch.applicationForWindow(desktopApplications, win);
 
     if (best)
       return {

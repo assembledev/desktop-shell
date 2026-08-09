@@ -71,6 +71,21 @@ function appWindowIdentityScore(app, win) {
   return -1;
 }
 
+function applicationForWindow(applications, win) {
+  let best = null;
+  let bestScore = -1;
+
+  for (const app of applications || []) {
+    const score = appWindowIdentityScore(app, win);
+    if (score > bestScore) {
+      best = app;
+      bestScore = score;
+    }
+  }
+
+  return best;
+}
+
 function fuzzySubsequenceScore(query, target) {
   if (query.length < 2)
     return -1;
