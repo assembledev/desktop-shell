@@ -4,6 +4,14 @@ function normalize(value) {
   return String(value || "").toLowerCase();
 }
 
+function desktopEntryFileId(app) {
+  const id = String(app?.id || "");
+  // Quickshell derives DesktopEntry.id from completeBaseName(), which removes
+  // exactly the final .desktop suffix. Restore that suffix unconditionally so
+  // IDs such as org.telegram.desktop map back to org.telegram.desktop.desktop.
+  return id.length > 0 ? id + ".desktop" : "";
+}
+
 function execTokens(value) {
   const matches = String(value || "").match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
   return matches.map(function(token) {

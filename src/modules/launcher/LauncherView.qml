@@ -22,6 +22,7 @@ Scope {
   MotionTransition {
     id: surfaceTransition
     requested: root.open
+    onDismissed: root.commitPendingFocus()
   }
 
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
@@ -38,6 +39,7 @@ Scope {
   property int warmReloadAttempts: 0
   property bool loadingApps: false
   property bool historyLoaded: false
+  property var pendingFocusTarget: null
 
   readonly property int maxResults: 10
   readonly property int maxAppReloadAttempts: 30
@@ -60,6 +62,7 @@ Scope {
   readonly property color border: theme.border
 
   function openLauncher() {
+    pendingFocusTarget = null;
     open = true;
     mode = "launch";
     selectedIndex = 0;
@@ -233,9 +236,7 @@ Scope {
   }
 
   function historyRecord(app) {
-    const id = String(app?.id || "");
-    const entryId = id.endsWith(".desktop") ? id : id + ".desktop";
-    return usageHistory?.[entryId] || usageHistory?.[id] || ({});
+    return usageHistory?.[LauncherSearch.desktopEntryFileId(app)] || ({});
   }
 
   function usageScore(app) {
@@ -485,7 +486,7 @@ Scope {
     const address = String(win?.address || "");
     if (address.length === 0)
       return false;
-    hyprland.focusWindow(address);
+    pendingFocusTarget = { kind: "window", address: address };
     closeLauncher();
     return true;
   }
@@ -497,30 +498,45 @@ Scope {
     if (!session || !Number.isInteger(tabId) || !Number.isInteger(windowId))
       return false;
 
-    Quickshell.execDetached([
-      backend,
-      "browser-tabs",
-      "activate",
-      session,
-      String(tabId),
-      String(windowId)
-    ]);
+    pendingFocusTarget = {
+      kind: "tab",
+      session: session,
+      tabId: tabId,
+      windowId: windowId
+    };
     closeLauncher();
     return true;
+  }
+
+  function commitPendingFocus() {
+    const target = pendingFocusTarget;
+    pendingFocusTarget = null;
+    if (target?.kind === "window") {
+      hyprland.focusWindow(String(target.address || ""));
+    } else if (target?.kind === "tab") {
+      Quickshell.execDetached([
+        backend,
+        "browser-tabs",
+        "activate",
+        String(target.session || ""),
+        String(target.tabId),
+        String(target.windowId)
+      ]);
+    }
   }
 
   function launchApp(item) {
     const app = item?.entry;
     if (!app)
       return;
-    const entryId = String(app.id || "");
+    const entryId = LauncherSearch.desktopEntryFileId(app);
     if (entryId.length === 0)
       return;
     Quickshell.execDetached([
       backend,
       "launcher",
       "launch",
-      entryId.endsWith(".desktop") ? entryId : entryId + ".desktop"
+      entryId
     ]);
     closeLauncher();
   }
