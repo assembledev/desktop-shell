@@ -25,6 +25,30 @@ desktop_shell_ipc_call() {
   return 1
 }
 
+desktop_shell_wait_ready() {
+  attempt=0
+  while [ "$attempt" -lt 50 ]; do
+    state="$(
+      quickshell ipc --path "${DESKTOP_SHELL_QML}/shell.qml" call desktopShell ping 2>/dev/null || true
+    )"
+    if [ "$state" = true ]; then
+      return 0
+    fi
+    sleep 0.1
+    attempt=$((attempt + 1))
+  done
+
+  printf 'desktop-shell: QML IPC did not become ready\n' >&2
+  return 1
+}
+
+# This is used by systemd as a startup readiness gate. Keep it independent of
+# config parsing so a malformed user config cannot mask the actual QML result.
+if [ "${1:-}" = wait-ready ]; then
+  desktop_shell_wait_ready
+  exit
+fi
+
 # Brightness changes are latency-sensitive continuous controls. The brightness
 # backend is self-contained, so dispatch it without parsing the shell config or
 # loading unrelated backend libraries. This is especially important for
@@ -583,8 +607,8 @@ case "${1:-help}" in
         bluetooth_private_mode
         bluetoothctl power off
         ;;
-      session-open)
-        bluetooth_pairing_mode
+      session)
+        bluetooth_pairing_session
         ;;
       session-close)
         bluetooth_private_mode

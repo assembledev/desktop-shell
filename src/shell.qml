@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 //@ pragma DefaultEnv QS_NO_RELOAD_POPUP=1
 
 import Quickshell
+import Quickshell.Io
 import "modules/bar"
 import "modules/calendar"
 import "modules/cheatsheet"
@@ -15,6 +16,11 @@ import "modules/wallpaper_picker"
 import "modules/window_switcher"
 
 ShellRoot {
+  IpcHandler {
+    target: "desktopShell"
+    function ping(): bool { return true; }
+  }
+
   Bar {}
   CalendarPopup {}
   CheatSheet {}

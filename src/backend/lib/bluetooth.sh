@@ -148,11 +148,42 @@ bluetooth_require_address() {
   fi
 }
 
+bluetooth_set_adapter_property() {
+  property="$1"
+  value="$2"
+
+  if ! timeout --signal=TERM --kill-after=0.2s 1s bluetoothctl "$property" "$value" >/dev/null; then
+    printf 'desktop-shell: could not set Bluetooth %s %s\n' "$property" "$value" >&2
+    return 1
+  fi
+}
+
 bluetooth_private_mode() {
-  bluetoothctl --timeout 2 discoverable off >/dev/null 2>&1 || true
+  bluetooth_set_adapter_property discoverable off
+  bluetooth_set_adapter_property pairable off
 }
 
 bluetooth_pairing_mode() {
-  bluetoothctl pairable on >/dev/null
-  bluetoothctl discoverable on >/dev/null
+  bluetooth_set_adapter_property pairable on
+  if ! bluetooth_set_adapter_property discoverable on; then
+    bluetooth_set_adapter_property pairable off || true
+    return 1
+  fi
+}
+
+bluetooth_pairing_session() {
+  bluetooth_pairing_session_cleanup() {
+    trap - EXIT HUP INT TERM
+    bluetooth_private_mode
+  }
+
+  trap bluetooth_pairing_session_cleanup EXIT
+  trap 'exit 0' HUP INT TERM
+
+  bluetooth_pairing_mode
+  printf 'ready\n'
+
+  while IFS= read -r request; do
+    [ "$request" = close ] && break
+  done
 }

@@ -349,6 +349,8 @@ in
           ConditionEnvironment = "WAYLAND_DISPLAY";
           After = [ serviceTarget ];
           PartOf = [ serviceTarget ];
+          StartLimitIntervalSec = 60;
+          StartLimitBurst = 3;
           X-SwitchMethod = "restart";
           X-Restart-Triggers = [
             configFile
@@ -356,11 +358,30 @@ in
           ];
         };
         Service = {
-          ExecStartPre = "${command} bluetooth session-close";
           ExecStart = "${command} run";
-          ExecStopPost = "${command} bluetooth session-close";
+          ExecStartPost = "${command} wait-ready";
           Restart = "on-failure";
           RestartSec = 1;
+          TimeoutStartSec = 8;
+          TimeoutStopSec = 5;
+        };
+        Install.WantedBy = [ serviceTarget ];
+      };
+
+      desktop-shell-bluetooth-private = mkIf cfg.systemd.enable {
+        Unit = {
+          Description = "Establish Desktop Shell Bluetooth privacy baseline";
+          ConditionEnvironment = "WAYLAND_DISPLAY";
+          After = [ serviceTarget ];
+          PartOf = [ serviceTarget ];
+          X-SwitchMethod = "restart";
+          X-Restart-Triggers = [ finalPackage ];
+        };
+        Service = {
+          Type = "oneshot";
+          ExecStart = "${command} bluetooth session-close";
+          RemainAfterExit = true;
+          TimeoutStartSec = 2;
         };
         Install.WantedBy = [ serviceTarget ];
       };

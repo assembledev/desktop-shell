@@ -11,11 +11,32 @@ let
     builtins.toJSON (import ./default-config.nix)
   );
   browserTabBridge = import ./browser-tab-bridge.nix { inherit pkgs source; };
-  qml = pkgs.runCommand "desktop-shell-qml" { } ''
-    mkdir -p "$out/share/desktop-shell/qml"
-    cp -R ${sources.qml}/src/modules "$out/share/desktop-shell/qml/modules"
-    cp ${sources.qml}/src/shell.qml ${sources.qml}/src/lock.qml "$out/share/desktop-shell/qml/"
-  '';
+  qml =
+    pkgs.runCommand "desktop-shell-qml"
+      {
+        nativeBuildInputs = [ pkgs.kdePackages.qtdeclarative ];
+      }
+      ''
+        export LANG=C.UTF-8
+        status=0
+        while IFS= read -r -d $'\0' file; do
+          qmllint \
+            --ignore-settings \
+            --import error \
+            --unqualified disable \
+            --missing-property disable \
+            --incompatible-type disable \
+            --uncreatable-type disable \
+            -I ${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml \
+            -I ${pkgs.quickshell}/lib/qt-6/qml \
+            "$file" || status=1
+        done < <(find ${sources.qml}/src -type f -name '*.qml' -print0)
+        test "$status" -eq 0
+
+        mkdir -p "$out/share/desktop-shell/qml"
+        cp -R ${sources.qml}/src/modules "$out/share/desktop-shell/qml/modules"
+        cp ${sources.qml}/src/shell.qml ${sources.qml}/src/lock.qml "$out/share/desktop-shell/qml/"
+      '';
   backend = pkgs.runCommand "desktop-shell-backend" { } ''
     mkdir -p "$out/libexec/desktop-shell"
     cp -R ${sources.backend}/src/backend/. "$out/libexec/desktop-shell/"

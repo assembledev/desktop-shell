@@ -136,29 +136,7 @@
                 touch "$out"
               '';
 
-          qml =
-            pkgs.runCommand "desktop-shell-qml-check"
-              {
-                nativeBuildInputs = [ pkgs.kdePackages.qtdeclarative ];
-              }
-              ''
-                export LANG=C.UTF-8
-                status=0
-                while IFS= read -r -d $'\0' file; do
-                  qmllint \
-                    --ignore-settings \
-                    --import error \
-                    --unqualified disable \
-                    --missing-property disable \
-                    --incompatible-type disable \
-                    --uncreatable-type disable \
-                    -I ${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml \
-                    -I ${pkgs.quickshell}/lib/qt-6/qml \
-                    "$file" || status=1
-                done < <(find ${self}/src -type f -name '*.qml' -print0)
-                test "$status" -eq 0
-                touch "$out"
-              '';
+          qml = desktopShell.passthru.qml;
 
           browser-tab-bridge =
             pkgs.runCommand "desktop-shell-browser-tab-bridge-check"

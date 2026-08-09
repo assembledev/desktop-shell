@@ -77,6 +77,13 @@ test "${captured_fast_ipc_args[3]}" = call
 test "${captured_fast_ipc_args[4]}" = launcher
 test "${captured_fast_ipc_args[5]}" = open
 
+printf '#!%s\nprintf "true\\n"\n' "$(command -v bash)" >"$test_bin/quickshell"
+chmod +x "$test_bin/quickshell"
+DESKTOP_SHELL_CONFIG="$invalid_config" \
+  DESKTOP_SHELL_DEFAULT_CONFIG="$invalid_config" \
+  PATH="$test_bin:$PATH" \
+  bash "$source_root/src/backend/desktop-shell.sh" wait-ready
+
 fast_brightness="$({
   DESKTOP_SHELL_CONFIG="$invalid_config" \
     DESKTOP_SHELL_DEFAULT_CONFIG="$invalid_config" \
@@ -88,16 +95,22 @@ printf '#!%s\nexit 1\n' "$(command -v bash)" >"$test_bin/quickshell"
 chmod +x "$test_bin/quickshell"
 
 bluetoothctl_args="$test_root/bluetoothctl-args"
-printf '#!%s\nprintf \"%%s\\n\" \"$@\" >\"$DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS\"\nexit 1\n' \
+printf '#!%s\nprintf \"%%s\\n\" \"$*\" >>\"$DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS\"\n' \
   "$(command -v bash)" >"$test_bin/bluetoothctl"
 chmod +x "$test_bin/bluetoothctl"
 export DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS="$bluetoothctl_args"
 PATH="$test_bin:$PATH" bluetooth_private_mode
 mapfile -t captured_bluetoothctl_args <"$bluetoothctl_args"
-test "${captured_bluetoothctl_args[0]}" = --timeout
-test "${captured_bluetoothctl_args[1]}" = 2
-test "${captured_bluetoothctl_args[2]}" = discoverable
-test "${captured_bluetoothctl_args[3]}" = off
+test "${captured_bluetoothctl_args[0]}" = "discoverable off"
+test "${captured_bluetoothctl_args[1]}" = "pairable off"
+
+: >"$bluetoothctl_args"
+test "$(printf 'close\n' | PATH="$test_bin:$PATH" bluetooth_pairing_session)" = ready
+mapfile -t captured_bluetoothctl_args <"$bluetoothctl_args"
+test "${captured_bluetoothctl_args[0]}" = "pairable on"
+test "${captured_bluetoothctl_args[1]}" = "discoverable on"
+test "${captured_bluetoothctl_args[2]}" = "discoverable off"
+test "${captured_bluetoothctl_args[3]}" = "pairable off"
 
 PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" direction l
 mapfile -t captured_hyprctl_args <"$hyprctl_args"

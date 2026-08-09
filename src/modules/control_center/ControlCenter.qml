@@ -65,6 +65,7 @@ Scope {
   property string bluetoothOperationName: ""
   property string bluetoothError: ""
   property bool bluetoothSessionActive: false
+  property bool bluetoothSessionClosing: false
   property bool bluetoothDiscoveryStarted: false
   property bool bluetoothDiscoveryStopRequested: false
   property string pendingBluetoothForgetAddress: ""
@@ -1110,27 +1111,26 @@ Scope {
   function beginBluetoothSession() {
     if (!open || page !== "bluetooth" || !bluetoothAvailable || !bluetoothEnabled || bluetoothOperation === "disable")
       return;
-    if (bluetoothSessionCloseProc.running) {
-      bluetoothSessionStartTimer.restart();
-      return;
-    }
-    if (bluetoothSessionActive || bluetoothSessionOpenProc.running)
+    if (bluetoothSessionActive || bluetoothSessionProc.running)
       return;
 
     bluetoothError = "";
-    bluetoothSessionOpenProc.output = "";
-    bluetoothSessionOpenProc.exec(boundedBackendCommand(["bluetooth", "session-open"], 10));
+    bluetoothSessionClosing = false;
+    bluetoothSessionProc.output = "";
+    bluetoothSessionProc.exec([backend, "bluetooth", "session"]);
   }
 
   function endBluetoothSession() {
     bluetoothSessionActive = false;
-    bluetoothSessionStartTimer.stop();
     bluetoothDiscoveryRestartTimer.stop();
-    if (bluetoothSessionOpenProc.running)
-      bluetoothSessionOpenProc.running = false;
     stopBluetoothDiscovery();
-    if (!bluetoothSessionCloseProc.running)
-      bluetoothSessionCloseProc.exec(boundedBackendCommand(["bluetooth", "session-close"], 10));
+    if (bluetoothSessionProc.running) {
+      bluetoothSessionClosing = true;
+      bluetoothSessionProc.write("close\n");
+      bluetoothSessionStopTimer.restart();
+    } else {
+      bluetoothSessionClosing = false;
+    }
   }
 
   function stopBluetoothDiscovery() {
@@ -1390,10 +1390,13 @@ Scope {
   }
 
   Timer {
-    id: bluetoothSessionStartTimer
-    interval: 250
+    id: bluetoothSessionStopTimer
+    interval: 1200
     repeat: false
-    onTriggered: root.beginBluetoothSession()
+    onTriggered: {
+      if (bluetoothSessionProc.running)
+        bluetoothSessionProc.running = false;
+    }
   }
 
   Timer {
@@ -1617,31 +1620,36 @@ Scope {
   }
 
   Process {
-    id: bluetoothSessionOpenProc
+    id: bluetoothSessionProc
     property string output: ""
-    stdout: StdioCollector {
-      onStreamFinished: bluetoothSessionOpenProc.output = (bluetoothSessionOpenProc.output + "\n" + text).trim()
+    stdinEnabled: true
+    stdout: SplitParser {
+      splitMarker: "\n"
+      onRead: function(data) {
+        const line = String(data).trim();
+        bluetoothSessionProc.output = (bluetoothSessionProc.output + "\n" + line).trim();
+        if (line === "ready" && root.open && root.page === "bluetooth" && root.bluetoothEnabled) {
+          root.bluetoothSessionActive = true;
+          root.startBluetoothDiscovery();
+          root.refreshBluetooth();
+        }
+      }
     }
     stderr: StdioCollector {
-      onStreamFinished: bluetoothSessionOpenProc.output = (bluetoothSessionOpenProc.output + "\n" + text).trim()
+      onStreamFinished: bluetoothSessionProc.output = (bluetoothSessionProc.output + "\n" + text).trim()
     }
     onExited: function(exitCode) {
-      if (exitCode !== 0) {
-        if (root.open && root.page === "bluetooth" && root.bluetoothEnabled)
-          root.bluetoothError = root.cleanBluetoothError(output, "Could not enter pairing mode");
-        root.bluetoothSessionActive = false;
-        return;
-      }
-      if (root.open && root.page === "bluetooth" && root.bluetoothEnabled) {
-        root.bluetoothSessionActive = true;
-        root.startBluetoothDiscovery();
-        root.refreshBluetooth();
-      }
-    }
-  }
+      const wasClosing = root.bluetoothSessionClosing;
+      bluetoothSessionStopTimer.stop();
+      root.bluetoothSessionClosing = false;
+      root.bluetoothSessionActive = false;
+      root.stopBluetoothDiscovery();
 
-  Process {
-    id: bluetoothSessionCloseProc
+      if (!wasClosing && root.open && root.page === "bluetooth" && root.bluetoothEnabled)
+        root.bluetoothError = root.cleanBluetoothError(output, "Pairing mode ended unexpectedly");
+      else if (wasClosing && root.open && root.page === "bluetooth" && root.bluetoothEnabled)
+        Qt.callLater(function() { root.beginBluetoothSession(); });
+    }
   }
 
   Process {
