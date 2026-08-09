@@ -116,10 +116,17 @@ Scope {
 
   property var sink: Pipewire.defaultAudioSink
   property var source: Pipewire.defaultAudioSource
-  property var outputDevices: []
-  property var inputDevices: []
-  property var appStreams: []
   readonly property bool audioDetailsActive: open
+  readonly property var audioNodes: audioDetailsActive ? Pipewire.nodes.values : []
+  readonly property var outputDevices: audioNodes.filter(function(node) {
+    return Boolean(node?.audio && node.ready && !node.isStream && node.isSink)
+  })
+  readonly property var inputDevices: audioNodes.filter(function(node) {
+    return Boolean(node?.audio && node.ready && !node.isStream && !node.isSink)
+  })
+  readonly property var appStreams: audioNodes.filter(function(node) {
+    return Boolean(node?.audio && node.isStream)
+  })
 
   SequentialAnimation {
     id: pageTransition
@@ -1011,26 +1018,6 @@ Scope {
       focusBarOpen = false;
   }
 
-  function updateAudioNodes() {
-    const outputs = [];
-    const inputs = [];
-    const streams = [];
-    for (const node of Pipewire.nodes.values) {
-      if (!node || !node.audio)
-        continue;
-      if (node.isStream) {
-        streams.push(node);
-      } else if (node.ready && node.isSink) {
-        outputs.push(node);
-      } else if (node.ready) {
-        inputs.push(node);
-      }
-    }
-    outputDevices = outputs;
-    inputDevices = inputs;
-    appStreams = streams;
-  }
-
   function toggleOpen() {
     open = !open;
   }
@@ -1308,7 +1295,6 @@ Scope {
     dnd = dndFile.text().trim() === "1";
     focusMode = focusFile.text().trim() === "1";
     updateNotificationCount();
-    updateAudioNodes();
     refreshAll();
     focusProc.exec([backend, "focus", "restore"]);
   }
@@ -1344,7 +1330,6 @@ Scope {
       notificationTimelineNow = Date.now();
       lastBluetoothPollAt = Date.now();
       invalidateBluetoothForPage();
-      updateAudioNodes();
       refreshAll();
     } else {
       lastBluetoothPollAt = 0;
@@ -1464,15 +1449,7 @@ Scope {
   }
 
   PwObjectTracker {
-    objects: [sink].concat(audioDetailsActive ? [source].concat(outputDevices).concat(inputDevices).concat(appStreams) : [])
-  }
-
-  Connections {
-    target: Pipewire.nodes
-    function onValuesChanged() {
-      if (root.audioDetailsActive)
-        root.updateAudioNodes();
-    }
+    objects: audioDetailsActive ? Pipewire.nodes.values : [sink]
   }
 
   Connections {
