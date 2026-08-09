@@ -14,7 +14,7 @@ QtObject {
   readonly property var feedbackCurve: [0.2, 0, 0, 1, 1, 1]
   readonly property var focusTravelCurve: [0.2, 0.78, 0.2, 1, 1, 1]
   readonly property var surfaceEnterCurve: [0.16, 0.92, 0.24, 1, 1, 1]
-  readonly property var surfaceExitCurve: [0.4, 0, 0.8, 0.2, 1, 1]
+  readonly property var surfaceExitCurve: [0.25, 0.55, 0.3, 1, 1, 1]
   readonly property var contentCurve: [0.2, 0.72, 0.2, 1, 1, 1]
   readonly property var expressiveCurve: [0.34, 1.28, 0.28, 1, 1, 1]
 }
