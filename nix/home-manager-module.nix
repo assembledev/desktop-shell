@@ -328,6 +328,14 @@ in
 
       activation.seedDesktopShellState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         $DRY_RUN_CMD mkdir -p "$HOME/.local/state/desktop-shell/wallpaper"
+        $DRY_RUN_CMD mkdir -p "$HOME/.local/state/desktop-shell/preferences"
+        for preference in dnd focus; do
+          legacy="$HOME/.local/state/desktop-shell/$preference"
+          target="$HOME/.local/state/desktop-shell/preferences/$preference"
+          if [ ! -e "$target" ] && [ -r "$legacy" ]; then
+            $DRY_RUN_CMD cp "$legacy" "$target"
+          fi
+        done
         $DRY_RUN_CMD mkdir -p ${lib.escapeShellArg cfg.wallpaper.directory}
       '';
 

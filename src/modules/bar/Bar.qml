@@ -33,6 +33,7 @@ Scope {
 
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
   property string stateDir: Quickshell.env("CONTROL_CENTER_STATE_DIR")
+  property string preferencesDir: Quickshell.env("DESKTOP_SHELL_PREFERENCES_DIR")
   property string networkControlsPath: Quickshell.env("DESKTOP_SHELL_NETWORK_CONTROLS")
   property bool compact: Quickshell.env("DESKTOP_SHELL_BAR_COMPACT") === "1"
   property bool showVram: Quickshell.env("DESKTOP_SHELL_BAR_SHOW_VRAM") !== "0"
@@ -460,7 +461,7 @@ Scope {
 
   FileView {
     id: dndFile
-    path: stateDir + "/dnd"
+    path: preferencesDir + "/dnd"
     preload: true
     watchChanges: true
     onFileChanged: reload()

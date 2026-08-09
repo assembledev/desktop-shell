@@ -17,6 +17,9 @@ export DESKTOP_SHELL_PROC_ROOT="$test_root/proc"
 export DESKTOP_SHELL_EXECUTABLE=desktop-shell
 export DESKTOP_SHELL_QML="$source_root/src"
 mkdir -p "$HOME" "$XDG_RUNTIME_DIR" "$DESKTOP_SHELL_SYS_ROOT/class/backlight" "$DESKTOP_SHELL_PROC_ROOT"
+mkdir -p "$XDG_STATE_HOME/desktop-shell"
+printf '1\n' >"$XDG_STATE_HOME/desktop-shell/dnd"
+printf '1\n' >"$XDG_STATE_HOME/desktop-shell/focus"
 
 provider_config="$test_root/provider-config.json"
 jq \
@@ -38,6 +41,11 @@ source "$source_root/src/backend/lib/network.sh"
 source "$source_root/src/backend/lib/brightness.sh"
 # shellcheck source=../src/backend/lib/bluetooth.sh
 source "$source_root/src/backend/lib/bluetooth.sh"
+
+test "$(cat "$XDG_STATE_HOME/desktop-shell/preferences/dnd")" = 1
+test "$(cat "$XDG_STATE_HOME/desktop-shell/preferences/focus")" = 1
+write_preference focus 0
+test "$(cat "$XDG_STATE_HOME/desktop-shell/preferences/focus")" = 0
 
 network_control_command demo status | jq -e '.text == "Demo" and .active == true' >/dev/null
 network_control_command demo toggle

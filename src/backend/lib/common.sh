@@ -47,6 +47,7 @@ export DESKTOP_SHELL_RECORDING_STATE="$recording_state_file"
 
 desktop_shell_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/desktop-shell"
 state_dir="$desktop_shell_state_dir"
+preferences_state_dir="$desktop_shell_state_dir/preferences"
 wallpaper_state_dir="$desktop_shell_state_dir/wallpaper"
 current_wallpaper_file="$wallpaper_state_dir/current"
 clipboard_preview_dir="$state_dir/clipboard-previews"
@@ -59,22 +60,47 @@ privileged_helper="$DESKTOP_SHELL_PRIVILEGED_HELPER"
 desktop_shell_executable="${DESKTOP_SHELL_EXECUTABLE:-$0}"
 system_sys_root="${DESKTOP_SHELL_SYS_ROOT:-/sys}"
 system_proc_root="${DESKTOP_SHELL_PROC_ROOT:-/proc}"
-mkdir -p "$desktop_shell_state_dir" "$state_dir" "$wallpaper_state_dir" "$wallpaper_dir" "$clipboard_preview_dir"
+mkdir -p "$desktop_shell_state_dir" "$state_dir" "$preferences_state_dir" "$wallpaper_state_dir" "$wallpaper_dir" "$clipboard_preview_dir"
 
 # Keep existing user state when upgrading from the former NixOS-local layout.
 legacy_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/control-center"
 legacy_wallpaper_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/wallpaper-picker"
-for state_name in count dnd focus; do
-  if [ ! -e "$state_dir/$state_name" ] && [ -r "$legacy_state_dir/$state_name" ]; then
-    cp "$legacy_state_dir/$state_name" "$state_dir/$state_name"
-  fi
+if [ ! -e "$state_dir/count" ] && [ -r "$legacy_state_dir/count" ]; then
+  cp "$legacy_state_dir/count" "$state_dir/count"
+fi
+for preference_name in dnd focus; do
+  preference_file="$preferences_state_dir/$preference_name"
+  for legacy_file in "$state_dir/$preference_name" "$legacy_state_dir/$preference_name"; do
+    if [ ! -e "$preference_file" ] && [ -r "$legacy_file" ]; then
+      cp "$legacy_file" "$preference_file"
+    fi
+  done
 done
 if [ ! -e "$current_wallpaper_file" ] && [ -r "$legacy_wallpaper_state_dir/current" ]; then
   cp "$legacy_wallpaper_state_dir/current" "$current_wallpaper_file"
 fi
 [ -f "$state_dir/count" ] || printf '0\n' >"$state_dir/count"
-[ -f "$state_dir/dnd" ] || printf '0\n' >"$state_dir/dnd"
-[ -f "$state_dir/focus" ] || printf '0\n' >"$state_dir/focus"
+[ -f "$preferences_state_dir/dnd" ] || printf '0\n' >"$preferences_state_dir/dnd"
+[ -f "$preferences_state_dir/focus" ] || printf '0\n' >"$preferences_state_dir/focus"
+
+write_preference() {
+  local preference_name="$1"
+  local preference_value="$2"
+  local preference_tmp
+  case "$preference_name" in
+    dnd | focus) ;;
+    *)
+      printf 'desktop-shell: invalid preference: %s\n' "$preference_name" >&2
+      return 2
+      ;;
+  esac
+
+  preference_tmp="$(mktemp "$preferences_state_dir/.${preference_name}.XXXXXX")"
+  if ! printf '%s\n' "$preference_value" >"$preference_tmp" || ! mv -f "$preference_tmp" "$preferences_state_dir/$preference_name"; then
+    rm -f "$preference_tmp"
+    return 1
+  fi
+}
 
 json_escape() {
   jq -Rs .

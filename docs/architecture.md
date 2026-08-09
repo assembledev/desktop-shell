@@ -97,8 +97,9 @@ browsers, or other applications it launched.
 ## State and runtime data
 
 Persistent user state is kept below one `XDG_STATE_HOME/desktop-shell/` tree.
-It contains launcher usage, focus and notification state, bounded telemetry,
-clipboard previews, and the current wallpaper selection.
+The atomically updated DND and focus settings live in its `preferences/`
+directory. The tree also contains launcher usage, bounded telemetry, clipboard
+previews, notification counts, and the current wallpaper selection.
 
 Transient browser-tab data and IPC sockets live below
 `XDG_RUNTIME_DIR/desktop-shell/`. See [Browser tabs](browser-tabs.md) for the

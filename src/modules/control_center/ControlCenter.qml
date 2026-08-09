@@ -38,6 +38,7 @@ Scope {
 
   property string backend: Quickshell.env("CONTROL_CENTER_BACKEND")
   property string stateDir: Quickshell.env("CONTROL_CENTER_STATE_DIR")
+  property string preferencesDir: Quickshell.env("DESKTOP_SHELL_PREFERENCES_DIR")
   property bool open: false
   property bool dnd: false
   property string page: "main"
@@ -1492,7 +1493,7 @@ Scope {
 
   FileView {
     id: dndFile
-    path: stateDir + "/dnd"
+    path: preferencesDir + "/dnd"
     preload: true
     watchChanges: true
     onFileChanged: reload()
@@ -1513,7 +1514,7 @@ Scope {
 
   FileView {
     id: focusFile
-    path: stateDir + "/focus"
+    path: preferencesDir + "/focus"
     preload: true
     watchChanges: true
     onFileChanged: reload()

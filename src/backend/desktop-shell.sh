@@ -391,6 +391,7 @@ case "${1:-help}" in
     export DESKTOP_SHELL_DEFAULT_WALLPAPER="$default_wallpaper"
     export WALLPAPER_PICKER_STATE_DIR="$wallpaper_state_dir"
     export CONTROL_CENTER_STATE_DIR="$state_dir"
+    export DESKTOP_SHELL_PREFERENCES_DIR="$preferences_state_dir"
     exec quickshell \
       --log-rules 'quickshell.hyprland.ipc.events=false;quickshell.wayland.toplevelManagement=false' \
       --path "${DESKTOP_SHELL_QML}"/shell.qml
@@ -572,7 +573,7 @@ case "${1:-help}" in
     ;;
   notification-status)
     dnd=0
-    [ -f "$state_dir/dnd" ] && dnd="$(cat "$state_dir/dnd")"
+    [ -f "$preferences_state_dir/dnd" ] && dnd="$(cat "$preferences_state_dir/dnd")"
     count=0
     [ -f "$state_dir/count" ] && count="$(cat "$state_dir/count")"
     if [ "$dnd" = 1 ] && [ "$count" -gt 0 ] 2>/dev/null; then
@@ -671,11 +672,11 @@ case "${1:-help}" in
   focus)
     case "${2:-restore}" in
       on)
-        printf '1\n' >"$state_dir/focus"
+        write_preference focus 1
         bar_hide
         ;;
       off)
-        printf '0\n' >"$state_dir/focus"
+        write_preference focus 0
         bar_show
         ;;
       restore)

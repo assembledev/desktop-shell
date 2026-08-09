@@ -86,7 +86,7 @@ bar_hide() {
 
 focus_restore() {
   focus=0
-  [ -f "$state_dir/focus" ] && focus="$(cat "$state_dir/focus")"
+  [ -f "$preferences_state_dir/focus" ] && focus="$(cat "$preferences_state_dir/focus")"
   if [ "$focus" = 1 ]; then
     bar_hide
   else
