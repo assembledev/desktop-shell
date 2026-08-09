@@ -130,6 +130,7 @@ local desktopShellBlurLayers = {
   "quickshell:bar",
   "quickshell:batteryAnalysis",
   "quickshell:calendar",
+  "quickshell:trayMenu",
   "quickshell:trayShelf",
   "quickshell:powerMenu",
   "quickshell:launcher",

@@ -312,6 +312,7 @@ Scope {
   }
 
   onPortraitModeChanged: {
+    trayMenuPopup.closeImmediately();
     root.trayTriggerHovered = false;
     root.trayShelfHovered = false;
     root.trayShelfPinned = false;
@@ -320,6 +321,11 @@ Scope {
     root.batteryPanelHovered = false;
     root.batteryAnalysisPinned = false;
     root.batteryAnalysisOpen = false;
+  }
+
+  onPowerMenuOpenChanged: {
+    if (powerMenuOpen)
+      trayMenuPopup.closeMenu();
   }
 
   function keyboardLabel() {
@@ -519,8 +525,33 @@ Scope {
 
       if (event.name === "activelayout")
         keyboardProc.running = true;
-      else if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup")
+      else if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup") {
         root.powerMenuOpen = false;
+        trayMenuPopup.closeMenu();
+      }
+    }
+  }
+
+  TrayMenu {
+    id: trayMenuPopup
+    shellScreen: shellConfig.screen
+    barVisible: root.barOpen
+
+    onOpened: function(fromShelf) {
+      root.powerMenuOpen = false;
+      root.batteryAnalysisPinned = false;
+      root.batteryAnalysisOpen = false;
+      root.trayOpenMenus = fromShelf ? 1 : 0;
+      root.updateTrayShelfOpen();
+    }
+
+    onClosed: function(fromShelf) {
+      if (fromShelf) {
+        root.trayOpenMenus = 0;
+        if (root.portraitMode)
+          root.trayShelfPinned = false;
+      }
+      root.updateTrayShelfOpen();
     }
   }
 
@@ -1627,34 +1658,19 @@ Scope {
     acceptedButtons: Qt.LeftButton | Qt.RightButton
     cursorShape: Qt.PointingHandCursor
 
-    QsMenuAnchor {
-      id: trayMenu
-      menu: trayIcon.item.menu
-      anchor.item: trayIcon
-      anchor.edges: Edges.Bottom | Edges.Right
-      anchor.gravity: Edges.Top | Edges.Right
-      anchor.adjustment: PopupAdjustment.Flip
-      onOpened: {
-        if (trayIcon.trackShelfMenu) {
-          root.trayOpenMenus++;
-          root.updateTrayShelfOpen();
-        }
-      }
-      onClosed: {
-        if (trayIcon.trackShelfMenu) {
-          root.trayOpenMenus = Math.max(0, root.trayOpenMenus - 1);
-          if (root.portraitMode)
-            root.trayShelfPinned = false;
-          root.updateTrayShelfOpen();
-        }
-      }
+    function openMenu() {
+      const point = trayIcon.mapToItem(null, trayIcon.width / 2, trayIcon.height);
+      const bottom = trayIcon.trackShelfMenu
+        ? Math.max(point.y, root.trayShelfHeight + 2)
+        : 0;
+      trayMenuPopup.openFor(trayIcon.item, point.x, bottom, trayIcon.trackShelfMenu);
     }
 
     onClicked: function(mouse) {
       if (mouse.button === Qt.LeftButton && item.hasMenu) {
-        trayMenu.open();
+        openMenu();
       } else if (mouse.button === Qt.RightButton && item.hasMenu) {
-        trayMenu.open();
+        openMenu();
       } else if (mouse.button === Qt.LeftButton) {
         item.activate();
         if (trayIcon.trackShelfMenu && root.portraitMode) {
