@@ -2,6 +2,9 @@
 
 set -eu
 
+# shellcheck source=hypr-environment.sh
+source "${BASH_SOURCE[0]%/*}/hypr-environment.sh"
+
 desktop_shell_config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
 desktop_shell_config="${DESKTOP_SHELL_CONFIG:-$desktop_shell_config_home/desktop-shell/config.json}"
 if [ ! -r "$desktop_shell_config" ]; then
@@ -83,30 +86,4 @@ run_privileged() {
     return 1
   fi
   /run/wrappers/bin/sudo "$privileged_helper" "$@"
-}
-
-ensure_hypr_env() {
-  if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
-    XDG_RUNTIME_DIR="/run/user/$(id -u)"
-    export XDG_RUNTIME_DIR
-  fi
-
-  if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && [ -d "$XDG_RUNTIME_DIR/hypr" ]; then
-    sig="$(find "$XDG_RUNTIME_DIR/hypr" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort | tail -n 1 || true)"
-    if [ -n "$sig" ]; then
-      export HYPRLAND_INSTANCE_SIGNATURE="$sig"
-    fi
-  fi
-
-  if [ -z "${WAYLAND_DISPLAY:-}" ]; then
-    for display in "$XDG_RUNTIME_DIR"/wayland-*; do
-      case "$display" in
-        *.lock) continue ;;
-      esac
-      if [ -S "$display" ]; then
-        export WAYLAND_DISPLAY="${display##*/}"
-        break
-      fi
-    done
-  fi
 }

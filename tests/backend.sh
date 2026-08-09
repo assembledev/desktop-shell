@@ -48,7 +48,7 @@ backlight="$DESKTOP_SHELL_SYS_ROOT/class/backlight/test-backlight"
 mkdir -p "$backlight"
 printf '50\n' >"$backlight/brightness"
 printf '100\n' >"$backlight/max_brightness"
-brightness_capabilities_json | jq -e '.supported == true and .backend == "backlight"' >/dev/null
+brightness_capabilities_json | jq -e '.supported == true and .backend == "backlight" and .writable == true' >/dev/null
 test "$(brightness_get)" = 50
 
 test_bin="$test_root/bin"
@@ -76,6 +76,13 @@ test "${captured_fast_ipc_args[0]}" = ipc
 test "${captured_fast_ipc_args[3]}" = call
 test "${captured_fast_ipc_args[4]}" = launcher
 test "${captured_fast_ipc_args[5]}" = open
+
+fast_brightness="$({
+  DESKTOP_SHELL_CONFIG="$invalid_config" \
+    DESKTOP_SHELL_DEFAULT_CONFIG="$invalid_config" \
+    bash "$source_root/src/backend/desktop-shell.sh" brightness get
+})"
+test "$fast_brightness" = 50
 
 printf '#!%s\nexit 1\n' "$(command -v bash)" >"$test_bin/quickshell"
 chmod +x "$test_bin/quickshell"

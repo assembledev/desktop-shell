@@ -25,6 +25,53 @@ desktop_shell_ipc_call() {
   return 1
 }
 
+# Brightness changes are latency-sensitive continuous controls. The brightness
+# backend is self-contained, so dispatch it without parsing the shell config or
+# loading unrelated backend libraries. This is especially important for
+# sequential gesture steps from Edgepad.
+if [ "${1:-}" = brightness ]; then
+  backend_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  # shellcheck source=lib/hypr-environment.sh
+  source "$backend_dir/lib/hypr-environment.sh"
+  # shellcheck source=lib/brightness.sh
+  source "$backend_dir/lib/brightness.sh"
+
+  case "${2:-get}" in
+    backend)
+      brightness_backend
+      ;;
+    capabilities-json)
+      brightness_capabilities_json
+      ;;
+    get)
+      brightness_get
+      ;;
+    watch)
+      brightness_watch
+      ;;
+    set)
+      brightness_set "${3:-50}"
+      ;;
+    up)
+      brightness_adjust 5
+      ;;
+    down)
+      brightness_adjust -5
+      ;;
+    idle-dim)
+      brightness_idle_dim
+      ;;
+    idle-restore)
+      brightness_idle_restore
+      ;;
+    *)
+      printf 'usage: desktop-shell brightness [backend|capabilities-json|get|watch|set|up|down|idle-dim|idle-restore]\n' >&2
+      exit 2
+      ;;
+  esac
+  exit
+fi
+
 # Surface commands are latency-sensitive and need neither config parsing nor
 # the backend libraries. Dispatch them before the heavyweight backend setup;
 # desktop_shell_ipc_call still starts the service and retries when necessary.
@@ -161,8 +208,6 @@ source "$backend_dir/lib/clipboard.sh"
 source "$backend_dir/lib/network.sh"
 # shellcheck source=lib/bluetooth.sh
 source "$backend_dir/lib/bluetooth.sh"
-# shellcheck source=lib/brightness.sh
-source "$backend_dir/lib/brightness.sh"
 # shellcheck source=lib/metrics.sh
 source "$backend_dir/lib/metrics.sh"
 # shellcheck source=lib/session.sh
@@ -563,41 +608,6 @@ case "${1:-help}" in
         bluetoothctl "$action" "$address"
         ;;
       *)
-        exit 2
-        ;;
-    esac
-    ;;
-  brightness)
-    case "${2:-get}" in
-      backend)
-        brightness_backend
-        ;;
-      capabilities-json)
-        brightness_capabilities_json
-        ;;
-      get)
-        brightness_get
-        ;;
-      watch)
-        brightness_watch
-        ;;
-      set)
-        brightness_set "${3:-50}"
-        ;;
-      up)
-        brightness_adjust 5
-        ;;
-      down)
-        brightness_adjust -5
-        ;;
-      idle-dim)
-        brightness_idle_dim
-        ;;
-      idle-restore)
-        brightness_idle_restore
-        ;;
-      *)
-        printf 'usage: desktop-shell brightness [backend|capabilities-json|get|watch|set|up|down|idle-dim|idle-restore]\n' >&2
         exit 2
         ;;
     esac

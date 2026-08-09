@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+desktop_shell_state_dir="${desktop_shell_state_dir:-${XDG_STATE_HOME:-$HOME/.local/state}/desktop-shell}"
+system_sys_root="${system_sys_root:-${DESKTOP_SHELL_SYS_ROOT:-/sys}}"
+
 if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
   brightness_runtime_dir="$XDG_RUNTIME_DIR/desktop-shell"
 else
@@ -37,9 +40,25 @@ brightness_backlight_values() {
 }
 
 brightness_focused_output() {
-  ensure_hypr_env
+  if command -v ensure_hypr_env >/dev/null 2>&1; then
+    ensure_hypr_env
+  fi
   hyprctl monitors -j 2>/dev/null |
     jq -r '[.[] | select(.focused == true) | .name][0] // empty' 2>/dev/null
+}
+
+brightness_backlight_writable() {
+  device="$1"
+  [ -w "$device/brightness" ] && return 0
+
+  # brightnessctl can write through logind even when sysfs is intentionally
+  # read-only to the desktop user. Probe that real command path with a no-op
+  # write instead of disabling the UI based on raw sysfs permissions.
+  IFS= read -r current <"$device/brightness" || return 1
+  case "$current" in
+    '' | *[!0-9]*) return 1 ;;
+  esac
+  brightnessctl -c backlight -d "${device##*/}" set "$current" >/dev/null 2>&1
 }
 
 brightness_ddc_detect_records() {
@@ -181,7 +200,7 @@ brightness_backend() {
 brightness_capabilities_json() {
   if device="$(brightness_device_dir)"; then
     writable=false
-    [ -w "$device/brightness" ] && writable=true
+    brightness_backlight_writable "$device" && writable=true
     jq -nc --arg backend backlight --argjson writable "$writable" \
       '{supported: true, backend: $backend, writable: $writable}'
     return 0

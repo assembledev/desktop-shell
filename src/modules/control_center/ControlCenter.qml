@@ -2357,7 +2357,7 @@ Scope {
                 enabled: root.brightnessWritable
                 showDivider: false
                 accent: theme.yellow
-                onChanged: root.setBrightness(value)
+                onChanged: function(value) { root.setBrightness(value); }
               }
             }
           }
