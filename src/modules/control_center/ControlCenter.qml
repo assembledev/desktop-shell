@@ -496,17 +496,13 @@ Scope {
     return width;
   }
 
-  function invokeNotificationAction(action, notification) {
+  function invokeNotificationAction(action) {
     if (action?.invoke)
       action.invoke();
-
-    // The spec only keeps resident notifications alive after an action.
-    if (notification && !notificationIsResident(notification))
-      notification.dismiss();
   }
 
   function invokeDefaultNotificationAction(notification) {
-    invokeNotificationAction(defaultNotificationAction(notification), notification);
+    invokeNotificationAction(defaultNotificationAction(notification));
   }
 
   function wifiSummaryText() {
@@ -1539,14 +1535,15 @@ Scope {
 
     onNotification: function(notification) {
       notification.tracked = true;
+      const notificationId = Number(notification.id);
       const policy = root.notificationPolicy(notification);
       const item = {
-        id: notification.id,
+        id: notificationId,
         notification: notification,
         time: Date.now()
       };
       notification.closed.connect(function() {
-        root.removeNotification(notification.id, false);
+        root.removeNotification(notificationId, false);
       });
 
       // Transient notifications may be shown as popups, but must not become
@@ -4542,7 +4539,7 @@ Scope {
             required property var modelData
             label: root.actionLabel(modelData.action)
             iconSource: root.notificationActionIconSource(modelData.notification, modelData.action)
-            onClicked: root.invokeNotificationAction(modelData.action, modelData.notification)
+            onClicked: root.invokeNotificationAction(modelData.action)
           }
         }
       }
@@ -4715,7 +4712,7 @@ Scope {
             label: root.actionLabel(modelData.action)
             iconSource: root.notificationActionIconSource(modelData.notification, modelData.action)
             maximumWidth: actionFlow.width
-            onClicked: root.invokeNotificationAction(modelData.action, modelData.notification)
+            onClicked: root.invokeNotificationAction(modelData.action)
           }
         }
       }
