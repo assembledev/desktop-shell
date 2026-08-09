@@ -14,6 +14,8 @@ Item {
   property var controls: []
   property var statusById: ({})
   property int refreshNonce: 0
+  signal statusRequested(string controlId)
+  signal toggleRequested(string controlId)
 
   readonly property int textOpticalYOffset: 1
 
@@ -50,7 +52,11 @@ Item {
       if (!control.id)
         continue;
 
-      nextStatus[control.id] = statusById[control.id] || defaultStatus(control);
+      nextStatus[control.id] = Object.assign(
+        defaultStatus(control),
+        statusById[control.id] || {},
+        { busy: false }
+      );
     }
 
     controls = nextControls;
@@ -63,6 +69,9 @@ Item {
       text: control?.label || "",
       active: false,
       login: false,
+      busy: false,
+      error: "",
+      errorKind: "",
     };
   }
 
@@ -75,13 +84,37 @@ Item {
       return;
 
     const statuses = Object.assign({}, statusById);
-    statuses[control.id] = Object.assign(defaultStatus(control), next || {});
+    statuses[control.id] = Object.assign(
+      defaultStatus(control),
+      statuses[control.id] || {},
+      next || {}
+    );
     statusById = statuses;
   }
 
-  function toggle(control) {
-    if (control?.id)
-      toggleProcess.exec([backend, "network-control", "toggle", control.id]);
+  function commandError(control, action, exitCode, stderr, stdout) {
+    const details = String(stderr || stdout || "").trim();
+    const message = details || (action + " command exited with status " + exitCode);
+    console.error("network control " + control.id + " " + action + " failed: " + message);
+    return message;
+  }
+
+  function activate(control) {
+    if (!control?.id)
+      return;
+
+    const current = status(control);
+    if (current.busy)
+      return;
+
+    if (current.errorKind === "status") {
+      setStatus(control, { error: "", errorKind: "" });
+      statusRequested(control.id);
+      return;
+    }
+
+    setStatus(control, { busy: true, error: "", errorKind: "" });
+    toggleRequested(control.id);
   }
 
   onPollingEnabledChanged: {
@@ -110,11 +143,6 @@ Item {
     }
   }
 
-  Process {
-    id: toggleProcess
-    onExited: network.refreshNonce++
-  }
-
   Item {
     visible: false
 
@@ -124,10 +152,33 @@ Item {
       delegate: Item {
         id: poller
         required property var modelData
+        property bool refreshPending: false
+        property string statusOutput: ""
+        property string statusError: ""
+        property string toggleOutput: ""
+        property string toggleError: ""
 
         function refresh() {
-          if (network.pollingEnabled && modelData?.id)
-            statusProcess.exec([network.backend, "network-control", "status", modelData.id]);
+          if (!network.pollingEnabled || !modelData?.id)
+            return;
+          if (statusProcess.running) {
+            refreshPending = true;
+            return;
+          }
+
+          refreshPending = false;
+          statusOutput = "";
+          statusError = "";
+          statusProcess.exec([network.backend, "network-control", "status", modelData.id]);
+        }
+
+        function startToggle() {
+          if (!modelData?.id || toggleProcess.running)
+            return;
+
+          toggleOutput = "";
+          toggleError = "";
+          toggleProcess.exec([network.backend, "network-control", "toggle", modelData.id]);
         }
 
         onModelDataChanged: refresh()
@@ -136,15 +187,86 @@ Item {
         Connections {
           target: network
           function onRefreshNonceChanged() { poller.refresh(); }
+          function onStatusRequested(controlId) {
+            if (controlId === poller.modelData?.id)
+              poller.refresh();
+          }
+          function onToggleRequested(controlId) {
+            if (controlId === poller.modelData?.id)
+              poller.startToggle();
+          }
         }
 
         Process {
           id: statusProcess
           stdout: StdioCollector {
-            onStreamFinished: network.setStatus(
-              poller.modelData,
-              network.parseJson(text, network.status(poller.modelData))
-            )
+            onStreamFinished: poller.statusOutput = text
+          }
+          stderr: StdioCollector {
+            onStreamFinished: poller.statusError = text
+          }
+          onExited: function(exitCode) {
+            if (exitCode === 0) {
+              const next = network.parseJson(poller.statusOutput, null);
+              if (next && typeof next === "object") {
+                network.setStatus(poller.modelData, Object.assign({}, next, {
+                  error: "",
+                  errorKind: ""
+                }));
+              } else {
+                network.setStatus(poller.modelData, {
+                  error: "Status command returned invalid JSON",
+                  errorKind: "status"
+                });
+                console.error("network control " + poller.modelData.id + " status returned invalid JSON");
+              }
+            } else {
+              network.setStatus(poller.modelData, {
+                error: network.commandError(
+                  poller.modelData,
+                  "status",
+                  exitCode,
+                  poller.statusError,
+                  poller.statusOutput
+                ),
+                errorKind: "status"
+              });
+            }
+
+            if (poller.refreshPending)
+              Qt.callLater(function() { poller.refresh(); });
+          }
+        }
+
+        Process {
+          id: toggleProcess
+          stdout: StdioCollector {
+            onStreamFinished: poller.toggleOutput = text
+          }
+          stderr: StdioCollector {
+            onStreamFinished: poller.toggleError = text
+          }
+          onExited: function(exitCode) {
+            if (exitCode === 0) {
+              network.setStatus(poller.modelData, {
+                busy: false,
+                error: "",
+                errorKind: ""
+              });
+              poller.refresh();
+            } else {
+              network.setStatus(poller.modelData, {
+                busy: false,
+                error: network.commandError(
+                  poller.modelData,
+                  "toggle",
+                  exitCode,
+                  poller.toggleError,
+                  poller.toggleOutput
+                ),
+                errorKind: "toggle"
+              });
+            }
           }
         }
       }
@@ -170,6 +292,8 @@ Item {
           property var currentStatus: network.status(modelData)
           readonly property bool active: Boolean(currentStatus.active)
           readonly property bool login: Boolean(currentStatus.login)
+          readonly property bool busy: Boolean(currentStatus.busy)
+          readonly property bool failed: String(currentStatus.error || "").length > 0
 
           Layout.preferredWidth: statusContent.implicitWidth + 10
           Layout.preferredHeight: network.targetHeight
@@ -184,7 +308,9 @@ Item {
             width: parent.width
             height: 24
             radius: 7
-            color: itemMouse.containsMouse ? theme.surfaceAccent : "transparent"
+            color: statusItem.failed
+              ? Qt.alpha(theme.red, itemMouse.containsMouse ? 0.18 : 0.09)
+              : (itemMouse.containsMouse ? theme.surfaceAccent : "transparent")
 
             Behavior on color {
               MotionColorAnimation { role: MotionNumberAnimation.Feedback }
@@ -207,8 +333,10 @@ Item {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               anchors.verticalCenterOffset: network.textOpticalYOffset
-              text: statusItem.currentStatus.text || modelData.label || ""
-              color: theme.text
+              text: statusItem.failed
+                ? ((modelData.label || statusItem.currentStatus.text || "Network") + " !")
+                : (statusItem.currentStatus.text || modelData.label || "")
+              color: statusItem.failed ? theme.red : theme.text
               font.family: theme.fontFamily
               font.pixelSize: 15
               font.bold: true
@@ -219,7 +347,9 @@ Item {
               height: 6
               radius: 3
               anchors.verticalCenter: parent.verticalCenter
-              color: statusItem.active ? theme.green : (statusItem.login ? theme.yellow : theme.red)
+              color: statusItem.busy
+                ? theme.yellow
+                : (statusItem.active ? theme.green : (statusItem.login ? theme.yellow : theme.red))
             }
           }
 
@@ -227,8 +357,8 @@ Item {
             id: itemMouse
             anchors.fill: parent
             hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: network.toggle(modelData)
+            cursorShape: statusItem.busy ? Qt.BusyCursor : Qt.PointingHandCursor
+            onClicked: network.activate(modelData)
           }
         }
 
