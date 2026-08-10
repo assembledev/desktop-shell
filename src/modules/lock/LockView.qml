@@ -331,20 +331,18 @@ Item {
               visible: root.passwordLength > 0 && !root.authRunning && root.message.length === 0
 
               Repeater {
-                model: Math.min(root.passwordLength, 32)
+                model: 32
 
                 Rectangle {
-                  property real revealScale: 0.35
                   width: 9
                   height: 9
                   radius: 3
                   color: root.text
                   opacity: 0.88
-                  scale: revealScale
+                  visible: index < root.passwordLength
+                  scale: visible ? 1 : 0.35
 
-                  Component.onCompleted: revealScale = 1
-
-                  Behavior on revealScale {
+                  Behavior on scale {
                     MotionNumberAnimation { role: MotionNumberAnimation.Expressive }
                   }
                 }

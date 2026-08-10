@@ -13,6 +13,10 @@ Scope {
     id: theme
   }
 
+  ShellConfig {
+    id: shellConfig
+  }
+
   SystemClock {
     id: clock
     precision: SystemClock.Minutes
