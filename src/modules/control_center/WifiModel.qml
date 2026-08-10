@@ -7,6 +7,7 @@ Scope {
 
   property bool scannerActive: false
   property var scannerDevice: null
+  property bool scanPending: false
 
   readonly property bool backendAvailable: Networking.backend === NetworkBackendType.NetworkManager
   readonly property bool enabled: Networking.wifiEnabled
@@ -62,8 +63,15 @@ Scope {
       scannerDevice.scannerEnabled = false;
 
     scannerDevice = device;
-    if (scannerDevice)
-      scannerDevice.scannerEnabled = scannerActive && enabled && hardwareEnabled;
+    if (!scannerDevice)
+      return;
+
+    const shouldScan = scannerActive && enabled && hardwareEnabled;
+    scannerDevice.scannerEnabled = shouldScan;
+    if (scanPending && shouldScan) {
+      scanPending = false;
+      requestScan();
+    }
   }
 
   function setEnabled(nextEnabled) {
@@ -94,7 +102,10 @@ Scope {
 
   onDeviceChanged: syncScanner()
   onScannerActiveChanged: syncScanner()
-  onEnabledChanged: syncScanner()
+  onEnabledChanged: {
+    scanPending = enabled;
+    syncScanner();
+  }
   onHardwareEnabledChanged: syncScanner()
 
   Component.onCompleted: syncScanner()
