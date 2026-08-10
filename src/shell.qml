@@ -21,11 +21,11 @@ ShellRoot {
     function ping(): bool { return true; }
   }
 
-  Bar {}
-  CalendarPopup {}
+  Bar { id: bar }
+  CalendarPopup { barSurface: bar.surface }
   CheatSheet {}
   ClipboardHistory {}
-  ControlCenter {}
+  ControlCenter { barSurface: bar.surface }
   Launcher {}
   LockPreview {}
   NowPlaying {}

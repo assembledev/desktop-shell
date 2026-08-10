@@ -35,6 +35,7 @@ Scope {
   property string stateDir: Quickshell.env("CONTROL_CENTER_STATE_DIR")
   property string preferencesDir: Quickshell.env("DESKTOP_SHELL_PREFERENCES_DIR")
   property string networkControlsPath: Quickshell.env("DESKTOP_SHELL_NETWORK_CONTROLS")
+  readonly property var surface: barWindow
   property bool compact: Quickshell.env("DESKTOP_SHELL_BAR_COMPACT") === "1"
   property bool showVram: Quickshell.env("DESKTOP_SHELL_BAR_SHOW_VRAM") !== "0"
   property bool workspaceIcons: Quickshell.env("DESKTOP_SHELL_BAR_WORKSPACE_ICONS") !== "0"
@@ -139,6 +140,7 @@ Scope {
   PopupLifecycle {
     requested: root.powerMenuOpen
     surface: powerMenuWindow
+    companionSurfaces: [barWindow]
     onDismissed: root.powerMenuOpen = false
   }
 
@@ -552,6 +554,8 @@ Scope {
   TrayMenu {
     id: trayMenuPopup
     shellScreen: shellConfig.screen
+    barSurface: barWindow
+    trayShelfSurface: trayShelfWindow
     barVisible: root.barOpen
 
     onOpened: function(fromShelf) {

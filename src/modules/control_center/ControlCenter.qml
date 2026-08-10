@@ -13,6 +13,8 @@ import "../common"
 Scope {
   id: root
 
+  required property var barSurface
+
   Theme {
     id: theme
   }
@@ -25,6 +27,7 @@ Scope {
   PopupLifecycle {
     requested: root.open
     surface: mainWindow
+    companionSurfaces: [root.barSurface]
     onDismissed: root.open = false
   }
   MotionTransition {

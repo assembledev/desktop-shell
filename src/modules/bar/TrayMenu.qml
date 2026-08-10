@@ -12,6 +12,8 @@ Scope {
   id: root
 
   required property var shellScreen
+  required property var barSurface
+  required property var trayShelfSurface
   property bool barVisible: true
 
   property SystemTrayItem trayItem: null
@@ -72,6 +74,7 @@ Scope {
   PopupLifecycle {
     requested: root.expanded
     surface: menuWindow
+    companionSurfaces: [root.barSurface, root.trayShelfSurface]
     onDismissed: root.closeMenu()
   }
 

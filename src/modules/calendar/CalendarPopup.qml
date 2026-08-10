@@ -11,6 +11,8 @@ import "../common"
 Scope {
   id: root
 
+  required property var barSurface
+
   Theme {
     id: theme
   }
@@ -23,6 +25,7 @@ Scope {
   PopupLifecycle {
     requested: root.open
     surface: window
+    companionSurfaces: [root.barSurface]
     onDismissed: root.closeCalendar()
   }
 
