@@ -136,6 +136,11 @@ Scope {
     id: powerMenuTransition
     requested: root.powerMenuOpen
   }
+  PopupLifecycle {
+    requested: root.powerMenuOpen
+    surface: powerMenuWindow
+    onDismissed: root.powerMenuOpen = false
+  }
 
   function parseJson(text, fallback) {
     const rawText = String(text || "").trim();
@@ -1285,7 +1290,7 @@ Scope {
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:powerMenu"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: powerMenuHover.hovered
+    WlrLayershell.keyboardFocus: root.powerMenuOpen
       ? WlrKeyboardFocus.OnDemand
       : WlrKeyboardFocus.None
 
@@ -1297,23 +1302,12 @@ Scope {
     }
 
     mask: Region {
-      item: powerMask
+      item: root.powerMenuOpen ? powerMenuBox : null
     }
 
     Item {
-      id: powerMask
+      id: powerLayer
       anchors.fill: parent
-
-      HoverHandler {
-        id: powerMenuHover
-        enabled: root.powerMenuOpen
-      }
-
-      MouseArea {
-        anchors.fill: parent
-        enabled: root.powerMenuOpen
-        onClicked: root.powerMenuOpen = false
-      }
 
       Rectangle {
         id: powerMenuBox

@@ -22,6 +22,11 @@ Scope {
     id: mainSurfaceTransition
     requested: root.open
   }
+  PopupLifecycle {
+    requested: root.open
+    surface: mainWindow
+    onDismissed: root.open = false
+  }
   MotionTransition {
     id: osdSurfaceTransition
     requested: root.osdVisible
@@ -1874,9 +1879,13 @@ Scope {
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:controlCenter"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: controlCenterHover.hovered
+    WlrLayershell.keyboardFocus: root.open
       ? WlrKeyboardFocus.OnDemand
       : WlrKeyboardFocus.None
+
+    mask: Region {
+      item: root.open ? panel : null
+    }
 
     anchors {
       top: true
@@ -1889,17 +1898,6 @@ Scope {
         anchors.fill: parent
         color: theme.surfaceScrim
         opacity: mainSurfaceTransition.progress
-
-      HoverHandler {
-        id: controlCenterHover
-        enabled: root.open
-      }
-
-      MouseArea {
-        anchors.fill: parent
-        enabled: root.open
-        onClicked: root.open = false
-      }
 
       Rectangle {
         id: panel

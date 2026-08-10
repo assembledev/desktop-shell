@@ -69,6 +69,11 @@ Scope {
       root.closed(fromShelf);
     }
   }
+  PopupLifecycle {
+    requested: root.expanded
+    surface: menuWindow
+    onDismissed: root.closeMenu()
+  }
 
   function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(value, Math.max(minimum, maximum)));
@@ -101,7 +106,6 @@ Scope {
       if (!root.rendered || root.trayItem !== item)
         return;
       root.expanded = true;
-      inputLayer.forceActiveFocus(Qt.PopupFocusReason);
       if (!wasRendered)
         root.opened(root.sourceFromShelf);
     });
@@ -227,7 +231,13 @@ Scope {
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:trayMenu"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: root.expanded
+      ? WlrKeyboardFocus.OnDemand
+      : WlrKeyboardFocus.None
+
+    mask: Region {
+      item: root.expanded ? menuCard : null
+    }
 
     anchors {
       top: true
@@ -240,12 +250,6 @@ Scope {
       id: inputLayer
       anchors.fill: parent
       focus: root.expanded
-
-      MouseArea {
-        anchors.fill: parent
-        enabled: root.expanded
-        onClicked: root.closeMenu()
-      }
 
       Rectangle {
         id: menuCard

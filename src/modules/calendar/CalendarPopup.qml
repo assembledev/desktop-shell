@@ -20,6 +20,11 @@ Scope {
     id: surfaceTransition
     requested: root.open
   }
+  PopupLifecycle {
+    requested: root.open
+    surface: window
+    onDismissed: root.closeCalendar()
+  }
 
   property bool open: false
   property date today: new Date()
@@ -60,9 +65,6 @@ Scope {
   function openCalendar() {
     resetToToday();
     open = true;
-    Qt.callLater(function () {
-      focusLayer.forceActiveFocus();
-    });
   }
 
   function closeCalendar() {
@@ -160,6 +162,10 @@ Scope {
       ? WlrKeyboardFocus.OnDemand
       : WlrKeyboardFocus.None
 
+    mask: Region {
+      item: root.open ? panel : null
+    }
+
     anchors {
       top: true
       bottom: true
@@ -170,12 +176,6 @@ Scope {
     Item {
       id: inputLayer
       anchors.fill: parent
-
-      MouseArea {
-        anchors.fill: parent
-        enabled: root.open
-        onClicked: root.closeCalendar()
-      }
 
       FocusScope {
         id: focusLayer
