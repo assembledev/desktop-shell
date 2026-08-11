@@ -90,6 +90,16 @@ Scope {
   property bool brightnessWritable: false
   property int pendingBrightnessPercent: 0
   property bool brightnessReady: false
+  property bool displaysReady: false
+  property var displays: []
+  property bool displayProfileAvailable: false
+  property string displayPrimary: ""
+  property var displayDraft: ({})
+  property string displayOperation: ""
+  property string displayError: ""
+  property string displayPendingToken: ""
+  property int displayConfirmSeconds: 0
+  property bool displayRefreshPending: false
   property bool volumeReady: false
   readonly property int osdTimeout: 1100
   readonly property int osdRowHeight: 38
@@ -1086,6 +1096,152 @@ Scope {
     invalidateBluetoothForPage();
   }
 
+  function displayOutput(name) {
+    return displays.find(function(output) { return String(output?.name || "") === String(name || ""); }) || null;
+  }
+
+  function displayName(output) {
+    const description = String(output?.description || "").trim();
+    return description.length > 0 ? description : String(output?.name || "Display");
+  }
+
+  function displayModeLabel(mode) {
+    return String(mode || "preferred").replace("@", " @ ") + (String(mode || "").includes("@") ? " Hz" : "");
+  }
+
+  function displaySummaryText() {
+    if (!displaysReady)
+      return "Detecting displays";
+    if (displays.length === 0)
+      return "No displays";
+    const active = displays.filter(function(output) { return Boolean(output.enabled); });
+    if (active.length === 1)
+      return displayName(active[0]);
+    const mirrored = active.some(function(output) { return String(output.mirror || "").length > 0; });
+    return active.length + " displays · " + (mirrored ? "Duplicate" : "Extend");
+  }
+
+  function displayDraftValue(name, field, fallback) {
+    const outputDraft = displayDraft[String(name || "")] || {};
+    return outputDraft[field] === undefined ? fallback : outputDraft[field];
+  }
+
+  function setDisplayDraftValue(name, field, value) {
+    const next = Object.assign({}, displayDraft);
+    const outputDraft = Object.assign({}, next[String(name)] || {});
+    outputDraft[field] = value;
+    next[String(name)] = outputDraft;
+    displayDraft = next;
+  }
+
+  function rebuildDisplayDraft() {
+    const next = {};
+    for (let i = 0; i < displays.length; i++) {
+      const output = displays[i];
+      next[String(output.name)] = { mode: String(output.mode), scale: Number(output.scale) };
+    }
+    displayDraft = next;
+  }
+
+  function adoptDisplaySnapshot(snapshot) {
+    if (!snapshot || !Array.isArray(snapshot.outputs))
+      return;
+
+    displays = snapshot.outputs;
+    displayProfileAvailable = Boolean(snapshot.profileAvailable);
+    const selected = displayOutput(displayPrimary);
+    if (!selected || !selected.enabled) {
+      const focused = displays.find(function(output) { return Boolean(output.focused && output.enabled); });
+      const active = displays.find(function(output) { return Boolean(output.enabled); });
+      displayPrimary = String((focused || active || displays[0])?.name || "");
+    }
+    rebuildDisplayDraft();
+    displaysReady = true;
+
+    if (snapshot.pending && snapshot.pending.token) {
+      displayPendingToken = String(snapshot.pending.token);
+      displayConfirmSeconds = Math.max(0, Number(snapshot.pending.expiresIn || 0));
+      if (displayConfirmSeconds > 0)
+        displayConfirmTimer.restart();
+    } else if (displayPendingToken.length > 0) {
+      displayPendingToken = "";
+      displayConfirmSeconds = 0;
+      displayConfirmTimer.stop();
+    }
+  }
+
+  function refreshDisplays() {
+    if (displayStatusProc.running) {
+      displayRefreshPending = true;
+      return;
+    }
+    displayRefreshPending = false;
+    displayStatusProc.output = "";
+    displayStatusProc.errorOutput = "";
+    displayStatusProc.running = true;
+  }
+
+  function finishDisplayRefresh() {
+    if (displayRefreshPending) {
+      displayRefreshPending = false;
+      Qt.callLater(root.refreshDisplays);
+    }
+  }
+
+  function displayRequest(preset) {
+    return {
+      preset: preset,
+      primary: displayPrimary,
+      changes: displayDraft
+    };
+  }
+
+  function applyDisplayPreset(preset) {
+    if (displayOperation.length > 0 || displayPendingToken.length > 0)
+      return;
+    displayError = "";
+    displayOperation = "apply";
+    displayApplyProc.output = "";
+    displayApplyProc.errorOutput = "";
+    displayApplyProc.exec([backend, "display", "apply", JSON.stringify(displayRequest(preset))]);
+  }
+
+  function cleanDisplayError(text, fallback) {
+    const cleaned = String(text || "")
+      .replace(/^jq: error \(at [^)]*\):\s*/m, "")
+      .replace(/^desktop-shell:\s*/m, "")
+      .trim();
+    return cleaned.length > 0 ? cleaned : fallback;
+  }
+
+  function keepDisplayLayout() {
+    if (displayPendingToken.length === 0 || displayOperation.length > 0)
+      return;
+    displayOperation = "keep";
+    displayDecisionProc.output = "";
+    displayDecisionProc.errorOutput = "";
+    displayDecisionProc.exec([backend, "display", "keep", displayPendingToken]);
+  }
+
+  function revertDisplayLayout() {
+    if (displayPendingToken.length === 0 || displayOperation.length > 0)
+      return;
+    displayOperation = "rollback";
+    displayDecisionProc.output = "";
+    displayDecisionProc.errorOutput = "";
+    displayDecisionProc.exec([backend, "display", "rollback", displayPendingToken]);
+  }
+
+  function resetDisplayProfiles() {
+    if (displayOperation.length > 0 || displayPendingToken.length > 0)
+      return;
+    displayError = "";
+    displayOperation = "reset";
+    displayResetProc.output = "";
+    displayResetProc.errorOutput = "";
+    displayResetProc.running = true;
+  }
+
   function refreshAll() {
     refreshBluetoothForPage();
     if (brightnessSupported)
@@ -1304,6 +1460,7 @@ Scope {
     focusMode = focusFile.text().trim() === "1";
     updateNotificationCount();
     refreshAll();
+    displayRestoreProc.running = true;
     focusProc.exec([backend, "focus", "restore"]);
   }
 
@@ -1321,6 +1478,8 @@ Scope {
     }
     if (page === "bluetooth" && open)
       beginBluetoothSession();
+    if (page === "display" && open)
+      refreshDisplays();
 
     if (!open || !mainSurfaceTransition.presented) {
       pageTransition.stop();
@@ -1355,6 +1514,51 @@ Scope {
       beginBluetoothSession();
     else if (!open)
       endBluetoothSession();
+    if (open && page === "display")
+      refreshDisplays();
+  }
+
+  Connections {
+    target: Hyprland
+
+    function onRawEvent(event) {
+      const name = String(event?.name || "");
+      if (name === "monitoradded" || name === "monitoraddedv2"
+          || name === "monitorremoved" || name === "monitorremovedv2")
+        displayHotplugTimer.restart();
+    }
+  }
+
+  Timer {
+    id: displayHotplugTimer
+    interval: 280
+    repeat: false
+    onTriggered: {
+      if (root.displayPendingToken.length > 0 || root.displayOperation.length > 0)
+        root.refreshDisplays();
+      else
+        displayRestoreProc.running = true;
+    }
+  }
+
+  Timer {
+    id: displayRefreshTimer
+    interval: 420
+    repeat: false
+    onTriggered: root.refreshDisplays()
+  }
+
+  Timer {
+    id: displayConfirmTimer
+    interval: 1000
+    repeat: true
+    onTriggered: {
+      root.displayConfirmSeconds = Math.max(0, root.displayConfirmSeconds - 1);
+      if (root.displayConfirmSeconds === 0) {
+        displayConfirmTimer.stop();
+        root.revertDisplayLayout();
+      }
+    }
   }
 
   Timer {
@@ -1703,6 +1907,109 @@ Scope {
   }
 
   Process {
+    id: displayStatusProc
+    property string output: ""
+    property string errorOutput: ""
+    command: root.boundedBackendCommand(["display", "status-json"])
+    stdout: StdioCollector {
+      onStreamFinished: displayStatusProc.output = text
+    }
+    stderr: StdioCollector {
+      onStreamFinished: displayStatusProc.errorOutput = text
+    }
+    onExited: function(exitCode) {
+      if (exitCode === 0) {
+        const snapshot = root.parseJson(output, null);
+        if (snapshot)
+          root.adoptDisplaySnapshot(snapshot);
+      } else if (root.open && root.page === "display") {
+        root.displayError = root.cleanDisplayError(errorOutput, "Could not read display state");
+      }
+      root.finishDisplayRefresh();
+    }
+  }
+
+  Process {
+    id: displayApplyProc
+    property string output: ""
+    property string errorOutput: ""
+    stdout: StdioCollector {
+      onStreamFinished: displayApplyProc.output = text
+    }
+    stderr: StdioCollector {
+      onStreamFinished: displayApplyProc.errorOutput = text
+    }
+    onExited: function(exitCode) {
+      if (exitCode === 0) {
+        const pending = root.parseJson(output, null);
+        if (pending && pending.token) {
+          root.displayPendingToken = String(pending.token);
+          root.displayConfirmSeconds = Math.max(0, Number(pending.expiresIn || 0));
+          displayConfirmTimer.restart();
+        }
+      } else {
+        root.displayError = root.cleanDisplayError(errorOutput, "Could not apply display layout");
+      }
+      root.displayOperation = "";
+      displayRefreshTimer.restart();
+    }
+  }
+
+  Process {
+    id: displayDecisionProc
+    property string output: ""
+    property string errorOutput: ""
+    stdout: StdioCollector {
+      onStreamFinished: displayDecisionProc.output = text
+    }
+    stderr: StdioCollector {
+      onStreamFinished: displayDecisionProc.errorOutput = text
+    }
+    onExited: function(exitCode) {
+      if (exitCode !== 0)
+        root.displayError = root.cleanDisplayError(errorOutput, "Could not confirm display layout");
+      root.displayPendingToken = "";
+      root.displayConfirmSeconds = 0;
+      displayConfirmTimer.stop();
+      root.displayOperation = "";
+      displayRefreshTimer.restart();
+    }
+  }
+
+  Process {
+    id: displayRestoreProc
+    property string errorOutput: ""
+    command: [backend, "display", "restore"]
+    stderr: StdioCollector {
+      onStreamFinished: displayRestoreProc.errorOutput = text
+    }
+    onExited: function(exitCode) {
+      if (exitCode !== 0 && root.open && root.page === "display")
+        root.displayError = root.cleanDisplayError(errorOutput, "Could not restore display profile");
+      displayRefreshTimer.restart();
+    }
+  }
+
+  Process {
+    id: displayResetProc
+    property string output: ""
+    property string errorOutput: ""
+    command: [backend, "display", "reset"]
+    stdout: StdioCollector {
+      onStreamFinished: displayResetProc.output = text
+    }
+    stderr: StdioCollector {
+      onStreamFinished: displayResetProc.errorOutput = text
+    }
+    onExited: function(exitCode) {
+      if (exitCode !== 0)
+        root.displayError = root.cleanDisplayError(errorOutput, "Could not reset display settings");
+      root.displayOperation = "";
+      displayRefreshTimer.restart();
+    }
+  }
+
+  Process {
     id: brightnessProc
     command: [backend, "brightness", "get"]
     stdout: StdioCollector {
@@ -1857,6 +2164,11 @@ Scope {
       if (refresh)
         root.refreshBluetooth(true);
     }
+    function displayPage() {
+      root.page = "display";
+      root.open = true;
+      root.refreshDisplays();
+    }
     function close() { root.open = false; }
     function dnd() {
       root.dnd = !root.dnd;
@@ -1947,7 +2259,11 @@ Scope {
 
           ControlHeader {
             Layout.fillWidth: true
-            pageTitle: root.displayedPage === "wifi" ? "Wi-Fi" : (root.displayedPage === "bluetooth" ? "Bluetooth" : "Control")
+            pageTitle: root.displayedPage === "wifi"
+              ? "Wi-Fi"
+              : (root.displayedPage === "bluetooth"
+                  ? "Bluetooth"
+                  : (root.displayedPage === "display" ? "Displays" : "Control"))
             backVisible: root.displayedPage !== "main"
             onBack: root.page = "main"
           }
@@ -1956,7 +2272,11 @@ Scope {
             id: pageLoader
             Layout.fillWidth: true
             Layout.fillHeight: true
-            sourceComponent: root.displayedPage === "wifi" ? wifiPage : (root.displayedPage === "bluetooth" ? bluetoothPage : mainPage)
+            sourceComponent: root.displayedPage === "wifi"
+              ? wifiPage
+              : (root.displayedPage === "bluetooth"
+                  ? bluetoothPage
+                  : (root.displayedPage === "display" ? displayPage : mainPage))
           }
         }
       }
@@ -2316,7 +2636,7 @@ Scope {
 
         Section {
           title: "Display"
-          visible: root.brightnessSupported
+          visible: root.displaysReady || root.brightnessSupported
 
           Rectangle {
             Layout.fillWidth: true
@@ -2332,8 +2652,20 @@ Scope {
               anchors.right: parent.right
               anchors.top: parent.top
               anchors.margins: 12
+              spacing: 4
+
+              CommandButton {
+                Layout.fillWidth: true
+                icon: "󰍹"
+                title: "Displays"
+                subtitle: root.displaySummaryText()
+                active: root.displays.length > 1
+                accent: theme.blue
+                onClicked: root.page = "display"
+              }
 
               MetricCard {
+                visible: root.brightnessSupported
                 icon: "󰃠"
                 title: "Brightness"
                 subtitle: "Display backlight"
@@ -2497,6 +2829,245 @@ Scope {
               group: modelData
             }
           }
+        }
+      }
+    }
+  }
+
+  Component {
+    id: displayPage
+    Flickable {
+      id: displayScroll
+      clip: true
+      contentWidth: width
+      contentHeight: displayContent.implicitHeight
+      boundsBehavior: Flickable.StopAtBounds
+      ScrollBar.vertical: ThemedScrollBar {
+        parent: displayScroll
+        anchors.top: displayScroll.top
+        anchors.right: displayScroll.right
+        anchors.bottom: displayScroll.bottom
+      }
+
+      ColumnLayout {
+        id: displayContent
+        width: displayScroll.width
+        spacing: 12
+
+        Rectangle {
+          Layout.fillWidth: true
+          implicitHeight: displayConfirmContent.implicitHeight + 24
+          visible: root.displayPendingToken.length > 0
+          radius: 12
+          color: Qt.alpha(theme.yellow, 0.12)
+          border.color: Qt.alpha(theme.yellow, 0.56)
+          border.width: 1
+
+          ColumnLayout {
+            id: displayConfirmContent
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
+            spacing: 9
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 9
+
+              Text {
+                text: "󰍹"
+                color: theme.yellow
+                font.family: theme.fontFamily
+                font.pixelSize: 18
+              }
+
+              ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 1
+                Text {
+                  Layout.fillWidth: true
+                  text: "Keep this display layout?"
+                  color: theme.foreground
+                  font.family: theme.fontFamily
+                  font.pixelSize: 12
+                  font.bold: true
+                }
+                Text {
+                  Layout.fillWidth: true
+                  text: "Reverting in " + root.displayConfirmSeconds + "s"
+                  color: theme.text
+                  font.family: theme.fontFamily
+                  font.pixelSize: 10
+                }
+              }
+            }
+
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: 8
+              PillButton {
+                Layout.fillWidth: true
+                label: "Keep"
+                active: true
+                enabled: root.displayOperation.length === 0
+                onClicked: root.keepDisplayLayout()
+              }
+              PillButton {
+                Layout.fillWidth: true
+                label: "Revert"
+                enabled: root.displayOperation.length === 0
+                onClicked: root.revertDisplayLayout()
+              }
+            }
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.displayError.length > 0
+          text: root.displayError
+          color: theme.red
+          font.family: theme.fontFamily
+          font.pixelSize: 11
+          wrapMode: Text.Wrap
+        }
+
+        Section {
+          title: "Layout"
+          visible: root.displays.length > 1
+
+          Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: displayPresetContent.implicitHeight + 22
+            radius: 10
+            color: Qt.alpha(theme.surfaceAccent, 0.72)
+            border.color: Qt.alpha(theme.borderSubtle, 0.64)
+            border.width: 1
+
+            ColumnLayout {
+              id: displayPresetContent
+              anchors.left: parent.left
+              anchors.right: parent.right
+              anchors.top: parent.top
+              anchors.margins: 11
+              spacing: 8
+
+              GridLayout {
+                Layout.fillWidth: true
+                columns: 2
+                columnSpacing: 8
+                rowSpacing: 8
+
+                PillButton {
+                  Layout.fillWidth: true
+                  label: "Extend"
+                  enabled: root.displayOperation.length === 0 && root.displayPendingToken.length === 0
+                  onClicked: root.applyDisplayPreset("extend")
+                }
+                PillButton {
+                  Layout.fillWidth: true
+                  label: "Duplicate"
+                  enabled: root.displayOperation.length === 0 && root.displayPendingToken.length === 0
+                  onClicked: root.applyDisplayPreset("duplicate")
+                }
+                PillButton {
+                  Layout.fillWidth: true
+                  label: "Internal only"
+                  enabled: root.displays.some(function(output) { return Boolean(output.internal); })
+                    && root.displayOperation.length === 0 && root.displayPendingToken.length === 0
+                  onClicked: root.applyDisplayPreset("internal")
+                }
+                PillButton {
+                  Layout.fillWidth: true
+                  label: "External only"
+                  enabled: root.displays.some(function(output) { return !output.internal; })
+                    && root.displayOperation.length === 0 && root.displayPendingToken.length === 0
+                  onClicked: root.applyDisplayPreset("external")
+                }
+              }
+
+              Text {
+                Layout.fillWidth: true
+                text: "Duplicate uses the highest resolution shared by every display."
+                color: theme.mutedAlt
+                font.family: theme.fontFamily
+                font.pixelSize: 9
+                wrapMode: Text.Wrap
+              }
+            }
+          }
+        }
+
+        Section {
+          title: "Connected displays"
+
+          Text {
+            Layout.fillWidth: true
+            visible: !root.displaysReady
+            text: "Detecting displays…"
+            color: theme.text
+            font.family: theme.fontFamily
+            font.pixelSize: 11
+          }
+
+          Text {
+            Layout.fillWidth: true
+            visible: root.displaysReady && root.displays.length === 0
+            text: "No connected displays"
+            color: theme.text
+            font.family: theme.fontFamily
+            font.pixelSize: 11
+          }
+
+          Repeater {
+            model: root.displays
+            delegate: DisplayOutputCard {
+              required property var modelData
+              Layout.fillWidth: true
+              output: modelData
+            }
+          }
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: 8
+
+          PillButton {
+            Layout.fillWidth: true
+            label: "Apply details"
+            active: true
+            enabled: root.displays.length > 0
+              && root.displayOperation.length === 0
+              && root.displayPendingToken.length === 0
+            onClicked: root.applyDisplayPreset("custom")
+          }
+
+          PillButton {
+            label: "Refresh"
+            enabled: root.displayOperation.length === 0
+            onClicked: root.refreshDisplays()
+          }
+        }
+
+        PillButton {
+          Layout.fillWidth: true
+          visible: root.displayProfileAvailable
+          label: "Reset to Nix defaults"
+          enabled: root.displayOperation.length === 0 && root.displayPendingToken.length === 0
+          onClicked: root.resetDisplayProfiles()
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.displayProfileAvailable
+            ? "Confirmed settings are restored for this physical display set."
+            : "Nix monitor rules remain the baseline until you keep a layout."
+          color: theme.mutedAlt
+          font.family: theme.fontFamily
+          font.pixelSize: 9
+          wrapMode: Text.Wrap
         }
       }
     }
@@ -3874,6 +4445,190 @@ Scope {
           if (pressed)
             card.dragValue = value;
           card.changed(value);
+        }
+      }
+    }
+  }
+
+  component DisplayOutputCard: Rectangle {
+    id: displayCard
+    required property var output
+    readonly property var modes: output.availableModes && output.availableModes.length > 0
+      ? output.availableModes
+      : ["preferred"]
+    readonly property string selectedMode: String(root.displayDraftValue(output.name, "mode", output.mode))
+    readonly property real selectedScale: Number(root.displayDraftValue(output.name, "scale", output.scale))
+
+    implicitHeight: displayCardContent.implicitHeight + 24
+    radius: 11
+    color: Qt.alpha(theme.surfaceAccent, 0.72)
+    border.color: output.enabled ? Qt.alpha(theme.blue, 0.42) : Qt.alpha(theme.borderSubtle, 0.54)
+    border.width: 1
+    opacity: output.enabled ? 1 : 0.68
+
+    ColumnLayout {
+      id: displayCardContent
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      anchors.margins: 12
+      spacing: 9
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: 9
+
+        Text {
+          text: output.internal ? "󰌢" : "󰍹"
+          color: output.enabled ? theme.blue : theme.mutedAlt
+          font.family: theme.fontFamily
+          font.pixelSize: 18
+          Layout.preferredWidth: 24
+          horizontalAlignment: Text.AlignHCenter
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          spacing: 1
+          Text {
+            Layout.fillWidth: true
+            text: root.displayName(output)
+            color: theme.foreground
+            font.family: theme.fontFamily
+            font.pixelSize: 12
+            font.bold: true
+            elide: Text.ElideRight
+          }
+          Text {
+            Layout.fillWidth: true
+            text: String(output.name) + (output.enabled ? " · active" : " · disabled")
+            color: theme.text
+            font.family: theme.fontFamily
+            font.pixelSize: 9
+            elide: Text.ElideRight
+          }
+        }
+
+        PillButton {
+          label: root.displayPrimary === output.name ? "Main" : "Make main"
+          active: root.displayPrimary === output.name
+          enabled: output.enabled && root.displayPendingToken.length === 0
+          onClicked: root.displayPrimary = String(output.name)
+        }
+      }
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: 9
+
+        Text {
+          text: "Mode"
+          color: theme.mutedAlt
+          font.family: theme.fontFamily
+          font.pixelSize: 10
+          Layout.preferredWidth: 44
+        }
+
+        ComboBox {
+          id: displayModeBox
+          Layout.fillWidth: true
+          model: displayCard.modes
+          enabled: output.enabled && root.displayPendingToken.length === 0
+          currentIndex: {
+            for (let i = 0; i < displayCard.modes.length; i++) {
+              if (String(displayCard.modes[i]) === displayCard.selectedMode)
+                return i;
+            }
+            return 0;
+          }
+          onActivated: function(index) {
+            root.setDisplayDraftValue(output.name, "mode", String(displayCard.modes[index]));
+          }
+
+          contentItem: Text {
+            leftPadding: 10
+            rightPadding: 28
+            text: root.displayModeLabel(displayModeBox.displayText)
+            color: theme.text
+            font.family: theme.fontFamily
+            font.pixelSize: 10
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+          }
+          background: Rectangle {
+            implicitHeight: 34
+            radius: 8
+            color: displayModeBox.hovered ? theme.surfaceMutedHover : theme.surfaceMuted
+            border.color: displayModeBox.activeFocus ? theme.blue : theme.borderSubtle
+            border.width: 1
+          }
+          delegate: ItemDelegate {
+            required property var modelData
+            width: displayModeBox.width
+            contentItem: Text {
+              text: root.displayModeLabel(modelData)
+              color: theme.text
+              font.family: theme.fontFamily
+              font.pixelSize: 10
+              verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+              color: highlighted ? theme.surfaceMutedHover : theme.surfaceGlassStrong
+            }
+          }
+          popup: Popup {
+            y: displayModeBox.height + 2
+            width: displayModeBox.width
+            implicitHeight: Math.min(230, contentItem.implicitHeight + 2)
+            padding: 1
+            contentItem: ListView {
+              clip: true
+              implicitHeight: contentHeight
+              model: displayModeBox.popup.visible ? displayModeBox.delegateModel : null
+              currentIndex: displayModeBox.highlightedIndex
+              ScrollIndicator.vertical: ScrollIndicator { }
+            }
+            background: Rectangle {
+              radius: 8
+              color: theme.surfaceGlassStrong
+              border.color: theme.borderSubtle
+              border.width: 1
+            }
+          }
+        }
+      }
+
+      RowLayout {
+        Layout.fillWidth: true
+        spacing: 6
+
+        Text {
+          text: "Scale"
+          color: theme.mutedAlt
+          font.family: theme.fontFamily
+          font.pixelSize: 10
+          Layout.preferredWidth: 44
+        }
+
+        GainSlider {
+          id: displayScaleSlider
+          Layout.fillWidth: true
+          from: 0.5
+          to: 3
+          stepSize: 0.25
+          value: displayCard.selectedScale
+          enabled: output.enabled && root.displayPendingToken.length === 0
+          accent: theme.purple
+          onMoved: root.setDisplayDraftValue(output.name, "scale", value)
+        }
+
+        Text {
+          text: Math.round(displayCard.selectedScale * 100) + "%"
+          color: theme.text
+          font.family: theme.fontFamily
+          font.pixelSize: 10
+          horizontalAlignment: Text.AlignRight
+          Layout.preferredWidth: 38
         }
       }
     }

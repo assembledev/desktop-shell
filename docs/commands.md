@@ -40,10 +40,19 @@ $ desktop-shell open
 $ desktop-shell close
 $ desktop-shell wifi-page
 $ desktop-shell bluetooth-page
+$ desktop-shell display-page
 ```
 
 The first invocation starts the user service when necessary. `wifi-page` and
-`bluetooth-page` open the control center directly on the corresponding page.
+`bluetooth-page` open the control center directly on the corresponding page;
+`display-page` opens the connected-output and layout controls.
+
+The display page provides Extend, Duplicate, Internal only, and External only
+presets together with per-output mode and scale controls. Every change has a
+20-second confirmation deadline backed by a transient systemd user timer. A
+confirmed layout is saved for the same set of physical displays and restored
+when that set reconnects. "Reset to Nix defaults" removes the saved layouts
+and reloads Hyprland's declarative monitor rules.
 
 ### Launcher
 

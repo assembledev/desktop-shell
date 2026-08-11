@@ -49,8 +49,9 @@ keybindings and QML subprocesses. Cohesive operations live in
 
 The backend owns operations that are a poor fit for QML, including launcher
 activation through UWSM, wallpaper application, clipboard decoding, device
-commands, runtime environment discovery, and compact JSON snapshots. JSON
-written for QML is an interface: change its producer and consumer together.
+commands, runtime environment discovery, validated display transactions, and
+compact JSON snapshots. JSON written for QML is an interface: change its
+producer, consumer, tests, and documentation together.
 
 ### Nix package
 
@@ -81,6 +82,7 @@ maintaining a parallel state database:
 | Integration | Purpose |
 | --- | --- |
 | Hyprland IPC and screencopy | workspaces, windows, focus, and switcher previews |
+| Hyprland Lua monitor API | output modes, scale, layout presets, and mirroring |
 | Quickshell Networking | persistent NetworkManager Wi-Fi state and scanning |
 | BlueZ and `bluetoothctl` | Bluetooth discovery, pairing, trust, and connections |
 | PipeWire | global and per-stream playback/recording controls |
@@ -99,11 +101,21 @@ browsers, or other applications it launched.
 Persistent user state is kept below one `XDG_STATE_HOME/desktop-shell/` tree.
 The atomically updated DND and focus settings live in its `preferences/`
 directory. The tree also contains launcher usage, bounded telemetry, clipboard
-previews, notification counts, and the current wallpaper selection.
+previews, notification counts, the current wallpaper selection, and confirmed
+display profiles under `displays/`, keyed by monitor description or EDID
+identity.
 
 Transient browser-tab data and IPC sockets live below
 `XDG_RUNTIME_DIR/desktop-shell/`. See [Browser tabs](browser-tabs.md) for the
 data contract.
+
+Display changes are applied as one validated `hyprctl eval` transaction using
+Hyprland's Lua monitor API. Before applying, the backend records the current
+layout below `XDG_RUNTIME_DIR/desktop-shell/` and arms a transient systemd user
+timer. Keeping the layout cancels that timer and atomically replaces the
+profile for the connected physical-output set; expiry or explicit rejection
+reapplies the recorded layout. Nix-owned monitor rules remain the baseline and
+are recovered with `hyprctl reload` after saved profiles are reset.
 
 Search queries are not recorded. Launcher history stores desktop-entry IDs,
 counts, and timestamps only. Invalid or absent state is treated as empty state

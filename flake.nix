@@ -185,6 +185,7 @@
                   coreutils
                   findutils
                   jq
+                  util-linux
                 ];
               }
               ''

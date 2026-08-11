@@ -22,8 +22,8 @@ https://github.com/user-attachments/assets/1d040923-9848-4299-ad8d-07ab32ff338f
 - Spatial Alt-Tab overview with workspace previews, directional
   navigation, drag-to-workspace, and scrolling-layout geometry.
 - Control center with notification history, persistent NetworkManager Wi-Fi
-  state, BlueZ device management, brightness and power controls, and a
-  per-stream PipeWire mixer.
+  state, BlueZ device management, safe compositor-native display layouts,
+  brightness and power controls, and a per-stream PipeWire mixer.
 - Clipboard history, wallpaper picker, lock screen, media-change notifications,
   focus mode, and a generated keybinding reference.
 - One `desktop-shell` command for systemd lifecycle, diagnostics, UI actions,

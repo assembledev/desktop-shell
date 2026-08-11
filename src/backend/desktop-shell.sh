@@ -118,6 +118,12 @@ case "${1:-}" in
       exit
     fi
     ;;
+  display-page)
+    if [ "$#" -eq 1 ]; then
+      desktop_shell_ipc_call controlCenter displayPage
+      exit
+    fi
+    ;;
   launcher)
     method="${2:-toggle}"
     if [ "$#" -le 2 ]; then
@@ -236,6 +242,8 @@ source "$backend_dir/lib/bluetooth.sh"
 source "$backend_dir/lib/metrics.sh"
 # shellcheck source=lib/session.sh
 source "$backend_dir/lib/session.sh"
+# shellcheck source=lib/display.sh
+source "$backend_dir/lib/display.sh"
 
 print_help() {
   cat <<'EOF'
@@ -274,7 +282,8 @@ print_help_all() {
 Integration and backend commands:
   browser-tabs, lock-preview, lock-keyboard, apply, current, list-json,
   preview, set, notification-status, bluetooth, brightness, volume, power,
-  focus, bar, network-control, cursor, hypr, metrics, sound, run, lock-run
+  display, focus, bar, network-control, cursor, hypr, metrics, sound, run,
+  lock-run
 EOF
 }
 
@@ -417,6 +426,9 @@ case "${1:-help}" in
     ;;
   bluetooth-page)
     desktop_shell_ipc_call controlCenter bluetoothPage
+    ;;
+  display-page)
+    desktop_shell_ipc_call controlCenter displayPage
     ;;
   launcher)
     method="${2:-toggle}"
@@ -633,6 +645,34 @@ case "${1:-help}" in
         bluetoothctl "$action" "$address"
         ;;
       *)
+        exit 2
+        ;;
+    esac
+    ;;
+  display)
+    case "${2:-status-json}" in
+      status-json)
+        [ "$#" -le 2 ] || exit 2
+        display_status_json
+        ;;
+      apply)
+        [ "$#" -eq 3 ] || exit 2
+        display_apply_request "$3"
+        ;;
+      keep | rollback)
+        [ "$#" -eq 3 ] || exit 2
+        "display_$2" "$3"
+        ;;
+      restore)
+        [ "$#" -eq 2 ] || exit 2
+        display_restore_profile
+        ;;
+      reset)
+        [ "$#" -eq 2 ] || exit 2
+        display_reset
+        ;;
+      *)
+        printf 'usage: desktop-shell display [status-json|apply <json>|keep <token>|rollback <token>|restore|reset]\n' >&2
         exit 2
         ;;
     esac
