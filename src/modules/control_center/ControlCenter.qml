@@ -94,12 +94,15 @@ Scope {
   property var displays: []
   property bool displayProfileAvailable: false
   property string displayPrimary: ""
+  property string displaySelected: ""
+  property var displayStartupLayout: []
   property var displayDraft: ({})
   property string displayOperation: ""
   property string displayError: ""
   property string displayPendingToken: ""
   property int displayConfirmSeconds: 0
   property bool displayRefreshPending: false
+  readonly property bool displayEditorLocked: displayPendingToken.length > 0 || displayOperation.length > 0
   property bool volumeReady: false
   readonly property int osdTimeout: 1100
   readonly property int osdRowHeight: 38
@@ -1100,6 +1103,10 @@ Scope {
     return displays.find(function(output) { return String(output?.name || "") === String(name || ""); }) || null;
   }
 
+  function selectedDisplayOutput() {
+    return displayOutput(displaySelected);
+  }
+
   function displayName(output) {
     const description = String(output?.description || "").trim();
     return description.length > 0 ? description : String(output?.name || "Display");
@@ -1134,13 +1141,91 @@ Scope {
     displayDraft = next;
   }
 
+  function parseDisplayPosition(position) {
+    const match = /^(-?\d+)x(-?\d+)$/.exec(String(position || ""));
+    return match ? { x: Number(match[1]), y: Number(match[2]) } : { x: 0, y: 0 };
+  }
+
+  function displayDraftPosition(output) {
+    return parseDisplayPosition(displayDraftValue(output?.name, "position", output?.position || "0x0"));
+  }
+
+  function moveDisplayDraft(name, x, y) {
+    const next = Object.assign({}, displayDraft);
+    const moved = Object.assign({}, next[String(name)] || {});
+    moved.position = Math.round(x) + "x" + Math.round(y);
+    next[String(name)] = moved;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < displays.length; i++) {
+      const output = displays[i];
+      if (!output.enabled)
+        continue;
+      const draft = next[String(output.name)] || {};
+      const position = parseDisplayPosition(draft.position === undefined ? output.position : draft.position);
+      minX = Math.min(minX, position.x);
+      minY = Math.min(minY, position.y);
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY))
+      return;
+
+    for (let i = 0; i < displays.length; i++) {
+      const output = displays[i];
+      if (!output.enabled)
+        continue;
+      const key = String(output.name);
+      const draft = Object.assign({}, next[key] || {});
+      const position = parseDisplayPosition(draft.position === undefined ? output.position : draft.position);
+      draft.position = Math.round(position.x - minX) + "x" + Math.round(position.y - minY);
+      next[key] = draft;
+    }
+    displayDraft = next;
+  }
+
   function rebuildDisplayDraft() {
     const next = {};
     for (let i = 0; i < displays.length; i++) {
       const output = displays[i];
-      next[String(output.name)] = { mode: String(output.mode), scale: Number(output.scale) };
+      next[String(output.name)] = {
+        mode: String(output.mode),
+        scale: Number(output.scale),
+        position: String(output.position || "0x0")
+      };
     }
     displayDraft = next;
+  }
+
+  function displayCurrentPreset() {
+    const active = displays.filter(function(output) { return Boolean(output.enabled); });
+    if (active.length === 0)
+      return "";
+    if (active.some(function(output) { return String(output.mirror || "").length > 0; }))
+      return "duplicate";
+    if (active.every(function(output) { return Boolean(output.internal); }))
+      return "internal";
+    if (active.every(function(output) { return !output.internal; }))
+      return "external";
+    return "extend";
+  }
+
+  function startupDisplayName(rule) {
+    const selector = String(rule?.output || "");
+    if (selector.length === 0)
+      return "Other displays";
+    return selector.startsWith("desc:") ? selector.slice(5) : selector;
+  }
+
+  function startupDisplayDetails(rule) {
+    const mode = String(rule?.mode || "preferred") === "preferred"
+      ? "Preferred mode"
+      : displayModeLabel(rule.mode);
+    const position = String(rule?.position || "auto") === "auto"
+      ? "automatic position"
+      : "position " + String(rule.position);
+    const scale = Math.round(Number(rule?.scale || 1) * 100) + "%";
+    const bitdepth = rule?.bitdepth ? " · " + Number(rule.bitdepth) + "-bit" : "";
+    return mode + " · " + scale + " · " + position + bitdepth;
   }
 
   function adoptDisplaySnapshot(snapshot) {
@@ -1149,12 +1234,16 @@ Scope {
 
     displays = snapshot.outputs;
     displayProfileAvailable = Boolean(snapshot.profileAvailable);
+    displayStartupLayout = Array.isArray(snapshot.startupLayout) ? snapshot.startupLayout : [];
     const selected = displayOutput(displayPrimary);
     if (!selected || !selected.enabled) {
       const focused = displays.find(function(output) { return Boolean(output.focused && output.enabled); });
       const active = displays.find(function(output) { return Boolean(output.enabled); });
       displayPrimary = String((focused || active || displays[0])?.name || "");
     }
+    const selectedOutput = displayOutput(displaySelected);
+    if (!selectedOutput || !selectedOutput.enabled)
+      displaySelected = displayPrimary;
     rebuildDisplayDraft();
     displaysReady = true;
 
@@ -2003,7 +2092,7 @@ Scope {
     }
     onExited: function(exitCode) {
       if (exitCode !== 0)
-        root.displayError = root.cleanDisplayError(errorOutput, "Could not reset display settings");
+        root.displayError = root.cleanDisplayError(errorOutput, "Could not restore the startup layout");
       root.displayOperation = "";
       displayRefreshTimer.restart();
     }
@@ -2856,69 +2945,58 @@ Scope {
 
         Rectangle {
           Layout.fillWidth: true
-          implicitHeight: displayConfirmContent.implicitHeight + 24
+          implicitHeight: 68
           visible: root.displayPendingToken.length > 0
-          radius: 12
+          radius: 9
           color: Qt.alpha(theme.yellow, 0.12)
           border.color: Qt.alpha(theme.yellow, 0.56)
           border.width: 1
 
-          ColumnLayout {
+          RowLayout {
             id: displayConfirmContent
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
+            anchors.fill: parent
             anchors.margins: 12
-            spacing: 9
+            spacing: 10
 
-            RowLayout {
+            Text {
+              text: "󰍹"
+              color: theme.yellow
+              font.family: theme.fontFamily
+              font.pixelSize: 18
+              Layout.preferredWidth: 24
+              horizontalAlignment: Text.AlignHCenter
+            }
+
+            ColumnLayout {
               Layout.fillWidth: true
-              spacing: 9
-
+              spacing: 2
               Text {
-                text: "󰍹"
-                color: theme.yellow
-                font.family: theme.fontFamily
-                font.pixelSize: 18
-              }
-
-              ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 1
-                Text {
-                  Layout.fillWidth: true
-                  text: "Keep this display layout?"
-                  color: theme.foreground
-                  font.family: theme.fontFamily
-                  font.pixelSize: 12
-                  font.bold: true
-                }
-                Text {
-                  Layout.fillWidth: true
-                  text: "Reverting in " + root.displayConfirmSeconds + "s"
-                  color: theme.text
-                  font.family: theme.fontFamily
-                  font.pixelSize: 10
-                }
+                text: "Testing this layout"
+                color: theme.foreground
+                font.family: theme.fontFamily
+                font.pixelSize: 12
+                font.bold: true
+              }
+              Text {
+                Layout.fillWidth: true
+                text: "Reverting in " + root.displayConfirmSeconds + " seconds"
+                color: theme.text
+                font.family: theme.fontFamily
+                font.pixelSize: 10
               }
             }
 
-            RowLayout {
-              Layout.fillWidth: true
-              spacing: 8
-              PillButton {
-                Layout.fillWidth: true
-                label: "Keep"
-                active: true
-                enabled: root.displayOperation.length === 0
-                onClicked: root.keepDisplayLayout()
-              }
-              PillButton {
-                Layout.fillWidth: true
-                label: "Revert"
-                enabled: root.displayOperation.length === 0
-                onClicked: root.revertDisplayLayout()
-              }
+            PillButton {
+              label: "Revert"
+              enabled: root.displayOperation.length === 0
+              onClicked: root.revertDisplayLayout()
+            }
+            PillButton {
+              label: "Keep"
+              active: true
+              enabled: root.displayOperation.length === 0
+              onClicked: root.keepDisplayLayout()
             }
           }
         }
@@ -2933,141 +3011,290 @@ Scope {
           wrapMode: Text.Wrap
         }
 
-        Section {
-          title: "Layout"
-          visible: root.displays.length > 1
+        Item {
+          Layout.fillWidth: true
+          implicitHeight: displayEditor.implicitHeight
 
-          Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: displayPresetContent.implicitHeight + 22
-            radius: 10
-            color: Qt.alpha(theme.surfaceAccent, 0.72)
-            border.color: Qt.alpha(theme.borderSubtle, 0.64)
-            border.width: 1
+          ColumnLayout {
+            id: displayEditor
+            width: parent.width
+            spacing: 12
+            opacity: root.displayEditorLocked ? 0.34 : 1
+            enabled: !root.displayEditorLocked
 
-            ColumnLayout {
-              id: displayPresetContent
-              anchors.left: parent.left
-              anchors.right: parent.right
-              anchors.top: parent.top
-              anchors.margins: 11
+            RowLayout {
+              Layout.fillWidth: true
               spacing: 8
 
-              GridLayout {
+              Text {
                 Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 8
-                rowSpacing: 8
+                text: "Arrangement"
+                color: theme.terminalBlue
+                font.family: theme.fontFamily
+                font.pixelSize: 12
+                font.bold: true
+              }
 
-                PillButton {
-                  Layout.fillWidth: true
-                  label: "Extend"
-                  enabled: root.displayOperation.length === 0 && root.displayPendingToken.length === 0
-                  onClicked: root.applyDisplayPreset("extend")
-                }
-                PillButton {
-                  Layout.fillWidth: true
-                  label: "Duplicate"
-                  enabled: root.displayOperation.length === 0 && root.displayPendingToken.length === 0
-                  onClicked: root.applyDisplayPreset("duplicate")
-                }
-                PillButton {
-                  Layout.fillWidth: true
-                  label: "Internal only"
-                  enabled: root.displays.some(function(output) { return Boolean(output.internal); })
-                    && root.displayOperation.length === 0 && root.displayPendingToken.length === 0
-                  onClicked: root.applyDisplayPreset("internal")
-                }
-                PillButton {
-                  Layout.fillWidth: true
-                  label: "External only"
-                  enabled: root.displays.some(function(output) { return !output.internal; })
-                    && root.displayOperation.length === 0 && root.displayPendingToken.length === 0
-                  onClicked: root.applyDisplayPreset("external")
+              IconButton {
+                icon: ""
+                tooltip: "Refresh displays"
+                onClicked: root.refreshDisplays()
+              }
+            }
+
+            Text {
+              Layout.fillWidth: true
+              visible: !root.displaysReady
+              text: "Detecting displays…"
+              color: theme.text
+              font.family: theme.fontFamily
+              font.pixelSize: 11
+            }
+
+            Text {
+              Layout.fillWidth: true
+              visible: root.displaysReady && root.displays.length === 0
+              text: "No connected displays"
+              color: theme.text
+              font.family: theme.fontFamily
+              font.pixelSize: 11
+            }
+
+            DisplayArrangement {
+              Layout.fillWidth: true
+              visible: root.displays.length > 0
+              outputs: root.displays
+              selectedName: root.displaySelected
+              onSelected: function(name) { root.displaySelected = name; }
+              onMoved: function(name, x, y) { root.moveDisplayDraft(name, x, y); }
+            }
+
+            Text {
+              Layout.fillWidth: true
+              visible: root.displays.filter(function(output) { return Boolean(output.enabled); }).length > 1
+              text: "Drag displays to place them left, right, above, or below. Edges snap together."
+              color: theme.mutedAlt
+              font.family: theme.fontFamily
+              font.pixelSize: 9
+              wrapMode: Text.Wrap
+            }
+
+            Section {
+              title: "Layout"
+              visible: root.displays.length > 1
+
+              Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 36
+                radius: 8
+                clip: true
+                color: theme.surfaceMuted
+                border.color: theme.borderSubtle
+                border.width: 1
+
+                RowLayout {
+                  anchors.fill: parent
+                  spacing: 0
+
+                  Repeater {
+                    model: [
+                      { id: "extend", label: "Extend", available: true },
+                      { id: "duplicate", label: "Duplicate", available: root.displays.length > 1 },
+                      { id: "internal", label: "Internal", available: root.displays.some(function(output) { return Boolean(output.internal); }) },
+                      { id: "external", label: "External", available: root.displays.some(function(output) { return !output.internal; }) }
+                    ]
+
+                    delegate: Rectangle {
+                      id: displayPresetSegment
+                      required property var modelData
+                      required property int index
+                      Layout.fillWidth: true
+                      Layout.fillHeight: true
+                      enabled: Boolean(modelData.available)
+                      color: root.displayCurrentPreset() === modelData.id
+                        ? Qt.alpha(theme.blue, 0.22)
+                        : (displayPresetMouse.containsMouse ? theme.surfaceMutedHover : "transparent")
+                      opacity: enabled ? 1 : 0.4
+
+                      Rectangle {
+                        visible: displayPresetSegment.index > 0
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 1
+                        height: parent.height - 12
+                        color: theme.borderSubtle
+                      }
+
+                      Text {
+                        anchors.centerIn: parent
+                        text: displayPresetSegment.modelData.label
+                        color: root.displayCurrentPreset() === displayPresetSegment.modelData.id
+                          ? theme.foreground
+                          : theme.text
+                        font.family: theme.fontFamily
+                        font.pixelSize: 10
+                        font.bold: root.displayCurrentPreset() === displayPresetSegment.modelData.id
+                      }
+
+                      MouseArea {
+                        id: displayPresetMouse
+                        anchors.fill: parent
+                        enabled: displayPresetSegment.enabled
+                        hoverEnabled: true
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: root.applyDisplayPreset(displayPresetSegment.modelData.id)
+                      }
+                    }
+                  }
                 }
               }
 
               Text {
                 Layout.fillWidth: true
-                text: "Duplicate uses the highest resolution shared by every display."
+                visible: root.displayCurrentPreset() === "duplicate"
+                text: "Duplicate uses the highest resolution shared by every connected display."
                 color: theme.mutedAlt
                 font.family: theme.fontFamily
                 font.pixelSize: 9
                 wrapMode: Text.Wrap
               }
             }
-          }
-        }
 
-        Section {
-          title: "Connected displays"
+            Section {
+              title: "Selected display"
+              visible: root.selectedDisplayOutput() !== null
 
-          Text {
-            Layout.fillWidth: true
-            visible: !root.displaysReady
-            text: "Detecting displays…"
-            color: theme.text
-            font.family: theme.fontFamily
-            font.pixelSize: 11
-          }
+              DisplayOutputInspector {
+                Layout.fillWidth: true
+                output: root.selectedDisplayOutput()
+              }
+            }
 
-          Text {
-            Layout.fillWidth: true
-            visible: root.displaysReady && root.displays.length === 0
-            text: "No connected displays"
-            color: theme.text
-            font.family: theme.fontFamily
-            font.pixelSize: 11
-          }
+            Section {
+              title: "Startup layout"
+              visible: root.displayStartupLayout.length > 0
 
-          Repeater {
-            model: root.displays
-            delegate: DisplayOutputCard {
-              required property var modelData
+              Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: startupLayoutContent.implicitHeight + 20
+                radius: 8
+                color: Qt.alpha(theme.surfaceAccent, 0.48)
+                border.color: Qt.alpha(theme.borderSubtle, 0.58)
+                border.width: 1
+
+                ColumnLayout {
+                  id: startupLayoutContent
+                  anchors.left: parent.left
+                  anchors.right: parent.right
+                  anchors.top: parent.top
+                  anchors.margins: 10
+                  spacing: 0
+
+                  Repeater {
+                    model: root.displayStartupLayout
+                    delegate: StartupDisplayRuleRow {
+                      required property var modelData
+                      required property int index
+                      Layout.fillWidth: true
+                      rule: modelData
+                      showDivider: index > 0
+                    }
+                  }
+
+                  RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 8
+                    spacing: 8
+
+                    Text {
+                      Layout.fillWidth: true
+                      text: root.displayProfileAvailable
+                        ? "A saved arrangement currently overrides this startup layout."
+                        : "This is the configured layout used when no saved arrangement matches."
+                      color: theme.mutedAlt
+                      font.family: theme.fontFamily
+                      font.pixelSize: 9
+                      wrapMode: Text.Wrap
+                    }
+
+                    PillButton {
+                      visible: root.displayProfileAvailable
+                      label: "Restore startup layout"
+                      onClicked: root.resetDisplayProfiles()
+                    }
+                  }
+                }
+              }
+            }
+
+            RowLayout {
               Layout.fillWidth: true
-              output: modelData
+              spacing: 8
+
+              Text {
+                Layout.fillWidth: true
+                text: root.displayProfileAvailable ? "Saved for this display set" : "No saved arrangement for this display set"
+                color: root.displayProfileAvailable ? theme.blue : theme.mutedAlt
+                font.family: theme.fontFamily
+                font.pixelSize: 9
+              }
+
+              PillButton {
+                label: "Test changes"
+                active: true
+                enabled: root.displays.length > 0
+                onClicked: root.applyDisplayPreset("custom")
+              }
             }
           }
-        }
 
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: 8
+          Rectangle {
+            anchors.fill: parent
+            visible: root.displayEditorLocked
+            z: 3
+            color: "transparent"
 
-          PillButton {
-            Layout.fillWidth: true
-            label: "Apply details"
-            active: true
-            enabled: root.displays.length > 0
-              && root.displayOperation.length === 0
-              && root.displayPendingToken.length === 0
-            onClicked: root.applyDisplayPreset("custom")
+            MouseArea {
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.ForbiddenCursor
+            }
+
+            Rectangle {
+              anchors.horizontalCenter: parent.horizontalCenter
+              anchors.top: parent.top
+              anchors.topMargin: 16
+              implicitWidth: displayLockedRow.implicitWidth + 24
+              implicitHeight: 34
+              radius: 8
+              color: theme.surfaceGlassStrong
+              border.color: Qt.alpha(theme.yellow, 0.5)
+              border.width: 1
+
+              RowLayout {
+                id: displayLockedRow
+                anchors.centerIn: parent
+                spacing: 7
+
+                Text {
+                  text: ""
+                  color: theme.yellow
+                  font.family: theme.fontFamily
+                  font.pixelSize: 11
+                }
+
+                Text {
+                  text: root.displayPendingToken.length > 0
+                    ? "Confirm or revert to edit again"
+                    : "Applying display changes…"
+                  color: theme.foreground
+                  font.family: theme.fontFamily
+                  font.pixelSize: 10
+                  font.bold: true
+                }
+              }
+            }
           }
-
-          PillButton {
-            label: "Refresh"
-            enabled: root.displayOperation.length === 0
-            onClicked: root.refreshDisplays()
-          }
-        }
-
-        PillButton {
-          Layout.fillWidth: true
-          visible: root.displayProfileAvailable
-          label: "Reset to Nix defaults"
-          enabled: root.displayOperation.length === 0 && root.displayPendingToken.length === 0
-          onClicked: root.resetDisplayProfiles()
-        }
-
-        Text {
-          Layout.fillWidth: true
-          text: root.displayProfileAvailable
-            ? "Confirmed settings are restored for this physical display set."
-            : "Nix monitor rules remain the baseline until you keep a layout."
-          color: theme.mutedAlt
-          font.family: theme.fontFamily
-          font.pixelSize: 9
-          wrapMode: Text.Wrap
         }
       }
     }
@@ -4240,7 +4467,7 @@ Scope {
     property bool dimmed: false
     readonly property real unityPosition: root.clamp((1 - from) / Math.max(0.001, to - from), 0, 1)
     implicitHeight: 22
-    opacity: dimmed ? 0.5 : 1
+    opacity: dimmed || !enabled ? 0.45 : 1
 
     background: Rectangle {
       x: gainSlider.leftPadding + gainSlider.handle.width / 2
@@ -4264,7 +4491,9 @@ Scope {
       }
 
       Rectangle {
-        width: parent.width * Math.min(gainSlider.visualPosition, gainSlider.unityPosition)
+        width: parent.width * (gainSlider.boostAllowed
+          ? Math.min(gainSlider.visualPosition, gainSlider.unityPosition)
+          : gainSlider.visualPosition)
         height: parent.height
         radius: parent.radius
         color: gainSlider.accent
@@ -4450,37 +4679,262 @@ Scope {
     }
   }
 
-  component DisplayOutputCard: Rectangle {
-    id: displayCard
+  component DisplayArrangement: Rectangle {
+    id: arrangement
+    required property var outputs
+    property string selectedName: ""
+    signal selected(string name)
+    signal moved(string name, real x, real y)
+
+    readonly property var activeOutputs: outputs.filter(function(output) { return Boolean(output.enabled); })
+    readonly property real canvasPadding: 18
+    readonly property var layoutBounds: calculateBounds()
+    readonly property real layoutScale: Math.max(0.001, Math.min(
+      (width - canvasPadding * 2) / Math.max(1, layoutBounds.maxX - layoutBounds.minX),
+      (height - canvasPadding * 2) / Math.max(1, layoutBounds.maxY - layoutBounds.minY)
+    ))
+
+    implicitHeight: activeOutputs.length > 1 ? 188 : 132
+    radius: 8
+    clip: true
+    color: Qt.alpha(theme.surfaceGlass, 0.52)
+    border.color: Qt.alpha(theme.borderSubtle, 0.66)
+    border.width: 1
+
+    function logicalSize(output) {
+      const mode = String(root.displayDraftValue(output?.name, "mode", output?.mode || ""));
+      const match = /^(\d+)x(\d+)@/.exec(mode);
+      const width = match ? Number(match[1]) : Math.max(1, Number(output?.width || 1920));
+      const height = match ? Number(match[2]) : Math.max(1, Number(output?.height || 1080));
+      const scale = Math.max(0.5, Number(root.displayDraftValue(output?.name, "scale", output?.scale || 1)));
+      return { width: width / scale, height: height / scale };
+    }
+
+    function calculateBounds() {
+      if (activeOutputs.length === 0)
+        return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+      for (let i = 0; i < activeOutputs.length; i++) {
+        const output = activeOutputs[i];
+        const position = root.displayDraftPosition(output);
+        const size = logicalSize(output);
+        minX = Math.min(minX, position.x);
+        minY = Math.min(minY, position.y);
+        maxX = Math.max(maxX, position.x + size.width);
+        maxY = Math.max(maxY, position.y + size.height);
+      }
+      return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
+    }
+
+    function snapPosition(name, x, y) {
+      const output = outputs.find(function(candidate) { return String(candidate.name) === String(name); });
+      if (!output)
+        return { x: x, y: y };
+      const size = logicalSize(output);
+      const threshold = Math.max(28, 11 / layoutScale);
+      let snappedX = x;
+      let snappedY = y;
+      let nearestX = threshold + 1;
+      let nearestY = threshold + 1;
+
+      for (let i = 0; i < activeOutputs.length; i++) {
+        const other = activeOutputs[i];
+        if (String(other.name) === String(name))
+          continue;
+        const otherPosition = root.displayDraftPosition(other);
+        const otherSize = logicalSize(other);
+        const xCandidates = [
+          otherPosition.x,
+          otherPosition.x + otherSize.width,
+          otherPosition.x - size.width,
+          otherPosition.x + otherSize.width - size.width
+        ];
+        const yCandidates = [
+          otherPosition.y,
+          otherPosition.y + otherSize.height,
+          otherPosition.y - size.height,
+          otherPosition.y + otherSize.height - size.height
+        ];
+        for (let j = 0; j < xCandidates.length; j++) {
+          const distance = Math.abs(x - xCandidates[j]);
+          if (distance < nearestX && distance <= threshold) {
+            nearestX = distance;
+            snappedX = xCandidates[j];
+          }
+        }
+        for (let j = 0; j < yCandidates.length; j++) {
+          const distance = Math.abs(y - yCandidates[j]);
+          if (distance < nearestY && distance <= threshold) {
+            nearestY = distance;
+            snappedY = yCandidates[j];
+          }
+        }
+      }
+      return { x: snappedX, y: snappedY };
+    }
+
+    Repeater {
+      model: arrangement.activeOutputs
+
+      delegate: Rectangle {
+        id: displayTile
+        required property var modelData
+        required property int index
+        readonly property var output: modelData
+        readonly property var logicalSize: arrangement.logicalSize(output)
+        readonly property var logicalPosition: root.displayDraftPosition(output)
+        readonly property int overlapIndex: {
+          let count = 0;
+          for (let i = 0; i < index; i++) {
+            const previous = arrangement.activeOutputs[i];
+            const previousPosition = root.displayDraftPosition(previous);
+            if (previousPosition.x === logicalPosition.x && previousPosition.y === logicalPosition.y)
+              count++;
+          }
+          return count;
+        }
+        readonly property real overlapOffset: overlapIndex * 11
+        readonly property real baseX: arrangement.canvasPadding
+          + (logicalPosition.x - arrangement.layoutBounds.minX) * arrangement.layoutScale
+          + overlapOffset
+        readonly property real baseY: arrangement.canvasPadding
+          + (logicalPosition.y - arrangement.layoutBounds.minY) * arrangement.layoutScale
+          + overlapOffset
+        property bool dragging: false
+        property real dragX: baseX
+        property real dragY: baseY
+
+        x: dragging ? dragX : baseX
+        y: dragging ? dragY : baseY
+        width: Math.max(86, logicalSize.width * arrangement.layoutScale)
+        height: Math.max(52, logicalSize.height * arrangement.layoutScale)
+        radius: 6
+        color: arrangement.selectedName === String(output.name)
+          ? Qt.alpha(theme.blue, 0.22)
+          : Qt.alpha(theme.surfaceRaised, 0.92)
+        border.color: arrangement.selectedName === String(output.name)
+          ? theme.blue
+          : Qt.alpha(theme.borderSubtle, 0.88)
+        border.width: arrangement.selectedName === String(output.name) ? 2 : 1
+        z: dragging ? 4 : (arrangement.selectedName === String(output.name) ? 2 : 1 + overlapIndex)
+
+        Behavior on x {
+          enabled: !displayTile.dragging
+          MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+        }
+        Behavior on y {
+          enabled: !displayTile.dragging
+          MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+        }
+
+        ColumnLayout {
+          anchors.centerIn: parent
+          width: Math.max(1, parent.width - 16)
+          spacing: 2
+
+          Text {
+            Layout.fillWidth: true
+            text: root.displayName(displayTile.output)
+              + (root.displayPrimary === String(displayTile.output.name) ? "  ★" : "")
+            color: theme.foreground
+            font.family: theme.fontFamily
+            font.pixelSize: 10
+            font.bold: true
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+          }
+
+          Text {
+            Layout.fillWidth: true
+            text: String(displayTile.output.name)
+            color: arrangement.selectedName === String(displayTile.output.name) ? theme.blue : theme.mutedAlt
+            font.family: theme.fontFamily
+            font.pixelSize: 8
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
+          }
+        }
+
+        MouseArea {
+          id: displayTileMouse
+          anchors.fill: parent
+          hoverEnabled: true
+          cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+          property real pointerStartX: 0
+          property real pointerStartY: 0
+          property real tileStartX: 0
+          property real tileStartY: 0
+
+          onPressed: function(mouse) {
+            arrangement.selected(String(displayTile.output.name));
+            const pointer = mapToItem(arrangement, mouse.x, mouse.y);
+            pointerStartX = pointer.x;
+            pointerStartY = pointer.y;
+            tileStartX = displayTile.x;
+            tileStartY = displayTile.y;
+            displayTile.dragX = displayTile.x;
+            displayTile.dragY = displayTile.y;
+            displayTile.dragging = true;
+          }
+
+          onPositionChanged: function(mouse) {
+            if (!pressed)
+              return;
+            const pointer = mapToItem(arrangement, mouse.x, mouse.y);
+            displayTile.dragX = Math.max(-displayTile.width / 2, Math.min(
+              arrangement.width - displayTile.width / 2,
+              tileStartX + pointer.x - pointerStartX
+            ));
+            displayTile.dragY = Math.max(-displayTile.height / 2, Math.min(
+              arrangement.height - displayTile.height / 2,
+              tileStartY + pointer.y - pointerStartY
+            ));
+          }
+
+          onReleased: {
+            const x = arrangement.layoutBounds.minX
+              + (displayTile.dragX - arrangement.canvasPadding - displayTile.overlapOffset) / arrangement.layoutScale;
+            const y = arrangement.layoutBounds.minY
+              + (displayTile.dragY - arrangement.canvasPadding - displayTile.overlapOffset) / arrangement.layoutScale;
+            const snapped = arrangement.snapPosition(String(displayTile.output.name), x, y);
+            arrangement.moved(String(displayTile.output.name), snapped.x, snapped.y);
+            displayTile.dragging = false;
+          }
+
+          onCanceled: displayTile.dragging = false
+        }
+      }
+    }
+  }
+
+  component DisplayOutputInspector: Item {
+    id: displayInspector
     required property var output
-    readonly property var modes: output.availableModes && output.availableModes.length > 0
+    readonly property var modes: output?.availableModes && output.availableModes.length > 0
       ? output.availableModes
       : ["preferred"]
-    readonly property string selectedMode: String(root.displayDraftValue(output.name, "mode", output.mode))
-    readonly property real selectedScale: Number(root.displayDraftValue(output.name, "scale", output.scale))
+    readonly property string selectedMode: String(root.displayDraftValue(output?.name, "mode", output?.mode || "preferred"))
+    readonly property real selectedScale: Number(root.displayDraftValue(output?.name, "scale", output?.scale || 1))
+    readonly property var selectedPosition: root.displayDraftPosition(output)
 
-    implicitHeight: displayCardContent.implicitHeight + 24
-    radius: 11
-    color: Qt.alpha(theme.surfaceAccent, 0.72)
-    border.color: output.enabled ? Qt.alpha(theme.blue, 0.42) : Qt.alpha(theme.borderSubtle, 0.54)
-    border.width: 1
-    opacity: output.enabled ? 1 : 0.68
+    implicitHeight: displayInspectorContent.implicitHeight
 
     ColumnLayout {
-      id: displayCardContent
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: parent.top
-      anchors.margins: 12
-      spacing: 9
+      id: displayInspectorContent
+      width: parent.width
+      spacing: 0
 
       RowLayout {
         Layout.fillWidth: true
+        Layout.preferredHeight: 52
         spacing: 9
 
         Text {
-          text: output.internal ? "󰌢" : "󰍹"
-          color: output.enabled ? theme.blue : theme.mutedAlt
+          text: displayInspector.output?.internal ? "󰌢" : "󰍹"
+          color: theme.blue
           font.family: theme.fontFamily
           font.pixelSize: 18
           Layout.preferredWidth: 24
@@ -4490,18 +4944,21 @@ Scope {
         ColumnLayout {
           Layout.fillWidth: true
           spacing: 1
+
           Text {
             Layout.fillWidth: true
-            text: root.displayName(output)
+            text: root.displayName(displayInspector.output)
             color: theme.foreground
             font.family: theme.fontFamily
             font.pixelSize: 12
             font.bold: true
             elide: Text.ElideRight
           }
+
           Text {
             Layout.fillWidth: true
-            text: String(output.name) + (output.enabled ? " · active" : " · disabled")
+            text: String(displayInspector.output?.name || "")
+              + " · position " + displayInspector.selectedPosition.x + "×" + displayInspector.selectedPosition.y
             color: theme.text
             font.family: theme.fontFamily
             font.pixelSize: 9
@@ -4509,40 +4966,58 @@ Scope {
           }
         }
 
-        PillButton {
-          label: root.displayPrimary === output.name ? "Main" : "Make main"
-          active: root.displayPrimary === output.name
-          enabled: output.enabled && root.displayPendingToken.length === 0
-          onClicked: root.displayPrimary = String(output.name)
+        Text {
+          visible: root.displayPrimary === String(displayInspector.output?.name || "")
+          text: "Primary"
+          color: theme.blue
+          font.family: theme.fontFamily
+          font.pixelSize: 9
+          font.bold: true
         }
+
+        IconButton {
+          icon: root.displayPrimary === String(displayInspector.output?.name || "") ? "" : ""
+          tooltip: root.displayPrimary === String(displayInspector.output?.name || "")
+            ? "Primary display"
+            : "Make primary"
+          active: root.displayPrimary === String(displayInspector.output?.name || "")
+          onClicked: root.displayPrimary = String(displayInspector.output?.name || "")
+        }
+      }
+
+      Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 1
+        color: theme.borderSubtle
+        opacity: 0.72
       }
 
       RowLayout {
         Layout.fillWidth: true
-        spacing: 9
+        Layout.preferredHeight: 52
+        spacing: 10
 
         Text {
           text: "Mode"
           color: theme.mutedAlt
           font.family: theme.fontFamily
           font.pixelSize: 10
-          Layout.preferredWidth: 44
+          Layout.preferredWidth: 48
         }
 
         ComboBox {
           id: displayModeBox
           Layout.fillWidth: true
-          model: displayCard.modes
-          enabled: output.enabled && root.displayPendingToken.length === 0
+          model: displayInspector.modes
           currentIndex: {
-            for (let i = 0; i < displayCard.modes.length; i++) {
-              if (String(displayCard.modes[i]) === displayCard.selectedMode)
+            for (let i = 0; i < displayInspector.modes.length; i++) {
+              if (String(displayInspector.modes[i]) === displayInspector.selectedMode)
                 return i;
             }
             return 0;
           }
           onActivated: function(index) {
-            root.setDisplayDraftValue(output.name, "mode", String(displayCard.modes[index]));
+            root.setDisplayDraftValue(displayInspector.output.name, "mode", String(displayInspector.modes[index]));
           }
 
           contentItem: Text {
@@ -4557,7 +5032,7 @@ Scope {
           }
           background: Rectangle {
             implicitHeight: 34
-            radius: 8
+            radius: 6
             color: displayModeBox.hovered ? theme.surfaceMutedHover : theme.surfaceMuted
             border.color: displayModeBox.activeFocus ? theme.blue : theme.borderSubtle
             border.width: 1
@@ -4589,7 +5064,7 @@ Scope {
               ScrollIndicator.vertical: ScrollIndicator { }
             }
             background: Rectangle {
-              radius: 8
+              radius: 7
               color: theme.surfaceGlassStrong
               border.color: theme.borderSubtle
               border.width: 1
@@ -4598,38 +5073,88 @@ Scope {
         }
       }
 
+      Rectangle {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 1
+        color: theme.borderSubtle
+        opacity: 0.72
+      }
+
       RowLayout {
         Layout.fillWidth: true
-        spacing: 6
+        Layout.preferredHeight: 48
+        spacing: 8
 
         Text {
           text: "Scale"
           color: theme.mutedAlt
           font.family: theme.fontFamily
           font.pixelSize: 10
-          Layout.preferredWidth: 44
+          Layout.preferredWidth: 48
         }
 
         GainSlider {
-          id: displayScaleSlider
           Layout.fillWidth: true
           from: 0.5
           to: 3
           stepSize: 0.25
-          value: displayCard.selectedScale
-          enabled: output.enabled && root.displayPendingToken.length === 0
+          value: displayInspector.selectedScale
           accent: theme.purple
-          onMoved: root.setDisplayDraftValue(output.name, "scale", value)
+          onMoved: root.setDisplayDraftValue(displayInspector.output.name, "scale", value)
         }
 
         Text {
-          text: Math.round(displayCard.selectedScale * 100) + "%"
+          text: Math.round(displayInspector.selectedScale * 100) + "%"
           color: theme.text
           font.family: theme.fontFamily
           font.pixelSize: 10
           horizontalAlignment: Text.AlignRight
           Layout.preferredWidth: 38
         }
+      }
+    }
+  }
+
+  component StartupDisplayRuleRow: Item {
+    id: startupRuleRow
+    required property var rule
+    property bool showDivider: false
+
+    implicitHeight: 50
+
+    Rectangle {
+      visible: startupRuleRow.showDivider
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      height: 1
+      color: theme.borderSubtle
+      opacity: 0.64
+    }
+
+    ColumnLayout {
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      spacing: 2
+
+      Text {
+        Layout.fillWidth: true
+        text: root.startupDisplayName(startupRuleRow.rule)
+        color: theme.foreground
+        font.family: theme.fontFamily
+        font.pixelSize: 10
+        font.bold: true
+        elide: Text.ElideRight
+      }
+
+      Text {
+        Layout.fillWidth: true
+        text: root.startupDisplayDetails(startupRuleRow.rule)
+        color: theme.text
+        font.family: theme.fontFamily
+        font.pixelSize: 9
+        elide: Text.ElideRight
       }
     }
   }

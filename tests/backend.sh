@@ -29,6 +29,13 @@ jq \
     icon: "",
     statusCommand: ["printf", "%s\\n", "{\"text\":\"Demo\",\"active\":true}"],
     toggleCommand: ["true"]
+  }] |
+  .display.startupLayout = [{
+    output: "eDP-1",
+    mode: "preferred",
+    position: "0x0",
+    scale: 2,
+    bitdepth: null
   }]' \
   "$default_config" >"$provider_config"
 export DESKTOP_SHELL_CONFIG="$provider_config"
@@ -193,7 +200,9 @@ jq -e '
 ' <<<"$display_snapshot" >/dev/null
 
 PATH="$test_bin:$PATH" display_status_json | jq -e '
-  .profileAvailable == false and .pending == null and (.outputs | length) == 2
+  .profileAvailable == false and .pending == null and
+  .startupLayout == [{output: "eDP-1", mode: "preferred", position: "0x0", scale: 2, bitdepth: null}] and
+  (.outputs | length) == 2
 ' >/dev/null
 
 duplicate_layout="$(
@@ -216,6 +225,21 @@ jq -e '
 
 if display_layout_from_request "$display_snapshot" \
   '{"preset":"custom","primary":"eDP-1","changes":{"eDP-1":{"scale":9}}}' >/dev/null 2>&1; then
+  exit 1
+fi
+
+arranged_layout="$(
+  display_layout_from_request "$display_snapshot" \
+    '{"preset":"custom","primary":"DP-5","changes":{"eDP-1":{"position":"1720x0"},"DP-5":{"position":"0x180"}}}'
+)"
+jq -e '
+  .primary == "DP-5" and
+  ([.outputs[] | select(.name == "eDP-1")][0].position == "1720x0") and
+  ([.outputs[] | select(.name == "DP-5")][0].position == "0x180")
+' <<<"$arranged_layout" >/dev/null
+
+if display_layout_from_request "$display_snapshot" \
+  '{"preset":"custom","changes":{"eDP-1":{"position":"somewhere"}}}' >/dev/null 2>&1; then
   exit 1
 fi
 
@@ -261,3 +285,11 @@ jq '.deadline = 0' "$display_pending_file" >"$display_pending_file.next"
 mv "$display_pending_file.next" "$display_pending_file"
 PATH="$test_bin:$PATH" display_restore_profile
 test ! -e "$display_pending_file"
+
+jq '.profiles += [{"topology":"another-display-set","primaryIdentity":"","outputs":[]}]' \
+  "$display_profiles_file" >"$display_profiles_file.next"
+mv "$display_profiles_file.next" "$display_profiles_file"
+PATH="$test_bin:$PATH" display_reset
+jq -e '.profiles == [{"topology":"another-display-set","primaryIdentity":"","outputs":[]}]' \
+  "$display_profiles_file" >/dev/null
+grep -Fx reload "$hyprctl_eval" >/dev/null

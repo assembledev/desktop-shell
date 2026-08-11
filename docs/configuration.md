@@ -35,6 +35,7 @@ disabled.
 | `systemd.enable` | `true` | Enable the user service |
 | `systemd.target` | `"graphical-session.target"` | User target that owns shell services |
 | `output` | `null` | Output name for shell surfaces; `null` uses the first screen reported by Quickshell |
+| `display.startupLayout` | `[]` | Declarative monitor rules shown as the exact restore target in display settings |
 | `clipboard.watch.enable` | `true` | Store text and image clipboard changes with `cliphist` |
 | `bluetooth.agent.enable` | `true` | Run Blueman as a pairing agent without its tray providers |
 
@@ -76,6 +77,28 @@ programs.desktop-shell = {
 
 Desktop Shell does not create Hyprland workspace rules or bindings. Configure
 the same IDs in the compositor.
+
+## Displays
+
+`display.startupLayout` describes the compositor-owned monitor rules restored
+by the display page. Each entry accepts `output`, `mode`, `position`, `scale`,
+and optional `bitdepth`, matching Hyprland's monitor rule fields. Desktop Shell
+shows these values before offering **Restore startup layout**; it does not use
+this option to generate a second set of compositor rules.
+
+```nix
+programs.desktop-shell.display.startupLayout = [
+  {
+    output = "eDP-1";
+    mode = "preferred";
+    position = "0x0";
+    scale = 2;
+  }
+];
+```
+
+When another module already owns the monitor list, assign that list directly
+to this option rather than duplicating it.
 
 ## Wallpaper
 

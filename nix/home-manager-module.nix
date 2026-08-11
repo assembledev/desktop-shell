@@ -38,6 +38,40 @@ let
     };
   };
 
+  displayRuleType = types.submodule {
+    options = {
+      output = mkOption {
+        type = types.str;
+        description = "Hyprland output name, description selector, or empty fallback selector.";
+      };
+      mode = mkOption {
+        type = types.str;
+        default = "preferred";
+        description = "Configured startup mode.";
+      };
+      position = mkOption {
+        type = types.str;
+        default = "auto";
+        description = "Configured startup position.";
+      };
+      scale = mkOption {
+        type = types.number;
+        default = 1;
+        description = "Configured startup scale.";
+      };
+      bitdepth = mkOption {
+        type = types.nullOr (
+          types.enum [
+            8
+            10
+          ]
+        );
+        default = null;
+        description = "Optional configured startup bit depth.";
+      };
+    };
+  };
+
   networkControlType = types.submodule {
     options = {
       id = mkOption {
@@ -99,6 +133,7 @@ let
       scrolling = cfg.workspaces.scrolling;
     };
     inherit (cfg) output;
+    display.startupLayout = cfg.display.startupLayout;
     wallpaper = {
       inherit (cfg.wallpaper) directory default;
     };
@@ -196,6 +231,12 @@ in
       type = types.nullOr types.str;
       default = null;
       description = "Output name for shell surfaces; null uses Quickshell's default screen.";
+    };
+
+    display.startupLayout = mkOption {
+      type = types.listOf displayRuleType;
+      default = defaultConfig.display.startupLayout;
+      description = "Declarative startup monitor rules shown as the restore target in display settings.";
     };
 
     wallpaper = {

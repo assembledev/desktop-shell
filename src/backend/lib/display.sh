@@ -106,7 +106,7 @@ display_snapshot_json() {
 }
 
 display_status_json() {
-  local snapshot pending profile_available now
+  local snapshot pending profile_available startup_layout now
 
   display_profiles_init
   snapshot="$(display_snapshot_json)" || return
@@ -114,6 +114,7 @@ display_status_json() {
     jq -c --arg topology "$(jq -r '.topology' <<<"$snapshot")" \
       'any(.profiles[]; .topology == $topology)' "$display_profiles_file"
   )"
+  startup_layout="$(jq -ce '.display.startupLayout // [] | if type == "array" then . else [] end' "$desktop_shell_config")"
   now="$(date +%s)"
   if [ -r "$display_pending_file" ] && jq -e '.token | strings' "$display_pending_file" >/dev/null 2>&1; then
     pending="$(jq -c --argjson now "$now" '{token, expiresIn: ([0, (.deadline - $now)] | max)}' "$display_pending_file")"
@@ -124,8 +125,9 @@ display_status_json() {
   jq -nce \
     --argjson snapshot "$snapshot" \
     --argjson profileAvailable "$profile_available" \
+    --argjson startupLayout "$startup_layout" \
     --argjson pending "$pending" \
-    '$snapshot + {profileAvailable: $profileAvailable, pending: $pending}'
+    '$snapshot + {profileAvailable: $profileAvailable, startupLayout: $startupLayout, pending: $pending}'
 }
 
 display_layout_from_request() {
@@ -216,13 +218,19 @@ display_layout_from_request() {
             . + {
               mode: ($change.mode // .mode),
               scale: ($change.scale // .scale),
-              position: (if .name == $primary then "0x0" elif .enabled then "auto-right" else .position end),
+              position: ($change.position // .position),
               mirror: ""
             }
           end
       ]
     | if ([ .[] | select(.enabled) ] | length) == 0 then fail("a display layout must keep at least one output enabled") else . end
     | if any(.[]; (.scale | type) != "number" or .scale < 0.5 or .scale > 4) then fail("display scale must be between 0.5 and 4") else . end
+    | if any(.[]; .enabled and (
+        (.position | type) != "string" or
+        (.position as $position |
+          (($position | test("^[0-9]+x[0-9]+$") | not) and
+           (["auto", "auto-left", "auto-right", "auto-up", "auto-down"] | index($position)) == null))
+      )) then fail("invalid display position") else . end
     | if any(.[]; . as $output | $output.enabled and $output.mode != "preferred" and
         (($output.availableModes | length) > 0) and
         (($output.availableModes | index($output.mode)) == null))
@@ -459,7 +467,7 @@ display_restore_profile() (
 )
 
 display_reset() (
-  local token
+  local token snapshot topology profiles_tmp
 
   exec 9>"$display_lock_file"
   flock 9
@@ -467,7 +475,14 @@ display_reset() (
     token="$(jq -r '.token // empty' "$display_pending_file")"
     display_rollback_locked "$token"
   fi
-  printf '%s\n' '{"version":1,"profiles":[]}' >"$display_profiles_file"
+  display_profiles_init
+  snapshot="$(display_snapshot_json)" || return
+  topology="$(jq -r '.topology' <<<"$snapshot")"
+  profiles_tmp="$(mktemp "$display_state_dir/.profiles.XXXXXX")"
+  jq -ce --arg topology "$topology" \
+    '.profiles = [.profiles[] | select(.topology != $topology)]' \
+    "$display_profiles_file" >"$profiles_tmp"
+  mv -f "$profiles_tmp" "$display_profiles_file"
   ensure_hypr_env
   hyprctl reload >/dev/null
 )

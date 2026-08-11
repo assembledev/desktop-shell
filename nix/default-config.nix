@@ -37,6 +37,8 @@
 
   output = null;
 
+  display.startupLayout = [ ];
+
   wallpaper = {
     directory = null;
     default = null;

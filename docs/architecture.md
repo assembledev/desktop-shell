@@ -114,8 +114,9 @@ Hyprland's Lua monitor API. Before applying, the backend records the current
 layout below `XDG_RUNTIME_DIR/desktop-shell/` and arms a transient systemd user
 timer. Keeping the layout cancels that timer and atomically replaces the
 profile for the connected physical-output set; expiry or explicit rejection
-reapplies the recorded layout. Nix-owned monitor rules remain the baseline and
-are recovered with `hyprctl reload` after saved profiles are reset.
+reapplies the recorded layout. The configured startup monitor rules are exposed
+to the UI as the exact restore target. Restoring them removes only the profile
+for the connected output set and then runs `hyprctl reload`.
 
 Search queries are not recorded. Launcher history stores desktop-entry IDs,
 counts, and timestamps only. Invalid or absent state is treated as empty state
