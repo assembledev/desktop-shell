@@ -5,7 +5,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
-import Quickshell.Wayland
 import "../common"
 
 Scope {
@@ -21,12 +20,6 @@ Scope {
   MotionTransition {
     id: surfaceTransition
     requested: root.open
-  }
-  PopupLifecycle {
-    requested: root.open
-    surface: window
-    companionSurfaces: [root.barSurface]
-    onDismissed: root.closeCalendar()
   }
 
   property bool open: false
@@ -151,34 +144,22 @@ Scope {
     }
   }
 
-  PanelWindow {
-    screen: shellConfig.screen
+  BarOverlayWindow {
     id: window
-
-    visible: surfaceTransition.presented
-    color: "transparent"
-    exclusiveZone: 0
-
-    WlrLayershell.namespace: "quickshell:calendar"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.open
-      ? WlrKeyboardFocus.OnDemand
-      : WlrKeyboardFocus.None
-
-    mask: Region {
-      item: root.open ? panel : null
-    }
-
-    anchors {
-      top: true
-      bottom: true
-      left: true
-      right: true
-    }
+    barSurface: root.barSurface
+    requested: root.open
+    presented: surfaceTransition.presented
+    surfaceNamespace: "quickshell:calendar"
 
     Item {
       id: inputLayer
       anchors.fill: parent
+
+      MouseArea {
+        anchors.fill: parent
+        enabled: root.open
+        onClicked: root.closeCalendar()
+      }
 
       FocusScope {
         id: focusLayer
@@ -215,7 +196,7 @@ Scope {
           width: Math.min(390, window.width - 24)
           height: content.implicitHeight + 32
           anchors.top: parent.top
-          anchors.topMargin: root.portraitMode ? 90 : 39
+          anchors.topMargin: 2
           anchors.horizontalCenter: parent.horizontalCenter
           radius: 14
           color: Qt.alpha(theme.bgSolid, 0.86)

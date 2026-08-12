@@ -137,12 +137,6 @@ Scope {
     id: powerMenuTransition
     requested: root.powerMenuOpen
   }
-  PopupLifecycle {
-    requested: root.powerMenuOpen
-    surface: powerMenuWindow
-    companionSurfaces: [barWindow]
-    onDismissed: root.powerMenuOpen = false
-  }
 
   function parseJson(text, fallback) {
     const rawText = String(text || "").trim();
@@ -555,7 +549,6 @@ Scope {
     id: trayMenuPopup
     shellScreen: shellConfig.screen
     barSurface: barWindow
-    trayShelfSurface: trayShelfWindow
     barVisible: root.barOpen
 
     onOpened: function(fromShelf) {
@@ -585,6 +578,7 @@ Scope {
     implicitHeight: root.barHeight
     WlrLayershell.namespace: "quickshell:bar"
     WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     anchors {
       top: true
@@ -1138,15 +1132,20 @@ Scope {
     screen: shellConfig.screen
     visible: trayShelfTransition.presented
     color: "transparent"
-    exclusiveZone: 0
+    exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "quickshell:trayShelf"
     WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
     anchors {
       top: true
       bottom: true
       left: true
       right: true
+    }
+
+    margins {
+      top: root.barHeight
     }
 
     mask: Region {
@@ -1202,7 +1201,7 @@ Scope {
     screen: shellConfig.screen
     visible: batteryAnalysisTransition.presented
     color: "transparent"
-    exclusiveZone: 0
+    exclusionMode: ExclusionMode.Ignore
     implicitWidth: 250
     implicitHeight: batteryAnalysisBox.height + 4
     WlrLayershell.namespace: "quickshell:batteryAnalysis"
@@ -1211,6 +1210,10 @@ Scope {
     anchors {
       top: true
       right: true
+    }
+
+    margins {
+      top: root.barHeight
     }
 
     mask: Region {
@@ -1286,32 +1289,22 @@ Scope {
     }
   }
 
-  PanelWindow {
+  BarOverlayWindow {
     id: powerMenuWindow
-    screen: shellConfig.screen
-    visible: powerMenuTransition.presented
-    color: "transparent"
-    exclusiveZone: 0
-    WlrLayershell.namespace: "quickshell:powerMenu"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.powerMenuOpen
-      ? WlrKeyboardFocus.OnDemand
-      : WlrKeyboardFocus.None
-
-    anchors {
-      top: true
-      bottom: true
-      left: true
-      right: true
-    }
-
-    mask: Region {
-      item: root.powerMenuOpen ? powerMenuBox : null
-    }
+    barSurface: barWindow
+    requested: root.powerMenuOpen
+    presented: powerMenuTransition.presented
+    surfaceNamespace: "quickshell:powerMenu"
 
     Item {
       id: powerLayer
       anchors.fill: parent
+
+      MouseArea {
+        anchors.fill: parent
+        enabled: root.powerMenuOpen
+        onClicked: root.powerMenuOpen = false
+      }
 
       Rectangle {
         id: powerMenuBox

@@ -24,12 +24,6 @@ Scope {
     id: mainSurfaceTransition
     requested: root.open
   }
-  PopupLifecycle {
-    requested: root.open
-    surface: mainWindow
-    companionSurfaces: [root.barSurface]
-    onDismissed: root.open = false
-  }
   MotionTransition {
     id: osdSurfaceTransition
     requested: root.osdVisible
@@ -2275,33 +2269,23 @@ Scope {
     }
   }
 
-  PanelWindow {
+  BarOverlayWindow {
     id: mainWindow
-    screen: shellConfig.screen
-    visible: mainSurfaceTransition.presented
-    color: "transparent"
-    exclusiveZone: 0
-    WlrLayershell.namespace: "quickshell:controlCenter"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.open
-      ? WlrKeyboardFocus.OnDemand
-      : WlrKeyboardFocus.None
+    barSurface: root.barSurface
+    requested: root.open
+    presented: mainSurfaceTransition.presented
+    surfaceNamespace: "quickshell:controlCenter"
 
-    mask: Region {
-      item: root.open ? panel : null
-    }
+    Rectangle {
+      anchors.fill: parent
+      color: theme.surfaceScrim
+      opacity: mainSurfaceTransition.progress
 
-    anchors {
-      top: true
-      bottom: true
-      left: true
-      right: true
-    }
-
-      Rectangle {
+      MouseArea {
         anchors.fill: parent
-        color: theme.surfaceScrim
-        opacity: mainSurfaceTransition.progress
+        enabled: root.open
+        onClicked: root.open = false
+      }
 
       Rectangle {
         id: panel

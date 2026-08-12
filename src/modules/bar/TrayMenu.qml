@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Services.SystemTray
-import Quickshell.Wayland
 import Quickshell.Widgets
 import "../common"
 
@@ -13,7 +12,6 @@ Scope {
 
   required property var shellScreen
   required property var barSurface
-  required property var trayShelfSurface
   property bool barVisible: true
 
   property SystemTrayItem trayItem: null
@@ -26,7 +24,6 @@ Scope {
   property var pendingMenuStack: []
   property int navigationDirection: 1
   property bool navigating: false
-
   readonly property int edgeMargin: 12
   readonly property real availableWidth: Number(menuWindow.width || shellScreen?.width || 0)
   readonly property real availableHeight: Number(menuWindow.height || shellScreen?.height || 0)
@@ -70,12 +67,6 @@ Scope {
       root.pendingMenuStack = [];
       root.closed(fromShelf);
     }
-  }
-  PopupLifecycle {
-    requested: root.expanded
-    surface: menuWindow
-    companionSurfaces: [root.barSurface, root.trayShelfSurface]
-    onDismissed: root.closeMenu()
   }
 
   function clamp(value, minimum, maximum) {
@@ -225,34 +216,24 @@ Scope {
     }
   }
 
-  PanelWindow {
+  BarOverlayWindow {
     id: menuWindow
 
-    screen: root.shellScreen
-    visible: surfaceTransition.presented
-    color: "transparent"
-    exclusiveZone: 0
-    WlrLayershell.namespace: "quickshell:trayMenu"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: root.expanded
-      ? WlrKeyboardFocus.OnDemand
-      : WlrKeyboardFocus.None
-
-    mask: Region {
-      item: root.expanded ? menuCard : null
-    }
-
-    anchors {
-      top: true
-      bottom: true
-      left: true
-      right: true
-    }
+    barSurface: root.barSurface
+    requested: root.expanded
+    presented: surfaceTransition.presented
+    surfaceNamespace: "quickshell:trayMenu"
 
     FocusScope {
       id: inputLayer
       anchors.fill: parent
       focus: root.expanded
+
+      MouseArea {
+        anchors.fill: parent
+        enabled: root.expanded
+        onClicked: root.closeMenu()
+      }
 
       Rectangle {
         id: menuCard

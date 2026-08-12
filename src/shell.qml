@@ -22,10 +22,14 @@ ShellRoot {
   }
 
   Bar { id: bar }
-  CalendarPopup { barSurface: bar.surface }
+  CalendarPopup {
+    barSurface: bar.surface
+  }
   CheatSheet {}
   ClipboardHistory {}
-  ControlCenter { barSurface: bar.surface }
+  ControlCenter {
+    barSurface: bar.surface
+  }
   Launcher {}
   LockPreview {}
   NowPlaying {}
