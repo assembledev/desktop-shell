@@ -37,7 +37,11 @@ jq \
     scale: 2,
     bitdepth: null
   }] |
-  .launcher.profiles = {"test-profile": ["org.example.Demo.desktop"]} |
+  .launcher.profiles = {"test-profile": {
+    label: "Test profile",
+    icon: "applications-other",
+    applications: [{id: "org.example.Demo.desktop", workspace: 2}]
+  }} |
   .launcher.autoStartProfile = "test-profile"' \
   "$default_config" >"$provider_config"
 export DESKTOP_SHELL_CONFIG="$provider_config"
@@ -101,7 +105,7 @@ test "${captured_fast_ipc_args[4]}" = launcher
 test "${captured_fast_ipc_args[5]}" = open
 
 profile_ipc_args="$test_root/profile-ipc-args"
-printf '#!%s\nprintf "%%s\\n" "$@" >"$DESKTOP_SHELL_TEST_PROFILE_IPC_ARGS"\n' \
+printf '#!%s\nif [ "${6:-}" = profileReady ]; then printf "true\\n"; else printf "%%s\\n" "$@" >"$DESKTOP_SHELL_TEST_PROFILE_IPC_ARGS"; fi\n' \
   "$(command -v bash)" >"$test_bin/quickshell"
 chmod +x "$test_bin/quickshell"
 DESKTOP_SHELL_TEST_PROFILE_IPC_ARGS="$profile_ipc_args" \
@@ -114,20 +118,41 @@ test "${captured_profile_ipc_args[4]}" = launcher
 test "${captured_profile_ipc_args[5]}" = applyProfile
 test "${captured_profile_ipc_args[6]}" = test-profile
 bash "$source_root/src/backend/desktop-shell.sh" profile list-json |
-  jq -e '.["test-profile"] == ["org.example.Demo.desktop"]' >/dev/null
+  jq -e '.["test-profile"] == {
+    "label":"Test profile",
+    "icon":"applications-other",
+    "applications":[{"id":"org.example.Demo.desktop","workspace":2}]
+  }' >/dev/null
 if PATH="$test_bin:$PATH" \
   bash "$source_root/src/backend/desktop-shell.sh" profile apply missing >/dev/null 2>&1; then
   exit 1
 fi
 
 PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher launch-unfocused org.example.Demo.desktop
+  bash "$source_root/src/backend/desktop-shell.sh" launcher launch-in-workspace org.example.Demo.desktop 2
 mapfile -t captured_profile_launch_args <"$hyprctl_args"
-test "${captured_profile_launch_args[0]}" = dispatch
+test "${captured_profile_launch_args[0]}" = eval
 test "${captured_profile_launch_args[1]}" = \
-  'hl.dsp.exec_cmd("uwsm app -- org.example.Demo.desktop", { no_initial_focus = true })'
+  'hl.exec_cmd("uwsm app -- org.example.Demo.desktop", { workspace = "2 silent", focus_on_activate = false })'
 if PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher launch-unfocused 'invalid;entry.desktop' \
+  bash "$source_root/src/backend/desktop-shell.sh" launcher launch-in-workspace 'invalid;entry.desktop' 2 \
+  >/dev/null 2>&1; then
+  exit 1
+fi
+if PATH="$test_bin:$PATH" \
+  bash "$source_root/src/backend/desktop-shell.sh" launcher launch-in-workspace org.example.Demo.desktop 0 \
+  >/dev/null 2>&1; then
+  exit 1
+fi
+
+PATH="$test_bin:$PATH" \
+  bash "$source_root/src/backend/desktop-shell.sh" launcher move-to-workspace 0xabc123 2
+mapfile -t captured_profile_move_args <"$hyprctl_args"
+test "${captured_profile_move_args[0]}" = dispatch
+test "${captured_profile_move_args[1]}" = \
+  'hl.dsp.window.move({ workspace = 2, follow = false, window = "address:0xabc123" })'
+if PATH="$test_bin:$PATH" \
+  bash "$source_root/src/backend/desktop-shell.sh" launcher move-to-workspace 'bad;address' 2 \
   >/dev/null 2>&1; then
   exit 1
 fi

@@ -53,23 +53,36 @@ function executableName(value) {
   return normalize(tokens[index]).split("/").pop().replace(/\.desktop$/, "");
 }
 
-function appWindowIdentityScore(app, win) {
+function appWindowTechnicalIdentityScore(app, win) {
   if (!win || win.hidden)
     return -1;
 
   const startup = normalize(app?.startupClass);
-  const name = normalize(app?.name);
   const id = normalize(String(app?.id || "").replace(/\.desktop$/, ""));
   const exec = executableName(app?.execString);
-  const cls = normalize(win.class || win.initialClass);
-  const title = normalize(win.title || win.initialTitle);
+  const classes = [normalize(win.class), normalize(win.initialClass)].filter(function(cls, index, values) {
+    return cls.length > 0 && values.indexOf(cls) === index;
+  });
 
-  if (startup.length > 0 && cls === startup)
+  if (startup.length > 0 && classes.includes(startup))
     return 600;
-  if (id.length > 0 && cls === id)
+  if (id.length > 0 && classes.includes(id))
     return 580;
-  if (exec.length > 0 && cls === exec)
+  if (exec.length > 0 && classes.includes(exec))
     return 560;
+  return -1;
+}
+
+function appWindowIdentityScore(app, win) {
+  const technicalScore = appWindowTechnicalIdentityScore(app, win);
+  if (technicalScore >= 0)
+    return technicalScore;
+
+  const name = normalize(app?.name);
+  const id = normalize(String(app?.id || "").replace(/\.desktop$/, ""));
+  const cls = normalize(win?.class || win?.initialClass);
+  const title = normalize(win?.title || win?.initialTitle);
+
   if (id.length > 0 && cls.indexOf(id) >= 0)
     return 520;
   if (name.length > 0 && cls === name)

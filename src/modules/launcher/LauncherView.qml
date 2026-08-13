@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
@@ -20,6 +19,12 @@ Scope {
 
   ShellConfig { id: shellConfig }
   HyprlandAdapter { id: hyprland }
+  ProfileController {
+    id: profileController
+    backend: root.backend
+    applications: root.apps
+    profiles: shellConfig.launchProfiles
+  }
   MotionTransition {
     id: surfaceTransition
     requested: root.open
@@ -236,109 +241,14 @@ Scope {
     });
   }
 
-  function currentHyprlandWindows() {
-    return (Hyprland.toplevels.values || []).map(function(toplevel) {
-      const ipc = toplevel?.lastIpcObject || {};
-      return Object.assign({}, ipc, {
-        address: String(toplevel?.address || ipc.address || ""),
-        class: String(toplevel?.wayland?.appId || ipc.class || ""),
-        initialClass: String(ipc.initialClass || ""),
-        title: String(toplevel?.title || ipc.title || ""),
-        initialTitle: String(ipc.initialTitle || ""),
-        hidden: Boolean(ipc.hidden)
-      });
-    });
-  }
-
-  function applicationForEntryId(entryId) {
-    const expected = String(entryId || "");
-    return (apps || []).find(function(app) {
-      return LauncherSearch.desktopEntryFileId(app) === expected;
-    }) || null;
-  }
-
-  function profileApplications(profileId) {
-    const configured = shellConfig.launchProfiles?.[profileId];
-    return Array.isArray(configured) ? configured : [];
-  }
-
-  function profileSnapshot(profileId) {
-    const entryIds = profileApplications(profileId);
-    const currentWindows = currentHyprlandWindows();
-    let openCount = 0;
-    for (const entryId of entryIds) {
-      const app = applicationForEntryId(entryId);
-      if (!app)
-        continue;
-      if (windowsForApp(app, currentWindows).length > 0)
-        openCount++;
-    }
-    return {
-      open: openCount,
-      total: entryIds.length
-    };
-  }
-
-  function profileSummary(profileId) {
-    const snapshot = profileSnapshot(profileId);
-    if (snapshot.total === 0)
-      return "Empty profile";
-    if (snapshot.open === snapshot.total)
-      return snapshot.total + "/" + snapshot.total + " open · nothing to launch";
-    return snapshot.open + "/" + snapshot.total + " open · launch missing applications";
-  }
-
-  function profileResultEntries(query) {
-    const result = [];
-    for (const profileId of Object.keys(shellConfig.launchProfiles || {}).sort()) {
-      let score = 0;
-      if (query.length > 0) {
-        if (profileId === query)
-          score = 9000;
-        else if (profileId.startsWith(query))
-          score = 8800;
-        else if (profileId.includes(query))
-          score = 8600;
-        else
-          continue;
-      }
-
-      result.push({
-        kind: "profile",
-        profileId: profileId,
-        score: score,
-        usageScore: 0,
-        windows: [],
-        entry: {
-          id: "profile-" + profileId,
-          name: "@" + profileId,
-          icon: "system-run"
-        }
-      });
-    }
-    return result;
+  function profileReady(profileId) {
+    reloadApps();
+    return profileController.profileReady(profileId);
   }
 
   function applyProfile(profileId) {
-    const entryIds = profileApplications(profileId);
-    if (entryIds.length === 0) {
-      console.error("launcher: unknown or empty profile: " + profileId);
-      return;
-    }
-
     reloadApps();
-    const currentWindows = currentHyprlandWindows();
-    for (const entryId of entryIds) {
-      const app = applicationForEntryId(entryId);
-      if (app && windowsForApp(app, currentWindows).length > 0)
-        continue;
-      Quickshell.execDetached([
-        backend,
-        "launcher",
-        "launch-unfocused",
-        entryId
-      ]);
-    }
+    profileController.applyProfile(profileId);
   }
 
   function orderedWindows(app, query) {
@@ -557,7 +467,7 @@ Scope {
     }
 
     if (mode === "launch" && profileQuery !== null) {
-      result = profileResultEntries(profileQuery);
+      result = profileController.resultEntries(profileQuery);
     } else if (mode === "launch") {
       for (const app of apps) {
         const item = decoratedEntry(app, query);
@@ -1237,7 +1147,8 @@ Scope {
       : String(entry?.name || "")
     readonly property string secondaryText: {
       if (profileMode)
-        return root.profileSummary(String(item?.profileId || ""));
+        return "@" + String(item?.profileId || "") + " · "
+          + profileController.summary(String(item?.profileId || ""));
       if (!focusMode)
         return String(entry?.genericName || entry?.comment || entry?.id || "");
       if (tabMode) {
@@ -1386,7 +1297,7 @@ Scope {
       Rectangle {
         visible: row.profileMode
         Layout.alignment: Qt.AlignVCenter
-        height: 22
+        Layout.preferredHeight: 22
         implicitWidth: profileLabel.implicitWidth + 14
         radius: 10
         color: Qt.alpha(root.yellow, 0.08)

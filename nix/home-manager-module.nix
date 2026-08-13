@@ -120,6 +120,39 @@ let
   desktopEntryIdType = types.strMatching "^[A-Za-z0-9_.+-]+\\.desktop$";
   launchProfileIdPattern = "^[a-z0-9][a-z0-9-]*$";
   launchProfileIdType = types.strMatching launchProfileIdPattern;
+  launchProfileApplicationType = types.submodule {
+    options = {
+      id = mkOption {
+        type = desktopEntryIdType;
+        description = "Desktop entry file ID.";
+      };
+      workspace = mkOption {
+        type = types.ints.positive;
+        description = "Workspace where the application belongs.";
+      };
+    };
+  };
+  launchProfileType = types.submodule (
+    { name, ... }:
+    {
+      options = {
+        label = mkOption {
+          type = types.nonEmptyStr;
+          default = name;
+          description = "Human-facing profile label.";
+        };
+        icon = mkOption {
+          type = types.nullOr types.nonEmptyStr;
+          default = null;
+          description = "Optional freedesktop icon name; the first application icon is the fallback.";
+        };
+        applications = mkOption {
+          type = types.nonEmptyListOf launchProfileApplicationType;
+          description = "Applications and their target workspaces.";
+        };
+      };
+    }
+  );
 
   colorType = types.strMatching "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$";
   themeOptions = lib.mapAttrs (
@@ -306,15 +339,25 @@ in
 
     launcher = {
       profiles = mkOption {
-        type = types.attrsOf (types.nonEmptyListOf desktopEntryIdType);
+        type = types.attrsOf launchProfileType;
         default = { };
         example = {
-          work = [
-            "firefox.desktop"
-            "org.wezfurlong.wezterm.desktop"
-          ];
+          work = {
+            label = "Work";
+            icon = "applications-office";
+            applications = [
+              {
+                id = "firefox.desktop";
+                workspace = 2;
+              }
+              {
+                id = "org.wezfurlong.wezterm.desktop";
+                workspace = 1;
+              }
+            ];
+          };
         };
-        description = "Launcher profiles as non-empty lists of desktop entry file IDs.";
+        description = "Launcher profiles with presentation metadata and workspace-owned applications.";
       };
 
       autoStartProfile = mkOption {
@@ -396,9 +439,22 @@ in
       }
       {
         assertion = lib.all (
-          applications: builtins.length applications == builtins.length (lib.unique applications)
+          profile:
+          let
+            ids = map (application: application.id) profile.applications;
+          in
+          builtins.length ids == builtins.length (lib.unique ids)
         ) (builtins.attrValues cfg.launcher.profiles);
         message = "Desktop Shell launch profiles must not repeat desktop-entry IDs";
+      }
+      {
+        assertion = lib.all (
+          profile:
+          lib.all (
+            application: lib.any (workspace: workspace.id == application.workspace) cfg.workspaces.items
+          ) profile.applications
+        ) (builtins.attrValues cfg.launcher.profiles);
+        message = "Desktop Shell launch profile workspaces must name configured workspaces";
       }
       {
         assertion =

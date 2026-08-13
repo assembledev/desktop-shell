@@ -42,6 +42,29 @@ desktop_shell_wait_ready() {
   return 1
 }
 
+desktop_shell_profile_wait_ready() {
+  profile_id="$1"
+  attempt=0
+  service_started=0
+  while [ "$attempt" -lt 50 ]; do
+    if state="$(
+      quickshell ipc --path "${DESKTOP_SHELL_QML}/shell.qml" call launcher profileReady "$profile_id" 2>/dev/null
+    )"; then
+      if [ "$state" = true ]; then
+        return 0
+      fi
+    elif [ "$service_started" -eq 0 ]; then
+      systemctl --user start desktop-shell.service
+      service_started=1
+    fi
+    sleep 0.1
+    attempt=$((attempt + 1))
+  done
+
+  printf 'desktop-shell: desktop entries did not become ready for profile: %s\n' "$profile_id" >&2
+  return 1
+}
+
 # This is used by systemd as a startup readiness gate. Keep it independent of
 # config parsing so a malformed user config cannot mask the actual QML result.
 if [ "${1:-}" = wait-ready ]; then
@@ -260,7 +283,7 @@ Lifecycle:
 Shell surfaces:
   open | close | toggle
   launcher <open|focus|close|toggle>
-  profile apply <id>    Launch the missing applications in a configured profile
+  profile apply <id>    Reconcile a configured application layout
   alttab <next|prev|commit|cancel>
   direction <l|r|u|d>
   cheatsheet <open|close|toggle>
@@ -441,12 +464,20 @@ case "${1:-help}" in
         launcher_record_launch "$entry_id" || true
         exec uwsm app -- "$entry_id"
         ;;
-      launch-unfocused)
+      launch-in-workspace)
         entry_id="${3:-}"
-        [ "$#" -eq 3 ] || exit 2
+        workspace="${4:-}"
+        [ "$#" -eq 4 ] || exit 2
         launcher_entry_id_is_valid "$entry_id" || exit 2
         launcher_record_launch "$entry_id" || true
-        launcher_launch_unfocused "$entry_id"
+        launcher_launch_in_workspace "$entry_id" "$workspace"
+        exit
+        ;;
+      move-to-workspace)
+        address="${3:-}"
+        workspace="${4:-}"
+        [ "$#" -eq 4 ] || exit 2
+        launcher_move_to_workspace "$address" "$workspace"
         exit
         ;;
       history)
@@ -465,11 +496,12 @@ case "${1:-help}" in
         profile_id="${3:-}"
         [ "$#" -eq 3 ] || exit 2
         if ! jq -e --arg profile "$profile_id" \
-          '.launcher.profiles[$profile] | type == "array" and length > 0' \
+          '.launcher.profiles[$profile].applications | type == "array" and length > 0' \
           "$desktop_shell_config" >/dev/null; then
           printf 'desktop-shell: unknown launch profile: %s\n' "$profile_id" >&2
           exit 2
         fi
+        desktop_shell_profile_wait_ready "$profile_id"
         desktop_shell_ipc_call launcher applyProfile "$profile_id"
         ;;
       list-json)

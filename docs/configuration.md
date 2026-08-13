@@ -36,7 +36,7 @@ disabled.
 | `systemd.target` | `"graphical-session.target"` | User target that owns shell services |
 | `output` | `null` | Output name for shell surfaces; `null` uses the first screen reported by Quickshell |
 | `display.startupLayout` | `[]` | Declarative monitor rules shown as the exact restore target in display settings |
-| `launcher.profiles` | `{}` | Named lists of desktop entry IDs |
+| `launcher.profiles` | `{}` | Named application layouts with labels and icons |
 | `launcher.autoStartProfile` | `null` | Profile applied at graphical session startup |
 | `clipboard.watch.enable` | `true` | Store text and image clipboard changes with `cliphist` |
 | `bluetooth.agent.enable` | `true` | Run Blueman as a pairing agent without its tray providers |
@@ -82,25 +82,45 @@ the same IDs in the compositor.
 
 ## Launch profiles
 
-Profiles contain desktop entry file IDs. Existing matching windows are skipped.
+Profiles contain desktop entry file IDs and their target workspaces. Desktop
+Shell derives window identity from standard desktop-entry metadata such as
+`StartupWMClass`, the desktop-entry ID, and the executable name; profile
+configuration does not duplicate compositor classes.
 
 ```nix
 programs.desktop-shell.launcher = {
-  profiles.work = [
-    "firefox.desktop"
-    "org.wezfurlong.wezterm.desktop"
-  ];
+  profiles.work = {
+    label = "Work";
+    icon = "applications-office";
+    applications = [
+      {
+        id = "firefox.desktop";
+        workspace = 2;
+      }
+      {
+        id = "org.wezfurlong.wezterm.desktop";
+        workspace = 1;
+      }
+    ];
+  };
   autoStartProfile = "work";
 };
 ```
 
 Profiles are selected as `@<name>` in the launcher. `autoStartProfile` applies
-the named profile once at graphical session startup. Window placement follows
-the compositor configuration.
+the named profile once at graphical session startup. Missing applications open
+directly on their target workspaces through Hyprland's native `workspace
+<id> silent` exec rule with per-exec `focus_on_activate = false`. This blocks
+both initial focus and later activation requests from profile-launched windows.
+Existing matching windows move with `follow = false`, without switching the
+visible workspace. Repeated requests made while an application is still mapping
+share a short in-memory launch lease instead of starting duplicates.
 
-Profile names must match `[a-z0-9][a-z0-9-]*`. Desktop entry IDs must end in
-`.desktop`; duplicates within a profile are rejected. `autoStartProfile` must
-name a configured profile.
+`label` defaults to the profile ID. `icon` is optional and falls back to the
+first application's icon. Profile names must match `[a-z0-9][a-z0-9-]*`.
+Desktop entry IDs must end in `.desktop`; duplicates within a profile are
+rejected. Target workspaces must exist in `workspaces.items`, and
+`autoStartProfile` must name a configured profile.
 
 ## Displays
 

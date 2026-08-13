@@ -33,6 +33,10 @@ Scope {
     // first visible open after boot or a shell restart.
   }
 
+  function profileReady(profile) {
+    return launcherLoader.item ? launcherLoader.item.profileReady(profile) : false;
+  }
+
   IpcHandler {
     target: "launcher"
     function open(): void { root.enqueue("openLauncher"); }
@@ -44,6 +48,7 @@ Scope {
       root.scheduleUnload();
     }
     function toggle(): void { root.enqueue("toggleLauncher"); }
+    function profileReady(profile: string): bool { return root.profileReady(profile); }
     function applyProfile(profile: string): void { root.enqueue("applyProfile", profile); }
   }
 

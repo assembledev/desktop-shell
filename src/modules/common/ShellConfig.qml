@@ -68,12 +68,34 @@ QtObject {
 
       const profiles = ({});
       for (const id of Object.keys(parsed)) {
-        const applications = parsed[id];
+        const profile = parsed[id];
+        const applications = profile?.applications;
         if (!/^[a-z0-9][a-z0-9-]*$/.test(id)
+            || !profile
+            || typeof profile !== "object"
+            || Array.isArray(profile)
             || !Array.isArray(applications)
             || applications.length === 0)
           continue;
-        profiles[id] = applications.map(function(entryId) { return String(entryId); });
+
+        const normalizedApplications = [];
+        for (const application of applications) {
+          const entryId = String(application?.id || "");
+          const workspace = Number(application?.workspace);
+          if (!/^[A-Za-z0-9_.+-]+\.desktop$/.test(entryId)
+              || !Number.isInteger(workspace)
+              || workspace <= 0)
+            continue;
+          normalizedApplications.push({ id: entryId, workspace: workspace });
+        }
+        if (normalizedApplications.length !== applications.length)
+          continue;
+
+        profiles[id] = {
+          label: String(profile.label || id),
+          icon: String(profile.icon || ""),
+          applications: normalizedApplications
+        };
       }
       return profiles;
     } catch (error) {

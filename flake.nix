@@ -82,7 +82,16 @@
                   package = desktopShell;
                   bluetooth.agent.enable = false;
                   launcher = {
-                    profiles.check-profile = [ "org.example.Demo.desktop" ];
+                    profiles.check-profile = {
+                      label = "Check profile";
+                      icon = "applications-other";
+                      applications = [
+                        {
+                          id = "org.example.Demo.desktop";
+                          workspace = 1;
+                        }
+                      ];
+                    };
                     autoStartProfile = "check-profile";
                   };
                 };
@@ -141,6 +150,23 @@
               '';
 
           qml = desktopShell.passthru.qml;
+
+          qml-tests =
+            pkgs.runCommand "desktop-shell-qml-tests"
+              {
+                nativeBuildInputs = [ pkgs.kdePackages.qtdeclarative ];
+              }
+              ''
+                export HOME="$TMPDIR/home"
+                export LANG=C.UTF-8
+                export QT_QPA_PLATFORM=offscreen
+                export XDG_CACHE_HOME="$TMPDIR/cache"
+                mkdir -p "$HOME" "$XDG_CACHE_HOME"
+                qmltestrunner \
+                  -import ${pkgs.kdePackages.qtdeclarative}/lib/qt-6/qml \
+                  -input ${self}/tests/qml
+                touch "$out"
+              '';
 
           browser-tab-bridge =
             pkgs.runCommand "desktop-shell-browser-tab-bridge-check"

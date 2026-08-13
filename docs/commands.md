@@ -69,7 +69,10 @@ $ desktop-shell launcher close
 backend-only forms `launcher launch <desktop-entry-id>` and `launcher history`
 are used by the QML model.
 
-Configured profiles are available as `@<name>` launcher results.
+Configured profiles are available as `@<name>` launcher results. Applying one
+launches missing applications directly on their declared workspaces with native
+silent placement and per-exec activation focus disabled, then moves existing
+matching windows there without following them.
 
 ```console
 $ desktop-shell profile list-json
