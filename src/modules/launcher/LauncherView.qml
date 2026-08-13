@@ -23,6 +23,7 @@ Scope {
     id: profileController
     backend: root.backend
     applications: root.apps
+    compositor: hyprland
     profiles: shellConfig.launchProfiles
   }
   MotionTransition {

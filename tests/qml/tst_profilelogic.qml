@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import "../../src/modules/common/HyprlandWindow.js" as HyprlandWindow
 import "../../src/modules/launcher/ProfileLogic.js" as ProfileLogic
 
 TestCase {
@@ -25,6 +26,27 @@ TestCase {
       workspace: { id: 2 }
     };
     compare(ProfileLogic.matchingWindows(applications[0], [browser]).length, 0);
+  }
+
+  function test_toplevel_snapshot_normalizes_address_and_prefers_live_workspace() {
+    const snapshot = HyprlandWindow.dataForToplevel({
+      address: "ABC123",
+      workspace: { id: 5, name: "5" },
+      lastIpcObject: {
+        address: "0xabc123",
+        class: "chatgpt",
+        workspace: { id: 2, name: "2" }
+      }
+    });
+    compare(snapshot.address, "0xabc123");
+    compare(snapshot.workspace.id, 5);
+    compare(snapshot.workspace.name, "5");
+
+    const plan = ProfileLogic.reconcilePlan(entries, applications, [snapshot], {}, 1000, 15000);
+    compare(plan.launches.length, 0);
+    compare(plan.moves.length, 1);
+    compare(plan.moves[0].address, "0xabc123");
+    compare(plan.moves[0].workspace, 1);
   }
 
   function test_matching_window_moves_without_launch() {

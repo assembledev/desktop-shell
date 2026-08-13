@@ -473,13 +473,6 @@ case "${1:-help}" in
         launcher_launch_in_workspace "$entry_id" "$workspace"
         exit
         ;;
-      move-to-workspace)
-        address="${3:-}"
-        workspace="${4:-}"
-        [ "$#" -eq 4 ] || exit 2
-        launcher_move_to_workspace "$address" "$workspace"
-        exit
-        ;;
       history)
         launcher_history_json
         exit 0

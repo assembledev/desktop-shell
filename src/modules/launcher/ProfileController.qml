@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
+import "../common/HyprlandWindow.js" as HyprlandWindow
 import "ProfileLogic.js" as ProfileLogic
 
 QtObject {
@@ -10,6 +11,7 @@ QtObject {
 
   required property string backend
   required property var applications
+  required property var compositor
   required property var profiles
 
   // A launch request reserves its desktop entry briefly. This closes the gap
@@ -38,17 +40,7 @@ QtObject {
   }
 
   function currentWindows() {
-    return (Hyprland.toplevels.values || []).map(function(toplevel) {
-      const ipc = toplevel?.lastIpcObject || {};
-      return Object.assign({}, ipc, {
-        address: String(toplevel?.address || ipc.address || ""),
-        class: String(toplevel?.wayland?.appId || ipc.class || ""),
-        initialClass: String(ipc.initialClass || ""),
-        title: String(toplevel?.title || ipc.title || ""),
-        initialTitle: String(ipc.initialTitle || ""),
-        hidden: Boolean(ipc.hidden)
-      });
-    });
+    return (Hyprland.toplevels.values || []).map(HyprlandWindow.dataForToplevel);
   }
 
   function snapshot(profileId) {
@@ -123,15 +115,8 @@ QtObject {
     );
     launchLeases = plan.leases;
 
-    for (const move of plan.moves) {
-      Quickshell.execDetached([
-        backend,
-        "launcher",
-        "move-to-workspace",
-        move.address,
-        String(move.workspace)
-      ]);
-    }
+    for (const move of plan.moves)
+      compositor.moveWindowToWorkspace(move.address, move.workspace);
     for (const launch of plan.launches) {
       Quickshell.execDetached([
         backend,

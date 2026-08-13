@@ -145,18 +145,6 @@ if PATH="$test_bin:$PATH" \
   exit 1
 fi
 
-PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher move-to-workspace 0xabc123 2
-mapfile -t captured_profile_move_args <"$hyprctl_args"
-test "${captured_profile_move_args[0]}" = dispatch
-test "${captured_profile_move_args[1]}" = \
-  'hl.dsp.window.move({ workspace = 2, follow = false, window = "address:0xabc123" })'
-if PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher move-to-workspace 'bad;address' 2 \
-  >/dev/null 2>&1; then
-  exit 1
-fi
-
 printf '#!%s\nprintf "true\\n"\n' "$(command -v bash)" >"$test_bin/quickshell"
 chmod +x "$test_bin/quickshell"
 DESKTOP_SHELL_CONFIG="$invalid_config" \

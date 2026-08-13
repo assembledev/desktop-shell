@@ -53,14 +53,6 @@ launcher_workspace_is_valid() {
   esac
 }
 
-launcher_window_address_is_valid() {
-  case "${1:-}" in
-    0x*[!0-9A-Fa-f]* | 0x) return 1 ;;
-    0x*) ;;
-    *) return 1 ;;
-  esac
-}
-
 launcher_launch_in_workspace() {
   local entry_id="${1:-}"
   local workspace="${2:-}"
@@ -80,26 +72,5 @@ launcher_launch_in_workspace() {
   ensure_hypr_env
   hyprctl eval \
     "hl.exec_cmd($command_lua, { workspace = $workspace_lua, focus_on_activate = false })" \
-    >/dev/null
-}
-
-launcher_move_to_workspace() {
-  local address="${1:-}"
-  local workspace="${2:-}"
-  local window_lua
-
-  if ! launcher_window_address_is_valid "$address"; then
-    printf 'desktop-shell: invalid window address: %s\n' "$address" >&2
-    return 2
-  fi
-  if ! launcher_workspace_is_valid "$workspace"; then
-    printf 'desktop-shell: invalid workspace: %s\n' "$workspace" >&2
-    return 2
-  fi
-
-  window_lua="$(printf 'address:%s' "$address" | jq -Rs .)"
-  ensure_hypr_env
-  hyprctl dispatch \
-    "hl.dsp.window.move({ workspace = $workspace, follow = false, window = $window_lua })" \
     >/dev/null
 }
