@@ -23,8 +23,15 @@ Scope {
     id: profileController
     backend: root.backend
     applications: root.apps
-    compositor: hyprland
     profiles: shellConfig.launchProfiles
+    windows: root.windows
+    onApplyFinished: function(profileId, success) {
+      root.refreshState();
+      if (root.closeAfterProfileApply) {
+        root.closeAfterProfileApply = false;
+        root.closeLauncher();
+      }
+    }
   }
   MotionTransition {
     id: surfaceTransition
@@ -47,6 +54,7 @@ Scope {
   property bool loadingApps: false
   property bool historyLoaded: false
   property var pendingFocusTarget: null
+  property bool closeAfterProfileApply: false
 
   readonly property int maxResults: 10
   readonly property int maxAppReloadAttempts: 30
@@ -249,7 +257,7 @@ Scope {
 
   function applyProfile(profileId) {
     reloadApps();
-    profileController.applyProfile(profileId);
+    return profileController.applyProfile(profileId);
   }
 
   function orderedWindows(app, query) {
@@ -583,8 +591,11 @@ Scope {
       return;
 
     if (mode === "launch" && item.kind === "profile") {
-      applyProfile(String(item.profileId || ""));
-      closeLauncher();
+      closeAfterProfileApply = true;
+      if (!applyProfile(String(item.profileId || ""))) {
+        closeAfterProfileApply = false;
+        closeLauncher();
+      }
       return;
     }
 

@@ -74,3 +74,82 @@ launcher_launch_in_workspace() {
     "hl.exec_cmd($command_lua, { workspace = $workspace_lua, focus_on_activate = false })" \
     >/dev/null
 }
+
+launcher_state_json() {
+  local clients active
+
+  ensure_hypr_env
+  clients="$(hyprctl clients -j)"
+  active="$(hyprctl activewindow -j)"
+  jq -e 'type == "array"' >/dev/null <<<"$clients"
+  jq -e 'type == "object"' >/dev/null <<<"$active"
+  jq -nc \
+    --argjson clients "$clients" \
+    --argjson active "$active" \
+    '{clients: $clients, active: $active}'
+}
+
+launcher_apply_plan() {
+  local plan_json="${1:-}"
+  local active_address ordered_moves move address workspace command clients
+  local moved launched
+
+  if ! jq -e '
+    type == "object"
+    and (.moves | type == "array" and length <= 128)
+    and (.launches | type == "array" and length <= 128)
+    and all(.moves[];
+      type == "object"
+      and (.address | type == "string" and test("^0x[0-9A-Fa-f]+$"))
+      and (.workspace | type == "number" and floor == . and . > 0))
+    and all(.launches[];
+      type == "object"
+      and (.id | type == "string" and test("^[A-Za-z0-9_.+-]+[.]desktop$"))
+      and (.workspace | type == "number" and floor == . and . > 0))
+  ' >/dev/null <<<"$plan_json"; then
+    printf 'desktop-shell: invalid launcher apply plan\n' >&2
+    return 2
+  fi
+
+  ensure_hypr_env
+  mkdir -p "${XDG_RUNTIME_DIR:?}/desktop-shell"
+  exec 9>"$XDG_RUNTIME_DIR/desktop-shell/profile-apply.lock"
+  flock -x 9
+
+  active_address="$(hyprctl activewindow -j | jq -er '.address // ""')"
+  ordered_moves="$(
+    jq -c --arg active "$active_address" \
+      '[.moves[] | select(.address != $active)] + [.moves[] | select(.address == $active)]' \
+      <<<"$plan_json"
+  )"
+
+  while IFS= read -r move; do
+    [ -n "$move" ] || continue
+    address="$(jq -r '.address' <<<"$move")"
+    workspace="$(jq -r '.workspace' <<<"$move")"
+    command="hl.dsp.window.move({ workspace = $workspace, follow = false, window = \"address:$address\" })"
+    hyprctl dispatch "$command" >/dev/null
+  done < <(jq -c '.[]' <<<"$ordered_moves")
+
+  clients="$(hyprctl clients -j)"
+  if ! jq -e --argjson plan "$plan_json" '
+    (map({key: .address, value: .workspace.id}) | from_entries) as $workspaces
+    | all($plan.moves[]; $workspaces[.address] == .workspace)
+  ' >/dev/null <<<"$clients"; then
+    printf 'desktop-shell: profile window placement verification failed\n' >&2
+    return 1
+  fi
+
+  while IFS= read -r move; do
+    [ -n "$move" ] || continue
+    address="$(jq -r '.id' <<<"$move")"
+    workspace="$(jq -r '.workspace' <<<"$move")"
+    launcher_record_launch "$address" || true
+    launcher_launch_in_workspace "$address" "$workspace"
+  done < <(jq -c '.launches[]' <<<"$plan_json")
+
+  moved="$(jq '.moves | length' <<<"$plan_json")"
+  launched="$(jq '.launches | length' <<<"$plan_json")"
+  jq -nc --argjson moved "$moved" --argjson launched "$launched" \
+    '{moved: $moved, launched: $launched}'
+}

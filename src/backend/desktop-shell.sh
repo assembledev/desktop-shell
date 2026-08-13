@@ -473,6 +473,17 @@ case "${1:-help}" in
         launcher_launch_in_workspace "$entry_id" "$workspace"
         exit
         ;;
+      state-json)
+        [ "$#" -eq 2 ] || exit 2
+        launcher_state_json
+        exit
+        ;;
+      apply-plan)
+        plan_json="${3:-}"
+        [ "$#" -eq 3 ] || exit 2
+        launcher_apply_plan "$plan_json"
+        exit
+        ;;
       history)
         launcher_history_json
         exit 0
