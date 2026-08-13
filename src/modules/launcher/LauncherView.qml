@@ -25,18 +25,15 @@ Scope {
     applications: root.apps
     profiles: shellConfig.launchProfiles
     windows: root.windows
-    onApplyFinished: function(profileId, success) {
-      root.refreshState();
-      if (root.closeAfterProfileApply) {
-        root.closeAfterProfileApply = false;
-        root.closeLauncher();
-      }
-    }
+    onApplyFinished: root.refreshState()
   }
   MotionTransition {
     id: surfaceTransition
     requested: root.open
-    onDismissed: root.commitPendingFocus()
+    onDismissed: {
+      root.commitPendingFocus();
+      root.commitPendingProfileApply();
+    }
   }
 
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
@@ -54,7 +51,7 @@ Scope {
   property bool loadingApps: false
   property bool historyLoaded: false
   property var pendingFocusTarget: null
-  property bool closeAfterProfileApply: false
+  property string pendingProfileApplyId: ""
 
   readonly property int maxResults: 10
   readonly property int maxAppReloadAttempts: 30
@@ -77,6 +74,8 @@ Scope {
   readonly property color border: theme.border
 
   function openLauncher() {
+    if (pendingProfileApplyId.length > 0)
+      return;
     pendingFocusTarget = null;
     surfaceTransition.exitSpeedMultiplier = 1;
     open = true;
@@ -569,6 +568,13 @@ Scope {
     }
   }
 
+  function commitPendingProfileApply() {
+    const profileId = pendingProfileApplyId;
+    pendingProfileApplyId = "";
+    if (profileId.length > 0)
+      applyProfile(profileId);
+  }
+
   function launchApp(item) {
     const app = item?.entry;
     if (!app)
@@ -591,11 +597,18 @@ Scope {
       return;
 
     if (mode === "launch" && item.kind === "profile") {
-      closeAfterProfileApply = true;
-      if (!applyProfile(String(item.profileId || ""))) {
-        closeAfterProfileApply = false;
+      const profileId = String(item.profileId || "");
+      if (!profileReady(profileId)) {
         closeLauncher();
+        return;
       }
+
+      // Hyprland can walk the focus history of several workspaces when an
+      // active window is moved while an exclusive layer owns the keyboard.
+      // Release and dismiss the layer before mutating the compositor graph.
+      pendingProfileApplyId = profileId;
+      surfaceTransition.exitSpeedMultiplier = 5;
+      closeLauncher();
       return;
     }
 
