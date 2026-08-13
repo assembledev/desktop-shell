@@ -63,6 +63,33 @@ TestCase {
     compare(plan.moves[0].workspace, 1);
   }
 
+  function test_desktop_suffix_in_entry_basename_is_preserved() {
+    const telegram = {
+      id: "org.telegram.desktop",
+      name: "Telegram Desktop",
+      startupClass: "",
+      execString: "telegram-desktop"
+    };
+    const telegramEntry = {
+      id: "org.telegram.desktop.desktop",
+      workspace: 5
+    };
+    const existing = {
+      address: "0x4",
+      class: "org.telegram.desktop",
+      initialClass: "org.telegram.desktop",
+      title: "Telegram",
+      workspace: { id: 2 }
+    };
+
+    compare(ProfileLogic.matchingWindows(telegram, [existing]).length, 1);
+    const plan = ProfileLogic.reconcilePlan([telegramEntry], [telegram], [existing], {}, 1000, 15000);
+    compare(plan.launches.length, 0);
+    compare(plan.moves.length, 1);
+    compare(plan.moves[0].address, "0x4");
+    compare(plan.moves[0].workspace, 5);
+  }
+
   function test_initial_class_is_a_technical_identity() {
     const existing = {
       address: "0x3",

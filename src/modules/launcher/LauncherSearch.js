@@ -58,7 +58,7 @@ function appWindowTechnicalIdentityScore(app, win) {
     return -1;
 
   const startup = normalize(app?.startupClass);
-  const id = normalize(String(app?.id || "").replace(/\.desktop$/, ""));
+  const id = normalize(app?.id);
   const exec = executableName(app?.execString);
   const classes = [normalize(win.class), normalize(win.initialClass)].filter(function(cls, index, values) {
     return cls.length > 0 && values.indexOf(cls) === index;
@@ -79,7 +79,7 @@ function appWindowIdentityScore(app, win) {
     return technicalScore;
 
   const name = normalize(app?.name);
-  const id = normalize(String(app?.id || "").replace(/\.desktop$/, ""));
+  const id = normalize(app?.id);
   const cls = normalize(win?.class || win?.initialClass);
   const title = normalize(win?.title || win?.initialTitle);
 
