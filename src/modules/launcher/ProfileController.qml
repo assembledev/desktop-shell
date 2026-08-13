@@ -1,10 +1,11 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import "ProfileLogic.js" as ProfileLogic
 
-QtObject {
+Scope {
   id: root
 
   required property string backend
