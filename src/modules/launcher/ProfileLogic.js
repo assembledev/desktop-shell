@@ -1,5 +1,6 @@
 .pragma library
 .import "LauncherSearch.js" as LauncherSearch
+.import "../common/HyprlandWindow.js" as HyprlandWindow
 
 function applicationForEntryId(applications, entryId) {
   const expected = String(entryId || "");
@@ -10,7 +11,7 @@ function applicationForEntryId(applications, entryId) {
 
 function matchingWindows(app, windows) {
   return (windows || []).filter(function(win) {
-    return LauncherSearch.appWindowTechnicalIdentityScore(app, win) >= 0;
+    return LauncherSearch.appWindowManageableTechnicalIdentityScore(app, win) >= 0;
   });
 }
 
@@ -83,4 +84,49 @@ function reconcilePlan(entries, applications, windows, leases, now, leaseMs) {
     moves: moves,
     leases: nextLeases
   };
+}
+
+function orderedMoves(moves, activeAddress) {
+  const active = HyprlandWindow.normalizedAddress(activeAddress);
+  const normalized = (moves || []).map(function(move) {
+    return {
+      address: HyprlandWindow.normalizedAddress(move?.address),
+      workspace: Number(move?.workspace)
+    };
+  }).filter(function(move) {
+    return move.address.length > 0
+      && Number.isInteger(move.workspace)
+      && move.workspace > 0;
+  });
+
+  return normalized.filter(function(move) { return move.address !== active; })
+    .concat(normalized.filter(function(move) { return move.address === active; }));
+}
+
+function movedWindowEvent(data) {
+  const fields = String(data || "").split(",");
+  if (fields.length < 2)
+    return null;
+
+  const address = HyprlandWindow.normalizedAddress(fields[0]);
+  const workspace = Number(fields[1]);
+  if (address.length === 0 || !Number.isInteger(workspace) || workspace <= 0)
+    return null;
+  return { address: address, workspace: workspace };
+}
+
+function moveApplied(move, windows) {
+  const address = HyprlandWindow.normalizedAddress(move?.address);
+  const workspace = Number(move?.workspace);
+  if (address.length === 0 || !Number.isInteger(workspace))
+    return false;
+
+  return (windows || []).some(function(win) {
+    return HyprlandWindow.normalizedAddress(win?.address) === address
+      && windowWorkspace(win) === workspace;
+  });
+}
+
+function movesApplied(moves, windows) {
+  return (moves || []).every(function(move) { return moveApplied(move, windows); });
 }

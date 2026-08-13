@@ -65,9 +65,9 @@ $ desktop-shell launcher focus
 $ desktop-shell launcher close
 ```
 
-`focus` opens the launcher in existing-window and browser-tab mode. The
-backend-only forms `launcher launch <desktop-entry-id>` and `launcher history`
-are used by the QML model.
+`focus` opens the launcher in existing-window and browser-tab mode. Application
+launches and usage history stay inside the shell's native model rather than
+round-tripping through the CLI backend.
 
 Configured profiles are available as `@<name>` launcher results. Applying one
 launches missing applications directly on their declared workspaces with native

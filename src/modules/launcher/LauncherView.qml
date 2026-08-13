@@ -4,10 +4,12 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "../common"
+import "../common/HyprlandWindow.js" as HyprlandWindow
 import "LauncherSearch.js" as LauncherSearch
 
 Scope {
@@ -21,11 +23,9 @@ Scope {
   HyprlandAdapter { id: hyprland }
   ProfileController {
     id: profileController
-    backend: root.backend
     applications: root.apps
     profiles: shellConfig.launchProfiles
-    windows: root.windows
-    onApplyFinished: root.refreshState()
+    onApplyFinished: root.scheduleStateSnapshot()
   }
   MotionTransition {
     id: surfaceTransition
@@ -44,6 +44,7 @@ Scope {
   property var apps: []
   property var filtered: []
   property var usageHistory: ({})
+  property var pendingHistoryRecords: ({})
   property var browserTabState: ({ connected: false, session: "", tabs: [] })
   property int selectedIndex: 0
   property int appReloadAttempts: 0
@@ -63,6 +64,9 @@ Scope {
   readonly property string browserTabsPath: browserTabsEnabled
     ? Quickshell.env("XDG_RUNTIME_DIR") + "/desktop-shell/browser-tabs.json"
     : ""
+  readonly property string stateHome: Quickshell.env("XDG_STATE_HOME")
+    || Quickshell.env("HOME") + "/.local/state"
+  readonly property string launcherHistoryPath: stateHome + "/desktop-shell/launcher-usage.json"
   readonly property color bg: theme.surfaceToast
   readonly property color bgRaised: theme.surfaceRaised
   readonly property color bgHover: theme.surfaceHover
@@ -146,12 +150,67 @@ Scope {
   }
 
   function refreshState() {
-    if (!stateProc.running)
-      stateProc.exec([backend, "hypr", "state-json"]);
+    snapshotHyprlandState();
+    Hyprland.refreshToplevels();
   }
 
   function refreshHistory() {
-    historyProc.exec([backend, "launcher", "history"]);
+    launcherHistoryFile.reload();
+  }
+
+  function scheduleStateSnapshot() {
+    if (open)
+      nativeStateTimer.restart();
+  }
+
+  function snapshotHyprlandState() {
+    const preferredId = selectedEntryId();
+    const preferredWindowAddress = selectedWindowAddress();
+    const preferredTabKey = selectedTabKey();
+    windows = (Hyprland.toplevels.values || []).map(HyprlandWindow.dataForToplevel);
+    const current = Hyprland.activeToplevel
+      || (Hyprland.toplevels.values || []).find(function(toplevel) { return toplevel?.activated; });
+    activeWindow = current ? HyprlandWindow.dataForToplevel(current) : {};
+    applyFilter(preferredId, preferredWindowAddress, preferredTabKey);
+  }
+
+  function loadHistory(raw) {
+    const preferredId = historyLoaded ? selectedEntryId() : "";
+    const preferredWindowAddress = historyLoaded ? selectedWindowAddress() : "";
+    const preferredTabKey = historyLoaded ? selectedTabKey() : "";
+    let history = ({});
+    try {
+      const parsed = JSON.parse(raw);
+      history = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : ({});
+    } catch (error) {
+      console.error("launcher: failed to parse usage history: " + error);
+    }
+    const pending = pendingHistoryRecords;
+    pendingHistoryRecords = ({});
+    usageHistory = LauncherSearch.mergeUsageHistory(history, pending);
+    historyLoaded = true;
+    if (Object.keys(pending).length > 0) {
+      const serialized = JSON.stringify(usageHistory);
+      // FileView emits load signals before retiring its reader operation.
+      // Queueing the write keeps the atomic writer out of that signal stack.
+      Qt.callLater(function() { launcherHistoryFile.setText(serialized); });
+    }
+    applyFilter(preferredId, preferredWindowAddress, preferredTabKey);
+  }
+
+  function clearHistory() {
+    loadHistory("{}");
+  }
+
+  function recordLaunch(entryId) {
+    const now = Math.floor(Date.now() / 1000);
+    if (!historyLoaded) {
+      pendingHistoryRecords = LauncherSearch.recordUsage(pendingHistoryRecords, entryId, now);
+      return;
+    }
+
+    usageHistory = LauncherSearch.recordUsage(usageHistory, entryId, now);
+    launcherHistoryFile.setText(JSON.stringify(usageHistory));
   }
 
   function normalize(value) {
@@ -582,12 +641,9 @@ Scope {
     const entryId = LauncherSearch.desktopEntryFileId(app);
     if (entryId.length === 0)
       return;
-    Quickshell.execDetached([
-      backend,
-      "launcher",
-      "launch",
-      entryId
-    ]);
+    if (!hyprland.launchDesktopEntry(entryId))
+      return;
+    recordLaunch(entryId);
     closeLauncher();
   }
 
@@ -687,45 +743,43 @@ Scope {
     onLoadFailed: root.clearBrowserTabs()
   }
 
-  Process {
-    id: stateProc
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const preferredId = root.selectedEntryId();
-        const preferredWindowAddress = root.selectedWindowAddress();
-        const preferredTabKey = root.selectedTabKey();
-        try {
-          const state = JSON.parse(text);
-          root.windows = state.clients || [];
-          root.activeWindow = state.active || {};
-        } catch (error) {
-          root.windows = [];
-          root.activeWindow = {};
-          console.error("launcher: failed to parse Hyprland state: " + error);
-        }
-        root.applyFilter(preferredId, preferredWindowAddress, preferredTabKey);
-      }
+  FileView {
+    id: launcherHistoryFile
+    path: root.launcherHistoryPath
+    preload: true
+    watchChanges: true
+    onFileChanged: reload()
+    onLoaded: root.loadHistory(text())
+    onLoadFailed: root.clearHistory()
+  }
+
+  Timer {
+    id: nativeStateTimer
+    interval: 0
+    repeat: false
+    onTriggered: root.snapshotHyprlandState()
+  }
+
+  Instantiator {
+    model: Hyprland.toplevels
+
+    onObjectAdded: root.scheduleStateSnapshot()
+    onObjectRemoved: root.scheduleStateSnapshot()
+
+    Connections {
+      required property var modelData
+      target: modelData
+
+      function onLastIpcObjectChanged() { root.scheduleStateSnapshot(); }
+      function onWorkspaceChanged() { root.scheduleStateSnapshot(); }
+      function onTitleChanged() { root.scheduleStateSnapshot(); }
     }
   }
 
-  Process {
-    id: historyProc
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const preferredId = root.historyLoaded ? root.selectedEntryId() : "";
-        const preferredWindowAddress = root.historyLoaded ? root.selectedWindowAddress() : "";
-        const preferredTabKey = root.historyLoaded ? root.selectedTabKey() : "";
-        try {
-          const history = JSON.parse(text);
-          root.usageHistory = history && typeof history === "object" ? history : ({});
-        } catch (error) {
-          root.usageHistory = ({});
-          console.error("launcher: failed to parse usage history: " + error);
-        }
-        root.historyLoaded = true;
-        root.applyFilter(preferredId, preferredWindowAddress, preferredTabKey);
-      }
-    }
+  Connections {
+    target: Hyprland
+
+    function onActiveToplevelChanged() { root.scheduleStateSnapshot(); }
   }
 
   Timer {
@@ -815,13 +869,10 @@ Scope {
         anchors.margins: 16
         spacing: 10
         opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.16) / 0.84))
-        transform: Translate {
-          y: (1 - content.opacity) * 8
-        }
 
         Rectangle {
           Layout.fillWidth: true
-          height: 56
+          Layout.preferredHeight: 56
           radius: 10
           color: Qt.alpha(theme.surfaceGlass, 0.78)
           border.color: search.activeFocus ? root.blue : Qt.alpha(theme.borderSubtle, 0.52)
@@ -1020,7 +1071,7 @@ Scope {
         Rectangle {
           visible: root.filtered.length === 0
           Layout.fillWidth: true
-          height: 112
+          Layout.preferredHeight: 112
           radius: 18
           color: theme.surfaceAccent
           border.color: theme.borderMuted
@@ -1171,9 +1222,11 @@ Scope {
           : String(targetWindow?.title || targetWindow?.initialTitle || "Untitled window"))
       : String(entry?.name || "")
     readonly property string secondaryText: {
-      if (profileMode)
-        return "@" + String(item?.profileId || "") + " · "
-          + profileController.summary(String(item?.profileId || ""));
+      if (profileMode) {
+        const description = String(item?.description || "");
+        const summary = String(item?.summary || "");
+        return description.length > 0 ? description + " · " + summary : summary;
+      }
       if (!focusMode)
         return String(entry?.genericName || entry?.comment || entry?.id || "");
       if (tabMode) {
@@ -1280,7 +1333,7 @@ Scope {
         }
 
         Rectangle {
-          height: 24
+          Layout.preferredHeight: 24
           implicitWidth: workspaceText.implicitWidth + 16
           radius: 8
           color: row.selected ? Qt.alpha(root.green, 0.10) : "transparent"
@@ -1302,7 +1355,7 @@ Scope {
       Rectangle {
         visible: !row.focusMode && !row.profileMode && row.wins.length > 0
         Layout.alignment: Qt.AlignVCenter
-        height: 20
+        Layout.preferredHeight: 20
         implicitWidth: openLabel.implicitWidth + 14
         radius: 10
         color: Qt.alpha(root.green, 0.08)

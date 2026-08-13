@@ -2,33 +2,42 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
+import Quickshell.Hyprland
+import "../common"
+import "../common/HyprlandWindow.js" as HyprlandWindow
 import "ProfileLogic.js" as ProfileLogic
 
 Scope {
   id: root
 
-  required property string backend
   required property var applications
   required property var profiles
-  required property var windows
 
   signal applyFinished(string profileId, bool success)
 
   // A launch request reserves its desktop entry briefly. This closes the gap
-  // between accepting the request and Hyprland exposing the new toplevel,
-  // without polling or tracking child processes.
+  // between dispatch and Hyprland exposing the new toplevel without watching
+  // the launched process.
   property var launchLeases: ({})
   readonly property int launchLeaseMs: 15000
+  readonly property int maxApplyAttempts: 2
+  readonly property int moveTimeoutMs: 750
+
   property string activeProfileId: ""
   property string queuedProfileId: ""
   property int applyAttempt: 0
   property var plannedLaunchIds: []
-  property string stateOutput: ""
-  property string stateError: ""
-  property string applyOutput: ""
-  property string applyError: ""
-  readonly property int maxApplyAttempts: 2
+  property var requestedMoves: []
+  property var moveQueue: []
+  property var currentMove: null
+  property var pendingLaunches: []
+
+  HyprlandAdapter { id: hyprland }
+  HyprlandClientSnapshot {
+    id: clientSnapshot
+    onSucceeded: function(clients) { root.preparePlan(clients); }
+    onFailed: function(reason) { root.retryApply("native snapshot failed: " + reason); }
+  }
 
   function profile(profileId) {
     const configured = profiles?.[profileId];
@@ -49,13 +58,26 @@ Scope {
     return ProfileLogic.profileReady(entries, applications);
   }
 
+  function currentWindows() {
+    return (Hyprland.toplevels.values || []).map(HyprlandWindow.dataForToplevel);
+  }
+
+  function activeWindowAddress() {
+    const active = Hyprland.activeToplevel
+      || (Hyprland.toplevels.values || []).find(function(toplevel) { return toplevel?.activated; });
+    return HyprlandWindow.normalizedAddress(active?.address || "");
+  }
+
   function snapshot(profileId) {
     const entries = profileApplications(profileId);
-    return ProfileLogic.snapshot(entries, applications, windows || []);
+    return ProfileLogic.snapshot(entries, applications, currentWindows());
   }
 
   function summary(profileId) {
-    const state = snapshot(profileId);
+    return summaryText(snapshot(profileId));
+  }
+
+  function summaryText(state) {
     if (state.total === 0)
       return "Empty profile";
     if (state.placed === state.total)
@@ -67,6 +89,7 @@ Scope {
 
   function resultEntries(query) {
     const result = [];
+    const windows = currentWindows();
     for (const profileId of Object.keys(profiles || {}).sort()) {
       const configured = profile(profileId);
       let score = 0;
@@ -83,16 +106,26 @@ Scope {
 
       const firstSpec = configured.applications[0];
       const firstApp = applicationForEntryId(firstSpec?.id);
+      const configuredIcon = String(configured.icon || "");
+      const icon = configuredIcon.length > 0 && Quickshell.hasThemeIcon(configuredIcon)
+        ? configuredIcon
+        : String(firstApp?.icon || "applications-other");
+      const applicationNames = configured.applications.map(function(spec) {
+        return String(applicationForEntryId(spec.id)?.name || "");
+      }).filter(function(name) { return name.length > 0; });
+      const description = String(configured.description || applicationNames.join(", "));
       result.push({
         kind: "profile",
         profileId: profileId,
+        description: description,
+        summary: summaryText(ProfileLogic.snapshot(configured.applications, applications, windows)),
         score: score,
         usageScore: 0,
         windows: [],
         entry: {
           id: "profile-" + profileId,
           name: String(configured.label || profileId),
-          icon: String(configured.icon || firstApp?.icon || "applications-other")
+          icon: icon
         }
       });
     }
@@ -123,9 +156,14 @@ Scope {
   function beginApply(profileId, attempt) {
     activeProfileId = profileId;
     applyAttempt = attempt;
-    stateOutput = "";
-    stateError = "";
-    stateProc.exec([backend, "launcher", "state-json"]);
+    currentMove = null;
+    requestedMoves = [];
+    moveQueue = [];
+    pendingLaunches = [];
+    moveTimeout.stop();
+
+    if (!clientSnapshot.request())
+      retryApply("native snapshot request is already active");
   }
 
   function clearPlannedLaunchLeases() {
@@ -138,9 +176,14 @@ Scope {
 
   function finishApply(success) {
     const profileId = activeProfileId;
+    moveTimeout.stop();
     activeProfileId = "";
     applyAttempt = 0;
     plannedLaunchIds = [];
+    requestedMoves = [];
+    moveQueue = [];
+    currentMove = null;
+    pendingLaunches = [];
     applyFinished(profileId, success);
 
     const queued = queuedProfileId;
@@ -149,95 +192,122 @@ Scope {
       Qt.callLater(function() { applyProfile(queued); });
   }
 
-  function planFromState(raw) {
-    let state;
-    try {
-      state = JSON.parse(raw);
-    } catch (error) {
-      console.error("launcher: profile state returned invalid JSON: " + error);
+  function retryApply(reason) {
+    console.error("launcher: profile " + activeProfileId + " apply failed: " + reason);
+    clearPlannedLaunchLeases();
+    moveTimeout.stop();
+    currentMove = null;
+    moveQueue = [];
+    pendingLaunches = [];
+
+    if (applyAttempt < maxApplyAttempts) {
+      const profileId = activeProfileId;
+      Qt.callLater(function() { beginApply(profileId, applyAttempt + 1); });
+    } else {
       finishApply(false);
-      return;
     }
+  }
 
-    const current = Array.isArray(state?.clients) ? state.clients : [];
+  function preparePlan(current) {
+    if (activeProfileId.length === 0)
+      return;
+
     const entries = profileApplications(activeProfileId);
-
-    const now = Date.now();
     const plan = ProfileLogic.reconcilePlan(
       entries,
       applications,
       current,
       launchLeases,
-      now,
+      Date.now(),
       launchLeaseMs
     );
     launchLeases = plan.leases;
     plannedLaunchIds = plan.launches.map(function(launch) { return launch.id; });
+    requestedMoves = ProfileLogic.orderedMoves(plan.moves, activeWindowAddress());
+    moveQueue = requestedMoves.slice();
+    pendingLaunches = plan.launches.slice();
 
     console.info("launcher: profile " + activeProfileId
                  + " snapshot=" + current.length
-                 + " moves=" + plan.moves.length
-                 + " launches=" + plan.launches.length
+                 + " moves=" + requestedMoves.length
+                 + " launches=" + pendingLaunches.length
                  + " attempt=" + applyAttempt);
 
-    if (plan.moves.length === 0 && plan.launches.length === 0) {
-      finishApply(true);
+    dispatchNextMove();
+  }
+
+  function dispatchNextMove() {
+    if (currentMove !== null)
+      return;
+    if (moveQueue.length === 0) {
+      completePlan();
       return;
     }
 
-    applyOutput = "";
-    applyError = "";
-    applyProc.exec([
-      backend,
-      "launcher",
-      "apply-plan",
-      JSON.stringify({ moves: plan.moves, launches: plan.launches })
-    ]);
+    const next = moveQueue[0];
+    moveQueue = moveQueue.slice(1);
+    if (ProfileLogic.moveApplied(next, currentWindows())) {
+      Qt.callLater(function() { dispatchNextMove(); });
+      return;
+    }
+
+    currentMove = next;
+    hyprland.moveWindowToWorkspace(next.address, next.workspace);
+    moveTimeout.restart();
   }
 
-  Process {
-    id: stateProc
-    stdout: StdioCollector {
-      onStreamFinished: root.stateOutput = text
+  function completePlan() {
+    if (!ProfileLogic.movesApplied(requestedMoves, currentWindows())) {
+      retryApply("native move verification failed");
+      return;
     }
-    stderr: StdioCollector {
-      onStreamFinished: root.stateError = text
-    }
-    onExited: function(exitCode) {
-      if (exitCode !== 0) {
-        console.error("launcher: profile state query failed: " + root.stateError.trim());
-        root.finishApply(false);
+
+    for (const launch of pendingLaunches) {
+      if (!hyprland.launchDesktopEntryInWorkspace(launch.id, launch.workspace)) {
+        retryApply("invalid native launch request");
         return;
       }
-      root.planFromState(root.stateOutput);
     }
+
+    console.info("launcher: profile " + activeProfileId
+                 + " applied moved=" + requestedMoves.length
+                 + " launched=" + pendingLaunches.length);
+    finishApply(true);
   }
 
-  Process {
-    id: applyProc
-    stdout: StdioCollector {
-      onStreamFinished: root.applyOutput = text
-    }
-    stderr: StdioCollector {
-      onStreamFinished: root.applyError = text
-    }
-    onExited: function(exitCode) {
-      if (exitCode === 0) {
-        console.info("launcher: profile " + root.activeProfileId
-                     + " applied " + root.applyOutput.trim());
-        root.finishApply(true);
-        return;
-      }
-
-      console.error("launcher: profile " + root.activeProfileId
-                    + " apply failed: " + root.applyError.trim());
-      root.clearPlannedLaunchLeases();
-      if (root.applyAttempt < root.maxApplyAttempts) {
-        const profileId = root.activeProfileId;
-        Qt.callLater(function() { root.beginApply(profileId, root.applyAttempt + 1); });
+  Timer {
+    id: moveTimeout
+    interval: root.moveTimeoutMs
+    repeat: false
+    onTriggered: {
+      if (root.currentMove !== null
+          && ProfileLogic.moveApplied(root.currentMove, root.currentWindows())) {
+        root.currentMove = null;
+        Qt.callLater(function() { root.dispatchNextMove(); });
       } else {
-        root.finishApply(false);
+        root.retryApply("native move event timed out");
       }
+    }
+  }
+
+  Connections {
+    target: Hyprland
+
+    function onRawEvent(event) {
+      if (event.name !== "movewindowv2" || root.currentMove === null)
+        return;
+
+      const moved = ProfileLogic.movedWindowEvent(event.data);
+      if (moved === null || moved.address !== root.currentMove.address)
+        return;
+      if (moved.workspace !== root.currentMove.workspace) {
+        root.retryApply("window moved to an unexpected workspace");
+        return;
+      }
+
+      moveTimeout.stop();
+      root.currentMove = null;
+      Qt.callLater(function() { root.dispatchNextMove(); });
     }
   }
 }

@@ -251,8 +251,6 @@ fi
 backend_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$backend_dir/lib/common.sh"
-# shellcheck source=lib/launcher.sh
-source "$backend_dir/lib/launcher.sh"
 # shellcheck source=lib/wallpaper.sh
 source "$backend_dir/lib/wallpaper.sh"
 # shellcheck source=lib/clipboard.sh
@@ -457,37 +455,6 @@ case "${1:-help}" in
   launcher)
     method="${2:-toggle}"
     case "$method" in
-      launch)
-        entry_id="${3:-}"
-        [ "$#" -eq 3 ] || exit 2
-        launcher_entry_id_is_valid "$entry_id" || exit 2
-        launcher_record_launch "$entry_id" || true
-        exec uwsm app -- "$entry_id"
-        ;;
-      launch-in-workspace)
-        entry_id="${3:-}"
-        workspace="${4:-}"
-        [ "$#" -eq 4 ] || exit 2
-        launcher_entry_id_is_valid "$entry_id" || exit 2
-        launcher_record_launch "$entry_id" || true
-        launcher_launch_in_workspace "$entry_id" "$workspace"
-        exit
-        ;;
-      state-json)
-        [ "$#" -eq 2 ] || exit 2
-        launcher_state_json
-        exit
-        ;;
-      apply-plan)
-        plan_json="${3:-}"
-        [ "$#" -eq 3 ] || exit 2
-        launcher_apply_plan "$plan_json"
-        exit
-        ;;
-      history)
-        launcher_history_json
-        exit 0
-        ;;
       open | close | toggle | focus) ;;
       *) exit 2 ;;
     esac
@@ -843,21 +810,6 @@ case "${1:-help}" in
         else
           printf 'no\n'
         fi
-        ;;
-    esac
-    ;;
-  hypr)
-    case "${2:-state-json}" in
-      state-json)
-        ensure_hypr_env
-        clients="$(hyprctl clients -j 2>/dev/null | jq -c . 2>/dev/null || printf '[]')"
-        active="$(hyprctl activewindow -j 2>/dev/null | jq -c . 2>/dev/null || printf '{}')"
-        monitors="$(hyprctl monitors -j 2>/dev/null | jq -c . 2>/dev/null || printf '[]')"
-        jq -n \
-          --argjson clients "$clients" \
-          --argjson active "$active" \
-          --argjson monitors "$monitors" \
-          '{clients: $clients, active: $active, monitors: $monitors}'
         ;;
     esac
     ;;

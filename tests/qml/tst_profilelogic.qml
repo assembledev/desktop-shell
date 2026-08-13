@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../../src/modules/common/HyprlandWindow.js" as HyprlandWindow
+import "../../src/modules/launcher/LauncherSearch.js" as LauncherSearch
 import "../../src/modules/launcher/ProfileLogic.js" as ProfileLogic
 
 TestCase {
@@ -26,6 +27,19 @@ TestCase {
       workspace: { id: 2 }
     };
     compare(ProfileLogic.matchingWindows(applications[0], [browser]).length, 0);
+  }
+
+  function test_hidden_client_keeps_identity_but_is_not_a_manageable_target() {
+    const hidden = {
+      address: "0xaaa",
+      class: "chatgpt",
+      hidden: true,
+      workspace: { id: 1 }
+    };
+    verify(LauncherSearch.appWindowTechnicalIdentityScore(applications[0], hidden) >= 0);
+    compare(LauncherSearch.appWindowManageableTechnicalIdentityScore(applications[0], hidden), -1);
+    compare(LauncherSearch.appWindowIdentityScore(applications[0], hidden), -1);
+    compare(ProfileLogic.matchingWindows(applications[0], [hidden]).length, 0);
   }
 
   function test_toplevel_snapshot_normalizes_address_and_prefers_live_workspace() {
@@ -111,6 +125,62 @@ TestCase {
 
     const retry = ProfileLogic.reconcilePlan(entries, applications, [], first.leases, 16001, 15000);
     compare(retry.launches.length, 1);
+  }
+
+  function test_usage_history_merges_launches_without_losing_disk_state() {
+    const disk = {
+      "chatgpt.desktop": { launchCount: 4, lastLaunch: 100 },
+      "librewolf.desktop": { launchCount: 2, lastLaunch: 80 }
+    };
+    let pending = LauncherSearch.recordUsage({}, "chatgpt.desktop", 120);
+    pending = LauncherSearch.recordUsage(pending, "org.telegram.desktop.desktop", 121);
+    const merged = LauncherSearch.mergeUsageHistory(disk, pending);
+    compare(merged["chatgpt.desktop"].launchCount, 5);
+    compare(merged["chatgpt.desktop"].lastLaunch, 120);
+    compare(merged["librewolf.desktop"].launchCount, 2);
+    compare(merged["org.telegram.desktop.desktop"].launchCount, 1);
+  }
+
+  function test_active_window_move_is_ordered_last() {
+    const moves = [
+      { address: "0xaaa", workspace: 1 },
+      { address: "0xbbb", workspace: 2 },
+      { address: "0xccc", workspace: 3 }
+    ];
+    const ordered = ProfileLogic.orderedMoves(moves, "BBB");
+    compare(ordered.length, 3);
+    compare(ordered[0].address, "0xaaa");
+    compare(ordered[1].address, "0xccc");
+    compare(ordered[2].address, "0xbbb");
+  }
+
+  function test_movewindow_event_is_strictly_parsed() {
+    const moved = ProfileLogic.movedWindowEvent("ABC123,5,5");
+    verify(moved !== null);
+    compare(moved.address, "0xabc123");
+    compare(moved.workspace, 5);
+    compare(ProfileLogic.movedWindowEvent("bad address,5,5"), null);
+    compare(ProfileLogic.movedWindowEvent("abc123,0,0"), null);
+    compare(ProfileLogic.movedWindowEvent("abc123"), null);
+  }
+
+  function test_move_completion_uses_live_workspace() {
+    const move = { address: "0xabc", workspace: 5 };
+    verify(ProfileLogic.moveApplied(move, [{
+      address: "ABC",
+      workspace: { id: 5 }
+    }]));
+    verify(!ProfileLogic.moveApplied(move, [{
+      address: "0xabc",
+      workspace: { id: 2 }
+    }]));
+    verify(ProfileLogic.movesApplied([
+      move,
+      { address: "0xdef", workspace: 3 }
+    ], [
+      { address: "0xabc", workspace: { id: 5 } },
+      { address: "def", workspace: { id: 3 } }
+    ]));
   }
 
   function test_profile_requires_resolved_desktop_entries() {

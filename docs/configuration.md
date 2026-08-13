@@ -110,14 +110,20 @@ programs.desktop-shell.launcher = {
 Profiles are selected as `@<name>` in the launcher. `autoStartProfile` applies
 the named profile once at graphical session startup. Missing applications open
 directly on their target workspaces through Hyprland's native `workspace
-<id> silent` exec rule with per-exec `focus_on_activate = false`. This blocks
-both initial focus and later activation requests from profile-launched windows.
+<id> silent` exec rule with per-exec `no_initial_focus = true` and
+`focus_on_activate = false`. This blocks both initial focus and later activation
+requests from profile-launched windows.
 Existing matching windows move with `follow = false`, without switching the
-visible workspace. Repeated requests made while an application is still mapping
-share a short in-memory launch lease instead of starting duplicates.
+visible workspace. Inactive windows move first. If the active window itself
+belongs elsewhere, it moves last; Hyprland then selects the remaining window on
+the visible workspace once. Repeated requests made while an application is
+still mapping share a short in-memory launch lease instead of starting
+duplicates.
 
-`label` defaults to the profile ID. `icon` is optional and falls back to the
-first application's icon. Profile names must match `[a-z0-9][a-z0-9-]*`.
+`label` defaults to the profile ID. `description` is optional and otherwise
+lists the resolved application names. `icon` is an optional freedesktop icon
+name; a missing icon falls back to the first application's icon. Profile names
+must match `[a-z0-9][a-z0-9-]*`.
 Desktop entry IDs must end in `.desktop`; duplicates within a profile are
 rejected. Target workspaces must exist in `workspaces.items`, and
 `autoStartProfile` must name a configured profile.

@@ -128,63 +128,6 @@ if PATH="$test_bin:$PATH" \
   exit 1
 fi
 
-profile_apply_args="$test_root/profile-apply-hyprctl-args"
-export DESKTOP_SHELL_TEST_PROFILE_APPLY_ARGS="$profile_apply_args"
-printf '%s\n' \
-  "#!$(command -v bash)" \
-  'case "${1:-}" in' \
-  '  clients) printf '\''[{"address":"0xabc","workspace":{"id":1}},{"address":"0xdef","workspace":{"id":2}}]\n'\'' ;;' \
-  '  activewindow) printf '\''{"address":"0xabc","workspace":{"id":4}}\n'\'' ;;' \
-  '  dispatch) printf '\''%s\n'\'' "$2" >>"$DESKTOP_SHELL_TEST_PROFILE_APPLY_ARGS"; printf '\''ok\n'\'' ;;' \
-  '  eval) printf '\''%s\n'\'' "$@" >"$DESKTOP_SHELL_TEST_HYPRCTL_ARGS"; printf '\''ok\n'\'' ;;' \
-  '  *) exit 1 ;;' \
-  'esac' >"$test_bin/hyprctl"
-chmod +x "$test_bin/hyprctl"
-
-PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher state-json |
-  jq -e '.clients | length == 2 and .[0].address == "0xabc"' >/dev/null
-
-profile_plan='{
-  "moves": [
-    {"address":"0xabc","workspace":1},
-    {"address":"0xdef","workspace":2}
-  ],
-  "launches": [
-    {"id":"org.example.Demo.desktop","workspace":2}
-  ]
-}'
-PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher apply-plan "$profile_plan" |
-  jq -e '.moved == 2 and .launched == 1' >/dev/null
-mapfile -t captured_profile_apply_args <"$profile_apply_args"
-test "${captured_profile_apply_args[0]}" = \
-  'hl.dsp.window.move({ workspace = 2, follow = false, window = "address:0xdef" })'
-test "${captured_profile_apply_args[1]}" = \
-  'hl.dsp.window.move({ workspace = 1, follow = false, window = "address:0xabc" })'
-if PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher apply-plan \
-  '{"moves":[{"address":"bad;address","workspace":2}],"launches":[]}' \
-  >/dev/null 2>&1; then
-  exit 1
-fi
-
-PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher launch-in-workspace org.example.Demo.desktop 2
-mapfile -t captured_profile_launch_args <"$hyprctl_args"
-test "${captured_profile_launch_args[0]}" = eval
-test "${captured_profile_launch_args[1]}" = \
-  'hl.exec_cmd("uwsm app -- org.example.Demo.desktop", { workspace = "2 silent", focus_on_activate = false })'
-if PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher launch-in-workspace 'invalid;entry.desktop' 2 \
-  >/dev/null 2>&1; then
-  exit 1
-fi
-if PATH="$test_bin:$PATH" \
-  bash "$source_root/src/backend/desktop-shell.sh" launcher launch-in-workspace org.example.Demo.desktop 0 \
-  >/dev/null 2>&1; then
-  exit 1
-fi
 printf '#!%s\nprintf "%%s\\n" "$@" >"$DESKTOP_SHELL_TEST_HYPRCTL_ARGS"\n' \
   "$(command -v bash)" >"$test_bin/hyprctl"
 chmod +x "$test_bin/hyprctl"

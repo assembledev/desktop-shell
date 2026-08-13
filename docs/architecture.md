@@ -41,17 +41,22 @@ their own dispatch vocabulary. The adapter targets Hyprland's Lua dispatcher
 API. Supporting another compositor would require a complete integration with
 equivalent focus, workspace, layer-shell, and screencopy behavior.
 
+Launcher window state comes from Quickshell's persistent Hyprland model.
+Applying a profile takes one authoritative `j/clients` snapshot over the native
+request socket, then serializes moves on `movewindowv2` events from the native
+event socket. Application dispatch and atomic launcher-history writes stay in
+QML; the latency-sensitive path does not spawn the command backend.
+
 ### Command backend
 
 `src/backend/desktop-shell.sh` is the stable command entry point used by
 keybindings and QML subprocesses. Cohesive operations live in
 `src/backend/lib/`; the dispatcher remains a routing layer.
 
-The backend owns operations that are a poor fit for QML, including launcher
-activation through UWSM, wallpaper application, clipboard decoding, device
-commands, runtime environment discovery, validated display transactions, and
-compact JSON snapshots. JSON written for QML is an interface: change its
-producer, consumer, tests, and documentation together.
+The backend owns operations that are a poor fit for QML, including wallpaper
+application, clipboard decoding, device commands, runtime environment
+discovery, and validated display transactions. JSON written for QML is an
+interface: change its producer, consumer, tests, and documentation together.
 
 ### Nix package
 

@@ -12,6 +12,45 @@ function desktopEntryFileId(app) {
   return id.length > 0 ? id + ".desktop" : "";
 }
 
+function usageRecord(record) {
+  const count = Number(record?.launchCount);
+  const lastLaunch = Number(record?.lastLaunch);
+  return {
+    launchCount: Number.isFinite(count) && count > 0 ? count : 0,
+    lastLaunch: Number.isFinite(lastLaunch) && lastLaunch > 0 ? lastLaunch : 0
+  };
+}
+
+function recordUsage(history, entryId, nowSeconds) {
+  const id = String(entryId || "");
+  if (id.length === 0)
+    return Object.assign({}, history || {});
+
+  const next = Object.assign({}, history || {});
+  const current = usageRecord(next[id]);
+  const requestedTime = Number(nowSeconds);
+  next[id] = {
+    launchCount: current.launchCount + 1,
+    lastLaunch: Number.isFinite(requestedTime) && requestedTime > 0
+      ? requestedTime
+      : current.lastLaunch
+  };
+  return next;
+}
+
+function mergeUsageHistory(history, additions) {
+  const merged = Object.assign({}, history || {});
+  for (const entryId of Object.keys(additions || {})) {
+    const current = usageRecord(merged[entryId]);
+    const addition = usageRecord(additions[entryId]);
+    merged[entryId] = {
+      launchCount: current.launchCount + addition.launchCount,
+      lastLaunch: Math.max(current.lastLaunch, addition.lastLaunch)
+    };
+  }
+  return merged;
+}
+
 function execTokens(value) {
   const matches = String(value || "").match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
   return matches.map(function(token) {
@@ -54,7 +93,7 @@ function executableName(value) {
 }
 
 function appWindowTechnicalIdentityScore(app, win) {
-  if (!win || win.hidden)
+  if (!win)
     return -1;
 
   const startup = normalize(app?.startupClass);
@@ -73,10 +112,21 @@ function appWindowTechnicalIdentityScore(app, win) {
   return -1;
 }
 
+function appWindowManageableTechnicalIdentityScore(app, win) {
+  // Hyprland may hide swallowed clients or clients removed from the active
+  // layout tree. They retain their identity but are unsafe move/focus targets.
+  if (!win || win.hidden)
+    return -1;
+  return appWindowTechnicalIdentityScore(app, win);
+}
+
 function appWindowIdentityScore(app, win) {
-  const technicalScore = appWindowTechnicalIdentityScore(app, win);
+  const technicalScore = appWindowManageableTechnicalIdentityScore(app, win);
   if (technicalScore >= 0)
     return technicalScore;
+
+  if (!win || win.hidden)
+    return -1;
 
   const name = normalize(app?.name);
   const id = normalize(app?.id);

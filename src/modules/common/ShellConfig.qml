@@ -94,6 +94,7 @@ QtObject {
         profiles[id] = {
           label: String(profile.label || id),
           icon: String(profile.icon || ""),
+          description: String(profile.description || ""),
           applications: normalizedApplications
         };
       }

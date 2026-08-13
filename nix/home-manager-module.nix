@@ -146,6 +146,11 @@ let
           default = null;
           description = "Optional freedesktop icon name; the first application icon is the fallback.";
         };
+        description = mkOption {
+          type = types.nullOr types.nonEmptyStr;
+          default = null;
+          description = "Optional human-facing profile description.";
+        };
         applications = mkOption {
           type = types.nonEmptyListOf launchProfileApplicationType;
           description = "Applications and their target workspaces.";
