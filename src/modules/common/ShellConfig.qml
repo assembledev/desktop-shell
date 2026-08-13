@@ -60,6 +60,28 @@ QtObject {
     return ["EN"];
   }
 
+  readonly property var launchProfiles: {
+    try {
+      const parsed = JSON.parse(Quickshell.env("DESKTOP_SHELL_LAUNCH_PROFILES_JSON") || "{}");
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+        throw new Error("expected an object");
+
+      const profiles = ({});
+      for (const id of Object.keys(parsed)) {
+        const applications = parsed[id];
+        if (!/^[a-z0-9][a-z0-9-]*$/.test(id)
+            || !Array.isArray(applications)
+            || applications.length === 0)
+          continue;
+        profiles[id] = applications.map(function(entryId) { return String(entryId); });
+      }
+      return profiles;
+    } catch (error) {
+      console.error("desktop-shell: invalid launch profiles: " + error);
+      return ({});
+    }
+  }
+
   function keyboardLayoutLabel(index) {
     const numericIndex = Math.max(0, Number(index || 0));
     const label = String(keyboardLayoutLabels[numericIndex] || "").trim();

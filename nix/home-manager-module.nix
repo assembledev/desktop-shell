@@ -117,6 +117,10 @@ let
     };
   };
 
+  desktopEntryIdType = types.strMatching "^[A-Za-z0-9_.+-]+\\.desktop$";
+  launchProfileIdPattern = "^[a-z0-9][a-z0-9-]*$";
+  launchProfileIdType = types.strMatching launchProfileIdPattern;
+
   colorType = types.strMatching "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$";
   themeOptions = lib.mapAttrs (
     name: value:
@@ -152,6 +156,12 @@ let
         displayName
         enable
         icon
+        ;
+    };
+    launcher = {
+      inherit (cfg.launcher)
+        autoStartProfile
+        profiles
         ;
     };
     lock.keyboardLayoutIndex = cfg.lock.keyboardLayoutIndex;
@@ -294,6 +304,26 @@ in
       };
     };
 
+    launcher = {
+      profiles = mkOption {
+        type = types.attrsOf (types.nonEmptyListOf desktopEntryIdType);
+        default = { };
+        example = {
+          work = [
+            "firefox.desktop"
+            "org.wezfurlong.wezterm.desktop"
+          ];
+        };
+        description = "Launcher profiles as non-empty lists of desktop entry file IDs.";
+      };
+
+      autoStartProfile = mkOption {
+        type = types.nullOr launchProfileIdType;
+        default = null;
+        description = "Profile applied once at graphical session startup.";
+      };
+    };
+
     lock.keyboardLayoutIndex = mkOption {
       type = types.nullOr types.ints.unsigned;
       default = null;
@@ -358,6 +388,24 @@ in
         ) cfg.bar.networkControls;
         message = "Desktop Shell network provider commands must not be empty";
       }
+      {
+        assertion = lib.all (name: builtins.match launchProfileIdPattern name != null) (
+          builtins.attrNames cfg.launcher.profiles
+        );
+        message = "Desktop Shell launch profile IDs must match ${launchProfileIdPattern}";
+      }
+      {
+        assertion = lib.all (
+          applications: builtins.length applications == builtins.length (lib.unique applications)
+        ) (builtins.attrValues cfg.launcher.profiles);
+        message = "Desktop Shell launch profiles must not repeat desktop-entry IDs";
+      }
+      {
+        assertion =
+          cfg.launcher.autoStartProfile == null
+          || builtins.hasAttr cfg.launcher.autoStartProfile cfg.launcher.profiles;
+        message = "programs.desktop-shell.launcher.autoStartProfile must name a configured profile";
+      }
     ];
 
     programs.desktop-shell.finalPackage = finalPackage;
@@ -413,6 +461,27 @@ in
           RestartSec = 1;
           TimeoutStartSec = 8;
           TimeoutStopSec = 5;
+        };
+        Install.WantedBy = [ serviceTarget ];
+      };
+
+      desktop-shell-launch-profile = mkIf (cfg.systemd.enable && cfg.launcher.autoStartProfile != null) {
+        Unit = {
+          Description = "Apply the Desktop Shell launch profile for this graphical session";
+          ConditionEnvironment = "WAYLAND_DISPLAY";
+          After = [ "desktop-shell.service" ];
+          Requires = [ "desktop-shell.service" ];
+          PartOf = [ serviceTarget ];
+          # Keep an already-completed profile application complete across Home
+          # Manager activations and Desktop Shell restarts. The next graphical
+          # login picks up the new definition.
+          X-SwitchMethod = "keep-old";
+        };
+        Service = {
+          Type = "oneshot";
+          ExecStart = "${command} profile apply ${cfg.launcher.autoStartProfile}";
+          RemainAfterExit = true;
+          TimeoutStartSec = 8;
         };
         Install.WantedBy = [ serviceTarget ];
       };

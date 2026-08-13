@@ -81,6 +81,10 @@
                   enable = true;
                   package = desktopShell;
                   bluetooth.agent.enable = false;
+                  launcher = {
+                    profiles.check-profile = [ "org.example.Demo.desktop" ];
+                    autoStartProfile = "check-profile";
+                  };
                 };
               }
             ];

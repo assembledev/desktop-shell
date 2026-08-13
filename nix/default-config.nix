@@ -60,6 +60,11 @@
     icon = "firefox";
   };
 
+  launcher = {
+    profiles = { };
+    autoStartProfile = null;
+  };
+
   lock.keyboardLayoutIndex = null;
 
   integrations = {

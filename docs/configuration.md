@@ -36,6 +36,8 @@ disabled.
 | `systemd.target` | `"graphical-session.target"` | User target that owns shell services |
 | `output` | `null` | Output name for shell surfaces; `null` uses the first screen reported by Quickshell |
 | `display.startupLayout` | `[]` | Declarative monitor rules shown as the exact restore target in display settings |
+| `launcher.profiles` | `{}` | Named lists of desktop entry IDs |
+| `launcher.autoStartProfile` | `null` | Profile applied at graphical session startup |
 | `clipboard.watch.enable` | `true` | Store text and image clipboard changes with `cliphist` |
 | `bluetooth.agent.enable` | `true` | Run Blueman as a pairing agent without its tray providers |
 
@@ -77,6 +79,28 @@ programs.desktop-shell = {
 
 Desktop Shell does not create Hyprland workspace rules or bindings. Configure
 the same IDs in the compositor.
+
+## Launch profiles
+
+Profiles contain desktop entry file IDs. Existing matching windows are skipped.
+
+```nix
+programs.desktop-shell.launcher = {
+  profiles.work = [
+    "firefox.desktop"
+    "org.wezfurlong.wezterm.desktop"
+  ];
+  autoStartProfile = "work";
+};
+```
+
+Profiles are selected as `@<name>` in the launcher. `autoStartProfile` applies
+the named profile once at graphical session startup. Window placement follows
+the compositor configuration.
+
+Profile names must match `[a-z0-9][a-z0-9-]*`. Desktop entry IDs must end in
+`.desktop`; duplicates within a profile are rejected. `autoStartProfile` must
+name a configured profile.
 
 ## Displays
 

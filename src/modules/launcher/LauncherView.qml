@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Widgets
@@ -132,7 +133,8 @@ Scope {
   }
 
   function refreshState() {
-    stateProc.exec([backend, "hypr", "state-json"]);
+    if (!stateProc.running)
+      stateProc.exec([backend, "hypr", "state-json"]);
   }
 
   function refreshHistory() {
@@ -168,9 +170,18 @@ Scope {
     return mode === "focus" && focusSearchSpec().tabsOnly;
   }
 
+  function launchProfileQuery() {
+    if (mode !== "launch")
+      return null;
+    const query = normalize(search.text.trim());
+    return query.startsWith("@") ? query.slice(1) : null;
+  }
+
   function emptyResultTitle() {
     if (loadingApps)
       return "Loading applications";
+    if (launchProfileQuery() !== null)
+      return "No profile found";
     if (mode === "launch")
       return "No application found";
     if (focusTabsOnly()) {
@@ -190,6 +201,8 @@ Scope {
       return "Browser tab integration is disabled";
     if (focusTabsOnly() && !browserTabState?.connected)
       return browserName + " extension is not connected";
+    if (launchProfileQuery() !== null)
+      return "Try @ followed by a configured profile ID";
     if (search.text.length > 0)
       return "Try a shorter or different search";
     return mode === "focus"
@@ -216,10 +229,116 @@ Scope {
     return LauncherSearch.appWindowIdentityScore(app, win);
   }
 
-  function windowsForApp(app) {
-    return (windows || []).filter(function(win) {
+  function windowsForApp(app, candidates) {
+    const source = candidates === undefined ? windows : candidates;
+    return (source || []).filter(function(win) {
       return appWindowIdentityScore(app, win) >= 0;
     });
+  }
+
+  function currentHyprlandWindows() {
+    return (Hyprland.toplevels.values || []).map(function(toplevel) {
+      const ipc = toplevel?.lastIpcObject || {};
+      return Object.assign({}, ipc, {
+        address: String(toplevel?.address || ipc.address || ""),
+        class: String(toplevel?.wayland?.appId || ipc.class || ""),
+        initialClass: String(ipc.initialClass || ""),
+        title: String(toplevel?.title || ipc.title || ""),
+        initialTitle: String(ipc.initialTitle || ""),
+        hidden: Boolean(ipc.hidden)
+      });
+    });
+  }
+
+  function applicationForEntryId(entryId) {
+    const expected = String(entryId || "");
+    return (apps || []).find(function(app) {
+      return LauncherSearch.desktopEntryFileId(app) === expected;
+    }) || null;
+  }
+
+  function profileApplications(profileId) {
+    const configured = shellConfig.launchProfiles?.[profileId];
+    return Array.isArray(configured) ? configured : [];
+  }
+
+  function profileSnapshot(profileId) {
+    const entryIds = profileApplications(profileId);
+    const currentWindows = currentHyprlandWindows();
+    let openCount = 0;
+    for (const entryId of entryIds) {
+      const app = applicationForEntryId(entryId);
+      if (!app)
+        continue;
+      if (windowsForApp(app, currentWindows).length > 0)
+        openCount++;
+    }
+    return {
+      open: openCount,
+      total: entryIds.length
+    };
+  }
+
+  function profileSummary(profileId) {
+    const snapshot = profileSnapshot(profileId);
+    if (snapshot.total === 0)
+      return "Empty profile";
+    if (snapshot.open === snapshot.total)
+      return snapshot.total + "/" + snapshot.total + " open · nothing to launch";
+    return snapshot.open + "/" + snapshot.total + " open · launch missing applications";
+  }
+
+  function profileResultEntries(query) {
+    const result = [];
+    for (const profileId of Object.keys(shellConfig.launchProfiles || {}).sort()) {
+      let score = 0;
+      if (query.length > 0) {
+        if (profileId === query)
+          score = 9000;
+        else if (profileId.startsWith(query))
+          score = 8800;
+        else if (profileId.includes(query))
+          score = 8600;
+        else
+          continue;
+      }
+
+      result.push({
+        kind: "profile",
+        profileId: profileId,
+        score: score,
+        usageScore: 0,
+        windows: [],
+        entry: {
+          id: "profile-" + profileId,
+          name: "@" + profileId,
+          icon: "system-run"
+        }
+      });
+    }
+    return result;
+  }
+
+  function applyProfile(profileId) {
+    const entryIds = profileApplications(profileId);
+    if (entryIds.length === 0) {
+      console.error("launcher: unknown or empty profile: " + profileId);
+      return;
+    }
+
+    reloadApps();
+    const currentWindows = currentHyprlandWindows();
+    for (const entryId of entryIds) {
+      const app = applicationForEntryId(entryId);
+      if (app && windowsForApp(app, currentWindows).length > 0)
+        continue;
+      Quickshell.execDetached([
+        backend,
+        "launcher",
+        "launch-unfocused",
+        entryId
+      ]);
+    }
   }
 
   function orderedWindows(app, query) {
@@ -427,6 +546,7 @@ Scope {
   function applyFilter(preferredId, preferredWindowAddress, preferredTabKey) {
     const focusSpec = focusSearchSpec();
     const query = mode === "focus" ? focusSpec.query : normalize(search.text.trim());
+    const profileQuery = launchProfileQuery();
     let result = [];
 
     if (mode === "focus") {
@@ -436,7 +556,9 @@ Scope {
         result = result.concat(focusTabEntries(query, focusSpec.tabsOnly));
     }
 
-    if (mode === "launch") {
+    if (mode === "launch" && profileQuery !== null) {
+      result = profileResultEntries(profileQuery);
+    } else if (mode === "launch") {
       for (const app of apps) {
         const item = decoratedEntry(app, query);
         if (query.length > 0 && item.score < 0)
@@ -548,6 +670,12 @@ Scope {
     const item = currentItem();
     if (!item)
       return;
+
+    if (mode === "launch" && item.kind === "profile") {
+      applyProfile(String(item.profileId || ""));
+      closeLauncher();
+      return;
+    }
 
     if (mode === "focus" && item.kind === "tab") {
       if (!forceLaunch)
@@ -815,7 +943,9 @@ Scope {
             color: root.text
             selectedTextColor: theme.bgSolid
             selectionColor: root.blue
-            placeholderText: root.mode === "focus" ? "Search open windows and tabs" : "Search applications"
+            placeholderText: root.mode === "focus"
+              ? "Search open windows and tabs"
+              : "Search applications or @profile"
             placeholderTextColor: root.muted
             font.family: theme.fontFamily
             font.pixelSize: 16
@@ -966,7 +1096,7 @@ Scope {
 
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
-              text: root.mode === "focus" ? "󰖯" : ""
+              text: root.mode === "focus" ? "󰖯" : (root.launchProfileQuery() !== null ? "󰐕" : "")
               color: root.mode === "focus" ? root.green : root.blue
               font.family: theme.fontFamily
               font.pixelSize: 22
@@ -1014,7 +1144,7 @@ Scope {
               Layout.fillWidth: true
               text: root.mode === "focus"
                 ? "↑↓ select   ·   Tab switch mode   ·   ! tabs only"
-                : "↑↓ select   ·   Tab switch mode"
+                : "↑↓ select   ·   @ profile   ·   Tab switch mode"
               color: root.muted
               font.family: theme.fontFamily
               font.pixelSize: 10
@@ -1022,6 +1152,8 @@ Scope {
 
             Text {
               text: {
+                if (root.mode === "launch" && root.currentItem()?.kind === "profile")
+                  return "Enter apply profile";
                 if (root.mode === "launch")
                   return "Enter launch";
                 if (root.currentItem()?.kind === "tab")
@@ -1092,6 +1224,7 @@ Scope {
     readonly property var targetWindow: item?.window || null
     readonly property var targetTab: item?.tab || null
     readonly property bool focusMode: mode === "focus"
+    readonly property bool profileMode: !focusMode && item?.kind === "profile"
     readonly property bool tabMode: focusMode && item?.kind === "tab"
     readonly property bool targetActive: tabMode
       ? Boolean(targetTab?.current)
@@ -1103,6 +1236,8 @@ Scope {
           : String(targetWindow?.title || targetWindow?.initialTitle || "Untitled window"))
       : String(entry?.name || "")
     readonly property string secondaryText: {
+      if (profileMode)
+        return root.profileSummary(String(item?.profileId || ""));
       if (!focusMode)
         return String(entry?.genericName || entry?.comment || entry?.id || "");
       if (tabMode) {
@@ -1229,7 +1364,7 @@ Scope {
       }
 
       Rectangle {
-        visible: !row.focusMode && row.wins.length > 0
+        visible: !row.focusMode && !row.profileMode && row.wins.length > 0
         Layout.alignment: Qt.AlignVCenter
         height: 20
         implicitWidth: openLabel.implicitWidth + 14
@@ -1242,6 +1377,26 @@ Scope {
           anchors.centerIn: parent
           text: row.wins.length + " OPEN"
           color: root.green
+          font.family: theme.fontFamily
+          font.pixelSize: 9
+          font.bold: true
+        }
+      }
+
+      Rectangle {
+        visible: row.profileMode
+        Layout.alignment: Qt.AlignVCenter
+        height: 22
+        implicitWidth: profileLabel.implicitWidth + 14
+        radius: 10
+        color: Qt.alpha(root.yellow, 0.08)
+        border.color: Qt.alpha(root.yellow, 0.24)
+
+        Text {
+          id: profileLabel
+          anchors.centerIn: parent
+          text: "PROFILE"
+          color: root.yellow
           font.family: theme.fontFamily
           font.pixelSize: 9
           font.bold: true

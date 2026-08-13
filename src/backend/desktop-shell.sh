@@ -260,6 +260,7 @@ Lifecycle:
 Shell surfaces:
   open | close | toggle
   launcher <open|focus|close|toggle>
+  profile apply <id>    Launch the missing applications in a configured profile
   alttab <next|prev|commit|cancel>
   direction <l|r|u|d>
   cheatsheet <open|close|toggle>
@@ -282,7 +283,7 @@ print_help_all() {
 Integration and backend commands:
   browser-tabs, lock-preview, lock-keyboard, apply, current, list-json,
   preview, set, notification-status, bluetooth, brightness, volume, power,
-  display, focus, bar, network-control, cursor, hypr, metrics, sound, run,
+  display, focus, profile, bar, network-control, cursor, hypr, metrics, sound, run,
   lock-run
 EOF
 }
@@ -435,11 +436,18 @@ case "${1:-help}" in
     case "$method" in
       launch)
         entry_id="${3:-}"
-        if [ -z "$entry_id" ]; then
-          exit 2
-        fi
+        [ "$#" -eq 3 ] || exit 2
+        launcher_entry_id_is_valid "$entry_id" || exit 2
         launcher_record_launch "$entry_id" || true
         exec uwsm app -- "$entry_id"
+        ;;
+      launch-unfocused)
+        entry_id="${3:-}"
+        [ "$#" -eq 3 ] || exit 2
+        launcher_entry_id_is_valid "$entry_id" || exit 2
+        launcher_record_launch "$entry_id" || true
+        launcher_launch_unfocused "$entry_id"
+        exit
         ;;
       history)
         launcher_history_json
@@ -449,6 +457,30 @@ case "${1:-help}" in
       *) exit 2 ;;
     esac
     desktop_shell_ipc_call launcher "$method"
+    ;;
+  profile)
+    action="${2:-list-json}"
+    case "$action" in
+      apply)
+        profile_id="${3:-}"
+        [ "$#" -eq 3 ] || exit 2
+        if ! jq -e --arg profile "$profile_id" \
+          '.launcher.profiles[$profile] | type == "array" and length > 0' \
+          "$desktop_shell_config" >/dev/null; then
+          printf 'desktop-shell: unknown launch profile: %s\n' "$profile_id" >&2
+          exit 2
+        fi
+        desktop_shell_ipc_call launcher applyProfile "$profile_id"
+        ;;
+      list-json)
+        [ "$#" -le 2 ] || exit 2
+        jq -c '.launcher.profiles // {}' "$desktop_shell_config"
+        ;;
+      *)
+        printf 'usage: desktop-shell profile [apply <id>|list-json]\n' >&2
+        exit 2
+        ;;
+    esac
     ;;
   browser-tabs)
     case "${2:-}" in

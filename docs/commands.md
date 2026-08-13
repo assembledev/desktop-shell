@@ -69,6 +69,13 @@ $ desktop-shell launcher close
 backend-only forms `launcher launch <desktop-entry-id>` and `launcher history`
 are used by the QML model.
 
+Configured profiles are available as `@<name>` launcher results.
+
+```console
+$ desktop-shell profile list-json
+$ desktop-shell profile apply <name>
+```
+
 ### Window switcher
 
 ```console

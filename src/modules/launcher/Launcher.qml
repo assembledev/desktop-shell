@@ -7,8 +7,8 @@ Scope {
 
   property var pendingCalls: []
 
-  function enqueue(method) {
-    pendingCalls.push(method);
+  function enqueue(method, argument) {
+    pendingCalls.push({ method: method, argument: argument });
     unloadTimer.stop();
     launcherLoader.active = true;
     flushTimer.restart();
@@ -20,8 +20,12 @@ Scope {
 
     const calls = pendingCalls;
     pendingCalls = [];
-    for (const method of calls)
-      launcherLoader.item[method]();
+    for (const call of calls) {
+      if (call.argument === undefined)
+        launcherLoader.item[call.method]();
+      else
+        launcherLoader.item[call.method](call.argument);
+    }
   }
 
   function scheduleUnload() {
@@ -40,6 +44,7 @@ Scope {
       root.scheduleUnload();
     }
     function toggle(): void { root.enqueue("toggleLauncher"); }
+    function applyProfile(profile: string): void { root.enqueue("applyProfile", profile); }
   }
 
   Loader {

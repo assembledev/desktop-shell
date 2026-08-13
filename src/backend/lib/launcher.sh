@@ -35,3 +35,28 @@ launcher_record_launch() {
 
   mv "$tmp_file" "$launcher_history_file"
 }
+
+launcher_entry_id_is_valid() {
+  case "${1:-}" in
+    *.desktop)
+      case "$1" in
+        *[!A-Za-z0-9_.+-]*) return 1 ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+launcher_launch_unfocused() {
+  local entry_id="${1:-}"
+  local command_lua
+
+  if ! launcher_entry_id_is_valid "$entry_id"; then
+    printf 'desktop-shell: invalid desktop-entry ID: %s\n' "$entry_id" >&2
+    return 2
+  fi
+
+  command_lua="$(printf 'uwsm app -- %s' "$entry_id" | jq -Rs .)"
+  ensure_hypr_env
+  hyprctl dispatch "hl.dsp.exec_cmd($command_lua, { no_initial_focus = true })" >/dev/null
+}

@@ -32,6 +32,7 @@ export DESKTOP_SHELL_BROWSER_TABS="$(jq -r 'if .browserTabs.enable // false then
 export DESKTOP_SHELL_BROWSER_ENTRY_ID="$(config_string '.browserTabs.desktopEntryId')"
 export DESKTOP_SHELL_BROWSER_NAME="$(config_string '.browserTabs.displayName')"
 export DESKTOP_SHELL_BROWSER_ICON="$(config_string '.browserTabs.icon')"
+export DESKTOP_SHELL_LAUNCH_PROFILES_JSON="$(jq -c '.launcher.profiles // {}' "$desktop_shell_config")"
 export DESKTOP_SHELL_THEME_JSON="$(jq -c '.theme // {}' "$desktop_shell_config")"
 export DESKTOP_SHELL_NETWORK_CONTROLS="$desktop_shell_config"
 export DESKTOP_SHELL_HOTKEYS_JSON="$desktop_shell_config"
