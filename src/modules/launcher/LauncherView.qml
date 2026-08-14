@@ -10,7 +10,6 @@ import Quickshell.Wayland
 import Quickshell.Widgets
 import "../common"
 import "../common/HyprlandWindow.js" as HyprlandWindow
-import "BrowserTabLogic.js" as BrowserTabLogic
 import "LauncherSearch.js" as LauncherSearch
 
 Scope {
@@ -452,7 +451,6 @@ Scope {
 
     const result = [];
     const entry = browserEntry();
-    const browserWindows = windowsForApp(entry);
     for (const tab of browserTabState.tabs || []) {
       if (!tabsOnly && (query.length === 0 || tab?.active))
         continue;
@@ -465,12 +463,6 @@ Scope {
         kind: "tab",
         entry: entry,
         tab: tab,
-        browserWindow: BrowserTabLogic.windowForTab(
-          tab,
-          browserTabState.tabs,
-          browserWindows,
-          browserName
-        ),
         browserSession: String(browserTabState.session),
         score: score,
         current: Boolean(tab?.current),
@@ -604,6 +596,7 @@ Scope {
     const session = String(item?.browserSession || "");
     const tabId = Number(item?.tab?.tabId);
     const windowId = Number(item?.tab?.windowId);
+    const browserWindows = windowsForApp(item?.entry);
     if (!session || !Number.isInteger(tabId) || !Number.isInteger(windowId))
       return false;
 
@@ -612,7 +605,9 @@ Scope {
       session: session,
       tabId: tabId,
       windowId: windowId,
-      address: String(item?.browserWindow?.address || "")
+      address: browserWindows.length === 1
+        ? String(browserWindows[0]?.address || "")
+        : ""
     };
     surfaceTransition.exitSpeedMultiplier = 5;
     closeLauncher();
