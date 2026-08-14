@@ -11,8 +11,9 @@ tabs. Active tabs stay represented by their browser window, avoiding duplicate
 results. Prefix a query with `!` to search tabs only; a bare `!` lists recent
 tabs.
 
-Selecting a tab asks the extension to activate the tab and focus its browser
-window. The launcher does not simulate clicks or depend on a browser remote
+Selecting a tab asks the extension to activate the tab, then focuses the
+associated browser toplevel through Hyprland. The launcher does not simulate
+clicks or depend on a browser remote
 debugging port.
 
 Browser identity is configuration, not a built-in application choice. Set the

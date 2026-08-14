@@ -10,6 +10,7 @@ import Quickshell.Wayland
 import Quickshell.Widgets
 import "../common"
 import "../common/HyprlandWindow.js" as HyprlandWindow
+import "BrowserTabLogic.js" as BrowserTabLogic
 import "LauncherSearch.js" as LauncherSearch
 
 Scope {
@@ -451,6 +452,7 @@ Scope {
 
     const result = [];
     const entry = browserEntry();
+    const browserWindows = windowsForApp(entry);
     for (const tab of browserTabState.tabs || []) {
       if (!tabsOnly && (query.length === 0 || tab?.active))
         continue;
@@ -463,6 +465,12 @@ Scope {
         kind: "tab",
         entry: entry,
         tab: tab,
+        browserWindow: BrowserTabLogic.windowForTab(
+          tab,
+          browserTabState.tabs,
+          browserWindows,
+          browserName
+        ),
         browserSession: String(browserTabState.session),
         score: score,
         current: Boolean(tab?.current),
@@ -603,7 +611,8 @@ Scope {
       kind: "tab",
       session: session,
       tabId: tabId,
-      windowId: windowId
+      windowId: windowId,
+      address: String(item?.browserWindow?.address || "")
     };
     surfaceTransition.exitSpeedMultiplier = 5;
     closeLauncher();
@@ -616,6 +625,9 @@ Scope {
     if (target?.kind === "window") {
       hyprland.focusWindow(String(target.address || ""));
     } else if (target?.kind === "tab") {
+      const address = String(target.address || "");
+      if (address.length > 0)
+        hyprland.focusWindow(address);
       Quickshell.execDetached([
         backend,
         "browser-tabs",
