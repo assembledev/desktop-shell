@@ -110,9 +110,9 @@ programs.desktop-shell.launcher = {
 Profiles are selected as `@<name>` in the launcher. `autoStartProfile` applies
 the named profile once at graphical session startup. Missing applications open
 directly on their target workspaces through Hyprland's native `workspace
-<id> silent` exec rule with per-exec `no_initial_focus = true` and
-`focus_on_activate = false`. This blocks both initial focus and later activation
-requests from profile-launched windows.
+<id> silent` exec rule with per-exec `no_initial_focus = true`. This prevents
+profile startup from taking focus without disabling later user-initiated
+activation requests from those applications.
 Existing matching windows move with `follow = false`, without switching the
 visible workspace. Inactive windows move first. If the active window itself
 belongs elsewhere, it moves last; Hyprland then selects the remaining window on

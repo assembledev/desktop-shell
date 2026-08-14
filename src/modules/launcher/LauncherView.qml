@@ -596,7 +596,6 @@ Scope {
     const session = String(item?.browserSession || "");
     const tabId = Number(item?.tab?.tabId);
     const windowId = Number(item?.tab?.windowId);
-    const browserWindows = windowsForApp(item?.entry);
     if (!session || !Number.isInteger(tabId) || !Number.isInteger(windowId))
       return false;
 
@@ -604,10 +603,7 @@ Scope {
       kind: "tab",
       session: session,
       tabId: tabId,
-      windowId: windowId,
-      address: browserWindows.length === 1
-        ? String(browserWindows[0]?.address || "")
-        : ""
+      windowId: windowId
     };
     surfaceTransition.exitSpeedMultiplier = 5;
     closeLauncher();
@@ -620,9 +616,6 @@ Scope {
     if (target?.kind === "window") {
       hyprland.focusWindow(String(target.address || ""));
     } else if (target?.kind === "tab") {
-      const address = String(target.address || "");
-      if (address.length > 0)
-        hyprland.focusWindow(address);
       Quickshell.execDetached([
         backend,
         "browser-tabs",

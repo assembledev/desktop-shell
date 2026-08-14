@@ -71,8 +71,9 @@ round-tripping through the CLI backend.
 
 Configured profiles are available as `@<name>` launcher results. Applying one
 launches missing applications directly on their declared workspaces with native
-silent placement and per-exec activation focus disabled, then moves existing
-matching windows there without following them.
+silent placement and no initial focus, then moves existing matching windows
+there without following them. Later application activation requests remain
+enabled.
 
 ```console
 $ desktop-shell profile list-json

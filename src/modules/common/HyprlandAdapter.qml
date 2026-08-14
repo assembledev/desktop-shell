@@ -47,8 +47,7 @@ QtObject {
     Hyprland.dispatch("hl.dsp.exec_cmd("
                         + luaString("uwsm app -- " + fileId)
                         + ", { workspace = " + luaString(workspaceId + " silent")
-                        + ", no_initial_focus = true"
-                        + ", focus_on_activate = false })");
+                        + ", no_initial_focus = true })");
     return true;
   }
 

@@ -11,12 +11,9 @@ tabs. Active tabs stay represented by their browser window, avoiding duplicate
 results. Prefix a query with `!` to search tabs only; a bare `!` lists recent
 tabs.
 
-Selecting a tab asks the extension to activate the tab, then focuses the
-associated browser toplevel through Hyprland. The launcher does not simulate
-clicks or depend on a browser remote debugging port.
-
-Compositor focus requires the configured desktop entry to resolve to one
-browser toplevel. Desktop Shell does not guess between multiple browser windows.
+Selecting a tab asks the extension to activate the tab and focus its browser
+window. The launcher does not simulate clicks, guess a compositor window, or
+depend on a browser remote debugging port.
 
 Browser identity is configuration, not a built-in application choice. Set the
 desktop-entry ID, display name, and icon to match the Firefox-derived browser
