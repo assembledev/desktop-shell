@@ -208,7 +208,7 @@ let
         hotkeys
         privilegedHelper
         recordingStateFile
-        sddmWallpaperSync
+        loginWallpaperSync
         ;
     };
     inherit (cfg) theme;
@@ -393,9 +393,10 @@ in
         default = null;
         description = "Optional absolute path, or filename below XDG_RUNTIME_DIR, containing a recording start timestamp.";
       };
-      sddmWallpaperSync = mkOption {
+      loginWallpaperSync = mkOption {
         type = types.nullOr types.str;
         default = null;
+        description = "Command invoked with the selected wallpaper path to update a login greeter cache.";
       };
     };
 

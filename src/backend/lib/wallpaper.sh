@@ -51,7 +51,7 @@ apply_wallpaper() {
   path="$1"
   preview_wallpaper "$path"
   printf '%s\n' "$path" >"$current_wallpaper_file"
-  if [ -n "$sddm_wallpaper_sync" ]; then
-    "$sddm_wallpaper_sync" "$path" >/dev/null 2>&1 || true
+  if [ -n "$login_wallpaper_sync" ]; then
+    "$login_wallpaper_sync" "$path" >/dev/null 2>&1 || true
   fi
 }

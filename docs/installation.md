@@ -79,6 +79,33 @@ configuration. `programs.desktop-shell.lock.enable` defaults to `true` on the
 NixOS side. Set it to `false` only when the lock screen is disabled or the PAM
 service is created elsewhere.
 
+## Optional greetd greeter
+
+The NixOS module can replace a separate display manager with a Quickshell login
+screen that reuses Desktop Shell's lock-screen presentation:
+
+```nix
+programs.desktop-shell = {
+  enable = true;
+  package = desktop-shell.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  greeter = {
+    enable = true;
+    user = "user";
+    scale = 1.25;
+    wallpaperPath = "/var/lib/desktop-shell-greeter/wallpaper";
+  };
+};
+```
+
+This enables greetd on VT1 and runs `greeter.qml` as Cage's only client. The
+greeter uses a fixed US keyboard layout and English locale. Successful
+authentication launches `uwsm start -e -D Hyprland hyprland.desktop`; both
+Quickshell and Cage then exit. `greeter.outputMode = "last"` selects only
+Cage's final discovered output, while `"extend"` spans all outputs. The
+wallpaper path must already be readable by the `greeter` user; the module does
+not grant it access to a user's home directory. Do not enable SDDM at the same
+time.
+
 ## Standalone Home Manager
 
 Import the Home Manager module directly:

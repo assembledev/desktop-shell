@@ -287,7 +287,7 @@ These options connect Desktop Shell to policy owned by the surrounding system:
 | `integrations.hotkeys` | `[]` | Entries displayed in the built-in cheat sheet |
 | `integrations.privilegedHelper` | `null` | Fixed-purpose helper invoked through the system sudo wrapper |
 | `integrations.recordingStateFile` | `null` | File containing a recording start timestamp in Unix seconds |
-| `integrations.sddmWallpaperSync` | `null` | Command invoked with the selected wallpaper path |
+| `integrations.loginWallpaperSync` | `null` | Command invoked with the selected wallpaper path to update a login greeter cache |
 
 A relative `recordingStateFile` is resolved below `XDG_RUNTIME_DIR`; an absolute
 path is used as written. Removing the file hides the bar indicator.

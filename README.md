@@ -28,8 +28,8 @@ https://github.com/user-attachments/assets/1d040923-9848-4299-ad8d-07ab32ff338f
   focus mode, and a generated keybinding reference.
 - One `desktop-shell` command for systemd lifecycle, diagnostics, UI actions,
   and compositor keybindings.
-- Typed Home Manager configuration and a small NixOS module for PAM lock
-  integration.
+- Typed Home Manager configuration and a NixOS module for PAM lock and an
+  optional greetd login greeter.
 
 ## Requirements
 
@@ -50,8 +50,8 @@ DDC/CI when the monitor and system expose it.
 ## Installation
 
 Use the flake's Home Manager module for the user service and configuration. On
-NixOS, also import its NixOS module to create the PAM service used by the lock
-screen.
+NixOS, also import its NixOS module for the lock-screen PAM service and the
+optional greetd greeter.
 
 See [Installation](docs/installation.md) for a complete flake example and
 [Configuration](docs/configuration.md) for the option reference.

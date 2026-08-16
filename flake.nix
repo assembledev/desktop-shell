@@ -98,10 +98,37 @@
               }
             ];
           };
+          nixosConfiguration = nixpkgs.lib.nixosSystem {
+            inherit system;
+            modules = [
+              self.nixosModules.default
+              {
+                system.stateVersion = "25.11";
+                users.users.desktop-shell-test.isNormalUser = true;
+                programs.desktop-shell = {
+                  enable = true;
+                  package = desktopShell;
+                  greeter = {
+                    enable = true;
+                    user = "desktop-shell-test";
+                    wallpaperPath = "/var/lib/desktop-shell-greeter/wallpaper";
+                  };
+                };
+              }
+            ];
+          };
         in
         {
           package = desktopShell;
           home-manager = homeConfiguration.activationPackage;
+
+          nixos-module =
+            assert nixosConfiguration.config.services.greetd.enable;
+            assert !nixosConfiguration.config.services.displayManager.sddm.enable;
+            assert nixosConfiguration.config.services.greetd.settings.default_session.user == "greeter";
+            pkgs.runCommand "desktop-shell-nixos-module-check" { } ''
+              touch "$out"
+            '';
 
           nix-format =
             pkgs.runCommand "desktop-shell-nix-format"

@@ -23,9 +23,10 @@ Quickshell. The entry point owns the long-lived shell surfaces:
 - spatial window switcher with workspace previews;
 - lock preview, media notifications, and keybinding reference.
 
-The lock screen also has a small standalone entry point at `src/lock.qml`.
-Keeping it separate allows the PAM lock process to have a narrower lifetime
-than the desktop shell.
+The lock screen has a standalone entry point at `src/lock.qml`; the login
+greeter has another at `src/greeter.qml`. Both adapt their authentication
+mechanism to the same pure `LockView.qml` presentation. Keeping the entry
+points separate gives the PAM lock and greetd greeter narrow lifetimes.
 
 ## Ownership boundaries
 
@@ -74,10 +75,14 @@ same package remains usable with an existing Hyprland setup.
 
 ### NixOS module
 
-The NixOS module owns system integration that Home Manager cannot provide. In
-particular, it creates the PAM service used by the lock screen. Optional
-privileged actions use fixed-purpose helpers; Desktop Shell never accepts an
-arbitrary root command from QML.
+The NixOS module owns system integration that Home Manager cannot provide. It
+creates the PAM service used by the lock screen and can configure a greetd
+login path. The greeter runs Quickshell as Cage's only client, authenticates a
+fixed local user through greetd, and launches a fixed UWSM session command.
+Quickshell quits after launch, then Cage exits because its only client is gone;
+the graphical greeter does not remain resident with the desktop session.
+Optional privileged actions use fixed-purpose helpers; Desktop Shell never
+accepts an arbitrary root command from QML.
 
 ## External integrations
 

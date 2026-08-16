@@ -16,6 +16,7 @@ in
   qml = select (
     lib.fileset.unions [
       (source + "/src/modules")
+      (source + "/src/greeter.qml")
       (source + "/src/lock.qml")
       (source + "/src/shell.qml")
     ]

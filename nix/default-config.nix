@@ -71,7 +71,7 @@
     hotkeys = [ ];
     privilegedHelper = null;
     recordingStateFile = null;
-    sddmWallpaperSync = null;
+    loginWallpaperSync = null;
   };
 
   theme = import ./theme.nix;

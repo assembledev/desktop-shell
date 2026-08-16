@@ -35,7 +35,11 @@ let
 
         mkdir -p "$out/share/desktop-shell/qml"
         cp -R ${sources.qml}/src/modules "$out/share/desktop-shell/qml/modules"
-        cp ${sources.qml}/src/shell.qml ${sources.qml}/src/lock.qml "$out/share/desktop-shell/qml/"
+        cp \
+          ${sources.qml}/src/greeter.qml \
+          ${sources.qml}/src/lock.qml \
+          ${sources.qml}/src/shell.qml \
+          "$out/share/desktop-shell/qml/"
       '';
   backend = pkgs.runCommand "desktop-shell-backend" { } ''
     mkdir -p "$out/libexec/desktop-shell"
