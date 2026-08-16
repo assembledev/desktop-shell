@@ -13,6 +13,7 @@ let
     source = ../.;
   };
   greeterQml = cfg.package.passthru.qml or cfg.package;
+  greeterCursorSize = builtins.ceil (24 * greeterCfg.scale);
   sessionLauncher = pkgs.writeShellScript "desktop-shell-session" ''
     exec ${lib.escapeShellArgs greeterCfg.sessionCommand}
   '';
@@ -36,6 +37,9 @@ let
     export QT_QPA_PLATFORM=wayland
     export QT_SCALE_FACTOR=${lib.escapeShellArg (toString greeterCfg.scale)}
     export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+    export XCURSOR_PATH=${lib.escapeShellArg "${greeterCfg.cursorPackage}/share/icons"}
+    export XCURSOR_SIZE=${lib.escapeShellArg (toString greeterCursorSize)}
+    export XCURSOR_THEME=${lib.escapeShellArg greeterCfg.cursorTheme}
     export XKB_DEFAULT_LAYOUT=us
     export XKB_DEFAULT_OPTIONS=
     export XKB_DEFAULT_VARIANT=
@@ -46,7 +50,9 @@ let
 
     exec ${pkgs.dbus}/bin/dbus-run-session \
       ${lib.getExe pkgs.cage} -s -d -m ${lib.escapeShellArg greeterCfg.outputMode} -- \
-      ${lib.getExe pkgs.quickshell} --path ${greeterQml}/share/desktop-shell/qml/greeter.qml
+      ${lib.getExe pkgs.quickshell} \
+        --log-rules '*.info=false' \
+        --path ${greeterQml}/share/desktop-shell/qml/greeter.qml
   '';
 in
 {
@@ -81,6 +87,19 @@ in
         description = "Qt scale factor used by the greeter.";
       };
 
+      cursorPackage = lib.mkOption {
+        type = lib.types.package;
+        default = pkgs.bibata-cursors;
+        defaultText = lib.literalExpression "pkgs.bibata-cursors";
+        description = "Package providing the greeter cursor theme.";
+      };
+
+      cursorTheme = lib.mkOption {
+        type = lib.types.nonEmptyStr;
+        default = "Bibata-Modern-Ice";
+        description = "Cursor theme used by the greeter.";
+      };
+
       outputMode = lib.mkOption {
         type = lib.types.enum [
           "last"
@@ -99,6 +118,8 @@ in
       sessionCommand = lib.mkOption {
         type = lib.types.nonEmptyListOf lib.types.str;
         default = [
+          (lib.getExe' pkgs.coreutils "env")
+          "UWSM_SILENT_START=1"
           (lib.getExe pkgs.uwsm)
           "start"
           "-e"
@@ -107,7 +128,7 @@ in
           "hyprland.desktop"
         ];
         defaultText = lib.literalExpression ''
-          [ "''${lib.getExe pkgs.uwsm}" "start" "-e" "-D" "Hyprland" "hyprland.desktop" ]
+          [ "''${lib.getExe' pkgs.coreutils "env"}" "UWSM_SILENT_START=1" "''${lib.getExe pkgs.uwsm}" "start" "-e" "-D" "Hyprland" "hyprland.desktop" ]
         '';
         description = "Fixed command launched after successful authentication.";
       };
@@ -147,6 +168,10 @@ in
           user = "greeter";
         };
       };
+
+      # A graphical greeter owns the console as soon as it starts. Avoid the
+      # Type=idle delay intended to keep text login prompts behind boot output.
+      systemd.services.greetd.serviceConfig.Type = lib.mkForce "simple";
 
       # Quickshell needs a writable home and runtime directory while authenticating.
       systemd.tmpfiles.rules = [

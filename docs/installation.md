@@ -98,13 +98,16 @@ programs.desktop-shell = {
 ```
 
 This enables greetd on VT1 and runs `greeter.qml` as Cage's only client. The
-greeter uses a fixed US keyboard layout and English locale. Successful
-authentication launches `uwsm start -e -D Hyprland hyprland.desktop`; both
-Quickshell and Cage then exit. `greeter.outputMode = "last"` selects only
-Cage's final discovered output, while `"extend"` spans all outputs. The
-wallpaper path must already be readable by the `greeter` user; the module does
-not grant it access to a user's home directory. Do not enable SDDM at the same
-time.
+greeter uses a fixed US keyboard layout and English locale. Its cursor uses
+`greeter.cursorPackage` and `greeter.cursorTheme`; the base 24 px size follows
+`greeter.scale`. Successful authentication launches
+`uwsm start -e -D Hyprland hyprland.desktop`; both Quickshell and Cage then
+exit. Routine Quickshell and UWSM startup messages are suppressed through their
+supported logging controls; warnings and errors remain available. The
+`greeter.outputMode = "last"` setting selects only Cage's final discovered
+output, while `"extend"` spans all outputs. The wallpaper path must already be
+readable by the `greeter` user; the module does not grant it access to a user's
+home directory. Do not enable SDDM at the same time.
 
 ## Standalone Home Manager
 

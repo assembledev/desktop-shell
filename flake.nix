@@ -126,6 +126,7 @@
             assert nixosConfiguration.config.services.greetd.enable;
             assert !nixosConfiguration.config.services.displayManager.sddm.enable;
             assert nixosConfiguration.config.services.greetd.settings.default_session.user == "greeter";
+            assert nixosConfiguration.config.systemd.services.greetd.serviceConfig.Type == "simple";
             pkgs.runCommand "desktop-shell-nixos-module-check" { } ''
               touch "$out"
             '';
