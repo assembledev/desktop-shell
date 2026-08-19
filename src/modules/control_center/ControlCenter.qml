@@ -15,6 +15,8 @@ Scope {
 
   required property var barSurface
 
+  signal notificationPopupsCloseRequested
+
   Theme {
     id: theme
   }
@@ -1008,15 +1010,6 @@ Scope {
 
     if (expireTransient !== false && popup?.notification?.transient)
       popup.notification.expire();
-  }
-
-  function expireNotificationPopups() {
-    const popupIds = [];
-    for (let i = 0; i < notificationPopupModel.count; i++)
-      popupIds.push(notificationPopupModel.get(i).popupId);
-
-    for (let i = 0; i < popupIds.length; i++)
-      hidePopup(popupIds[i]);
   }
 
   function patchPopup(id, patch) {
@@ -2263,7 +2256,7 @@ Scope {
     target: Hyprland
     function onRawEvent(event) {
       if (event.name === "custom" && event.data === "desktop-shell:dismiss-notification-popups")
-        root.expireNotificationPopups();
+        root.notificationPopupsCloseRequested();
       else if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup")
         root.open = false;
     }
@@ -5843,6 +5836,11 @@ Scope {
       function onImageChanged() { lifetime.restart(true); }
       function onHasInlineReplyChanged() { lifetime.restart(true); }
       function onHintsChanged() { lifetime.restart(true); }
+    }
+
+    Connections {
+      target: root
+      function onNotificationPopupsCloseRequested() { toast.close(false); }
     }
 
     ParallelAnimation {
