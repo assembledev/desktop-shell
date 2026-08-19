@@ -119,6 +119,16 @@ if [ "${1:-}" = brightness ]; then
   exit
 fi
 
+# Clipboard list generation is latency-sensitive and self-contained. Keep it
+# ahead of config parsing and unrelated backend setup.
+if [ "${1:-}" = clipboard ] && [ "${2:-}" = list-json ] && [ "$#" -eq 2 ]; then
+  backend_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+  # shellcheck source=lib/clipboard.sh
+  source "$backend_dir/lib/clipboard.sh"
+  clipboard_list_json
+  exit
+fi
+
 # Surface commands are latency-sensitive and need neither config parsing nor
 # the backend libraries. Dispatch them before the heavyweight backend setup;
 # desktop_shell_ipc_call still starts the service and retries when necessary.
@@ -173,7 +183,7 @@ case "${1:-}" in
     method="${2:-toggle}"
     if [ "$#" -le 2 ]; then
       case "$method" in
-        open | close | toggle)
+        open | close | toggle | refresh)
           desktop_shell_ipc_call clipboardHistory "$method"
           exit
           ;;

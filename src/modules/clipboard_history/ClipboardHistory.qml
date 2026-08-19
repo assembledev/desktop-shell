@@ -24,6 +24,8 @@ Scope {
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
   property bool open: false
   property bool loading: false
+  property bool hydrated: false
+  property bool refreshPending: false
   property var entries: []
   property string message: ""
   property bool wipeArmed: false
@@ -58,9 +60,13 @@ Scope {
       list.currentIndex = -1;
   }
 
-  function refresh() {
-    loading = true;
-    listProc.running = false;
+  function refresh(showLoading) {
+    if (showLoading && entries.length === 0)
+      loading = true;
+    if (listProc.running) {
+      refreshPending = true;
+      return;
+    }
     listProc.running = true;
   }
 
@@ -68,7 +74,11 @@ Scope {
     open = true;
     message = "";
     search.text = "";
-    refresh();
+    if (!hydrated) {
+      loading = true;
+      if (!listProc.running)
+        refresh(true);
+    }
     Qt.callLater(function() { search.forceActiveFocus(); });
   }
 
@@ -124,10 +134,7 @@ Scope {
     function open(): void { root.openPicker(); }
     function close(): void { root.closePicker(); }
     function toggle(): void { root.togglePicker(); }
-    function refresh(): void {
-      if (root.open)
-        root.refresh();
-    }
+    function refresh(): void { root.refresh(false); }
   }
 
   Process {
@@ -138,6 +145,7 @@ Scope {
         try {
           root.entries = JSON.parse(text);
           root.message = "";
+          root.hydrated = true;
         } catch (error) {
           root.entries = [];
           root.message = "Failed to read clipboard";
@@ -147,7 +155,13 @@ Scope {
         root.applyFilter();
       }
     }
-    onExited: root.loading = false
+    onExited: {
+      root.loading = false;
+      if (root.refreshPending) {
+        root.refreshPending = false;
+        Qt.callLater(function() { root.refresh(false); });
+      }
+    }
   }
 
   Process {
@@ -156,14 +170,16 @@ Scope {
 
   Process {
     id: deleteProc
-    onExited: root.refresh()
+    onExited: root.refresh(false)
   }
 
   Process {
     id: wipeProc
     command: [root.backend, "clipboard", "wipe"]
-    onExited: root.refresh()
+    onExited: root.refresh(false)
   }
+
+  Component.onCompleted: root.refresh(false)
 
   ListModel {
     id: filteredModel
@@ -254,7 +270,7 @@ Scope {
 
           IconButton {
             icon: ""
-            onClicked: root.refresh()
+            onClicked: root.refresh(true)
           }
 
           IconButton {

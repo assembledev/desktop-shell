@@ -104,6 +104,69 @@ test "${captured_fast_ipc_args[3]}" = call
 test "${captured_fast_ipc_args[4]}" = launcher
 test "${captured_fast_ipc_args[5]}" = open
 
+DESKTOP_SHELL_TEST_FAST_IPC_ARGS="$fast_ipc_args" \
+  DESKTOP_SHELL_CONFIG="$invalid_config" \
+  DESKTOP_SHELL_DEFAULT_CONFIG="$invalid_config" \
+  PATH="$test_bin:$PATH" \
+  bash "$source_root/src/backend/desktop-shell.sh" clipboard refresh
+mapfile -t captured_fast_ipc_args <"$fast_ipc_args"
+test "${captured_fast_ipc_args[0]}" = ipc
+test "${captured_fast_ipc_args[3]}" = call
+test "${captured_fast_ipc_args[4]}" = clipboardHistory
+test "${captured_fast_ipc_args[5]}" = refresh
+
+clipboard_list="$test_root/clipboard-list"
+printf '%s\n' \
+  $'101\tText with <markup> and a tab\tinside' \
+  $'102\t[[ binary data 12 KiB png 640x480 ]]' \
+  'record-without-a-tab' >"$clipboard_list"
+printf '%s\n' \
+  "#!$(command -v bash)" \
+  'test "${1:-}" = list' \
+  'cat "$DESKTOP_SHELL_TEST_CLIPBOARD_LIST"' >"$test_bin/cliphist"
+chmod +x "$test_bin/cliphist"
+clipboard_json="$(
+  DESKTOP_SHELL_TEST_CLIPBOARD_LIST="$clipboard_list" \
+    DESKTOP_SHELL_CONFIG="$invalid_config" \
+    DESKTOP_SHELL_DEFAULT_CONFIG="$invalid_config" \
+    PATH="$test_bin:$PATH" \
+    bash "$source_root/src/backend/desktop-shell.sh" clipboard list-json
+)"
+jq -e \
+  --arg text_record "$(printf '%s' $'101\tText with <markup> and a tab\tinside' | base64 -w0)" \
+  --arg image_record "$(printf '%s' $'102\t[[ binary data 12 KiB png 640x480 ]]' | base64 -w0)" \
+  --arg fallback_record "$(printf '%s' 'record-without-a-tab' | base64 -w0)" \
+  '
+    length == 3 and
+    .[0] == {
+      entryId: "101",
+      label: "Text with <markup> and a tab\tinside",
+      record: $text_record,
+      preview: "",
+      kind: "text",
+      dimensions: "",
+      image: false
+    } and
+    .[1] == {
+      entryId: "102",
+      label: "[[ binary data 12 KiB png 640x480 ]]",
+      record: $image_record,
+      preview: "",
+      kind: "png",
+      dimensions: "640x480",
+      image: true
+    } and
+    .[2] == {
+      entryId: "record-without-a-tab",
+      label: "record-without-a-tab",
+      record: $fallback_record,
+      preview: "",
+      kind: "text",
+      dimensions: "",
+      image: false
+    }
+  ' <<<"$clipboard_json" >/dev/null
+
 profile_ipc_args="$test_root/profile-ipc-args"
 printf '#!%s\nif [ "${6:-}" = profileReady ]; then printf "true\\n"; else printf "%%s\\n" "$@" >"$DESKTOP_SHELL_TEST_PROFILE_IPC_ARGS"; fi\n' \
   "$(command -v bash)" >"$test_bin/quickshell"

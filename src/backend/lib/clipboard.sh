@@ -1,49 +1,7 @@
 #!/usr/bin/env bash
 
-clipboard_entry_json() {
-  line="$1"
-  id="${line%%	*}"
-  label="${line#*	}"
-  if [ "$label" = "$line" ]; then
-    label="$line"
-  fi
-
-  record_b64="$(printf '%s' "$line" | base64 -w0)"
-  is_image=false
-  preview_path=""
-  kind="text"
-  dimensions=""
-
-  if printf '%s\n' "$label" | grep -Eq '^\[\[ binary data .+ (png|jpg|jpeg|webp|bmp|gif) [0-9]+x[0-9]+ \]\]$'; then
-    is_image=true
-    kind="$(printf '%s\n' "$label" | sed -nE 's/.* (png|jpg|jpeg|webp|bmp|gif) [0-9]+x[0-9]+.*/\1/p' | head -n 1)"
-    dimensions="$(printf '%s\n' "$label" | sed -nE 's/.* ([0-9]+x[0-9]+).*/\1/p' | head -n 1)"
-  fi
-
-  jq -nc \
-    --arg entry_id "$id" \
-    --arg label "$label" \
-    --arg record "$record_b64" \
-    --arg preview "$preview_path" \
-    --arg kind "$kind" \
-    --arg dimensions "$dimensions" \
-    --argjson image "$is_image" \
-    '{entryId: $entry_id, label: $label, record: $record, preview: $preview, kind: $kind, dimensions: $dimensions, image: $image}'
-}
-
 clipboard_list_json() {
-  first=true
-  printf '['
-  cliphist list 2>/dev/null | while IFS= read -r line; do
-    [ -n "$line" ] || continue
-    if [ "$first" = true ]; then
-      first=false
-    else
-      printf ','
-    fi
-    clipboard_entry_json "$line"
-  done
-  printf ']\n'
+  cliphist list 2>/dev/null | jq -Rscf "${BASH_SOURCE[0]%/*}/clipboard-list.jq"
 }
 
 clipboard_record_to_stdout() {
