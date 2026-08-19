@@ -23,6 +23,7 @@ Scope {
   readonly property string title: String(currentTrack?.title || "")
   readonly property string playerName: String(currentTrack?.playerName || "Media")
   readonly property string artwork: String(currentTrack?.artwork || "")
+  readonly property bool hasLocalArtwork: artwork.startsWith("file:")
   readonly property string subtitle: {
     const artist = String(currentTrack?.artist || "").trim();
     const album = String(currentTrack?.album || "").trim();
@@ -30,7 +31,9 @@ Scope {
       return artist + "  ·  " + album;
     return artist || album || playerName;
   }
-  readonly property color artworkTone: artworkPalette.colors[0] ?? theme.purple
+  readonly property color artworkTone: hasLocalArtwork
+    ? (artworkPalette.colors[0] ?? theme.purple)
+    : theme.purple
 
   MotionTransition {
     id: surfaceTransition
@@ -99,7 +102,9 @@ Scope {
 
   ColorQuantizer {
     id: artworkPalette
-    source: root.artwork
+    // ColorQuantizer loads QUrl::toLocalFile(), so remote MPRIS artwork is not
+    // a supported source. Image below still handles both local and remote URLs.
+    source: root.hasLocalArtwork ? root.artwork : ""
     depth: 0
     rescaleSize: 16
   }
