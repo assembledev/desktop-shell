@@ -1570,6 +1570,7 @@ Scope {
 
   onOpenChanged: {
     if (open) {
+      mainInputIntent.claimKeyboard();
       notificationTimelineNow = Date.now();
       lastBluetoothPollAt = Date.now();
       invalidateBluetoothForPage();
@@ -2268,6 +2269,10 @@ Scope {
     requested: root.open
     presented: mainSurfaceTransition.presented
     surfaceNamespace: "quickshell:controlCenter"
+
+    InputIntent {
+      id: mainInputIntent
+    }
 
     Rectangle {
       anchors.fill: parent
@@ -4973,6 +4978,12 @@ Scope {
           onActivated: function(index) {
             root.setDisplayDraftValue(displayInspector.output.name, "mode", String(displayInspector.modes[index]));
           }
+          Keys.onPressed: event => {
+            if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
+                || event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown
+                || event.key === Qt.Key_Home || event.key === Qt.Key_End)
+              mainInputIntent.claimKeyboard();
+          }
 
           contentItem: Text {
             leftPadding: 10
@@ -4994,6 +5005,8 @@ Scope {
           delegate: ItemDelegate {
             required property var modelData
             width: displayModeBox.width
+            // Keep Qt's delegate hover from rewriting keyboard highlightedIndex.
+            hoverEnabled: false
             contentItem: Text {
               text: root.displayModeLabel(modelData)
               color: theme.text
@@ -5002,7 +5015,13 @@ Scope {
               verticalAlignment: Text.AlignVCenter
             }
             background: Rectangle {
-              color: highlighted ? theme.surfaceMutedHover : theme.surfaceGlassStrong
+              color: highlighted || (mainInputIntent.pointerActive && displayModeHover.hovered)
+                ? theme.surfaceMutedHover
+                : theme.surfaceGlassStrong
+            }
+            HoverHandler {
+              id: displayModeHover
+              blocking: false
             }
           }
           popup: Popup {
@@ -5015,6 +5034,12 @@ Scope {
               implicitHeight: contentHeight
               model: displayModeBox.popup.visible ? displayModeBox.delegateModel : null
               currentIndex: displayModeBox.highlightedIndex
+              Keys.onPressed: event => {
+                if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
+                    || event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown
+                    || event.key === Qt.Key_Home || event.key === Qt.Key_End)
+                  mainInputIntent.claimKeyboard();
+              }
               ScrollIndicator.vertical: ScrollIndicator { }
             }
             background: Rectangle {

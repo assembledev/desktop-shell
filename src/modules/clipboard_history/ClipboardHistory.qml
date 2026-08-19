@@ -71,6 +71,7 @@ Scope {
   }
 
   function openPicker() {
+    inputIntent.claimKeyboard();
     open = true;
     message = "";
     search.text = "";
@@ -205,6 +206,10 @@ Scope {
       right: true
     }
 
+    InputIntent {
+      id: inputIntent
+    }
+
     Rectangle {
       anchors.fill: parent
       color: theme.surfaceScrim
@@ -316,6 +321,7 @@ Scope {
             onTextChanged: root.applyFilter()
 
             Keys.onDownPressed: {
+              inputIntent.claimKeyboard();
               list.forceActiveFocus();
               list.incrementCurrentIndex();
             }
@@ -407,6 +413,10 @@ Scope {
           Keys.onReturnPressed: root.copyItem(root.currentItem())
           Keys.onEnterPressed: root.copyItem(root.currentItem())
           Keys.onPressed: event => {
+            if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
+                || event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown
+                || event.key === Qt.Key_Home || event.key === Qt.Key_End)
+              inputIntent.claimKeyboard();
             if (event.key === Qt.Key_Backspace) {
               search.forceActiveFocus();
               if (search.text.length > 0)
@@ -439,7 +449,9 @@ Scope {
             width: ListView.view.width
             height: image ? 172 : 78
             radius: 10
-            color: !selected && rowMouse.containsMouse ? theme.surfaceAccent : "transparent"
+            color: !selected && inputIntent.pointerActive && rowMouse.containsMouse
+              ? theme.surfaceAccent
+              : "transparent"
             border.width: 1
             border.color: "transparent"
             clip: true
@@ -458,7 +470,6 @@ Scope {
               anchors.fill: parent
               hoverEnabled: true
               cursorShape: Qt.PointingHandCursor
-              onEntered: list.currentIndex = item.index
               onClicked: root.copyItem(item)
             }
 
@@ -556,7 +567,7 @@ Scope {
               IconButton {
                 icon: "󰆴"
                 danger: true
-                visible: item.selected || rowMouse.containsMouse
+                visible: item.selected || (inputIntent.pointerActive && rowMouse.containsMouse)
                 onClicked: root.deleteItem(item)
               }
             }
