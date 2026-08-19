@@ -3014,7 +3014,6 @@ Scope {
 
               IconButton {
                 icon: ""
-                tooltip: "Refresh displays"
                 onClicked: root.refreshDisplays()
               }
             }
@@ -3383,7 +3382,6 @@ Scope {
 
           IconButton {
             icon: "×"
-            tooltip: "Dismiss"
             onClicked: root.wifiError = ""
           }
         }
@@ -3414,7 +3412,6 @@ Scope {
 
         IconButton {
           icon: ""
-          tooltip: "Refresh networks"
           active: false
           enabled: !root.wifiBusy
           onClicked: root.scanWifi()
@@ -3640,7 +3637,6 @@ Scope {
 
           IconButton {
             icon: "×"
-            tooltip: "Dismiss"
             onClicked: root.bluetoothError = ""
           }
         }
@@ -3736,7 +3732,6 @@ Scope {
 
         IconButton {
           icon: ""
-          tooltip: "Scan again"
           active: root.bluetoothSessionActive
           enabled: root.bluetoothSessionActive && !root.bluetoothBusy
           onClicked: root.restartBluetoothDiscovery()
@@ -3958,7 +3953,6 @@ Scope {
         IconButton {
           visible: header.backVisible
           icon: ""
-          tooltip: "Back"
           onClicked: header.back()
         }
 
@@ -4389,27 +4383,10 @@ Scope {
       onClicked: iconButton.clicked()
     }
 
-    Rectangle {
-      visible: iconMouse.containsMouse && iconButton.tooltip.length > 0
-      z: 10
-      width: tipText.implicitWidth + 14
-      height: 26
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.bottom: parent.top
-      anchors.bottomMargin: 6
-      radius: 6
-      color: theme.surface
-      border.color: theme.borderMuted
-      border.width: 1
-
-      Text {
-        id: tipText
-        anchors.centerIn: parent
-        text: iconButton.tooltip
-        color: theme.foreground
-        font.family: theme.fontFamily
-        font.pixelSize: 10
-      }
+    ShellToolTip {
+      anchorItem: iconButton
+      shown: iconMouse.containsMouse
+      text: iconButton.tooltip
     }
   }
 
@@ -4955,8 +4932,8 @@ Scope {
         IconButton {
           icon: root.displayPrimary === String(displayInspector.output?.name || "") ? "" : ""
           tooltip: root.displayPrimary === String(displayInspector.output?.name || "")
-            ? "Primary display"
-            : "Make primary"
+            ? ""
+            : "Set as primary display"
           active: root.displayPrimary === String(displayInspector.output?.name || "")
           onClicked: root.displayPrimary = String(displayInspector.output?.name || "")
         }
@@ -5180,7 +5157,8 @@ Scope {
         IconButton {
           icon: audioSection.icon
           active: false
-          tooltip: audioSection.current?.audio?.muted ? "Unmute" : "Mute"
+          tooltip: (audioSection.current?.audio?.muted ? "Unmute " : "Mute ")
+            + audioSection.title.toLowerCase()
           onClicked: audioSection.toggleMute()
         }
 
@@ -5214,7 +5192,8 @@ Scope {
 
         IconButton {
           icon: audioSection.expanded ? "" : ""
-          tooltip: audioSection.expanded ? "Hide devices" : "Show devices"
+          tooltip: (audioSection.expanded ? "Hide " : "Show ")
+            + audioSection.title.toLowerCase() + " devices"
           onClicked: audioSection.toggleExpanded()
         }
       }
@@ -5385,7 +5364,6 @@ Scope {
 
         IconButton {
           icon: row.streamMuted ? "󰝟" : ""
-          tooltip: row.streamMuted ? "Unmute" : "Mute"
           active: false
           implicitWidth: 30
           implicitHeight: 30
@@ -5740,7 +5718,6 @@ Scope {
         }
         IconButton {
           icon: ""
-          tooltip: "Dismiss"
           onClicked: notifRow.dismiss()
         }
       }
@@ -5911,7 +5888,6 @@ Scope {
         }
         IconButton {
           icon: ""
-          tooltip: "Dismiss"
           onClicked: toast.close(true)
         }
       }
@@ -6197,7 +6173,6 @@ Scope {
         }
         IconButton {
           icon: wifiRow.revealPassword ? "󰈈" : "󰈉"
-          tooltip: wifiRow.revealPassword ? "Hide password" : "Show password"
           enabled: !root.wifiBusy
           onClicked: wifiRow.revealPassword = !wifiRow.revealPassword
         }

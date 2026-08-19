@@ -254,7 +254,6 @@ Scope {
 
           IconButton {
             icon: ""
-            tooltip: "Refresh"
             onClicked: root.refresh()
           }
 
@@ -540,7 +539,6 @@ Scope {
 
               IconButton {
                 icon: "󰆴"
-                tooltip: "Delete"
                 danger: true
                 visible: item.selected || rowMouse.containsMouse
                 onClicked: root.deleteItem(item)
@@ -610,8 +608,11 @@ Scope {
       onClicked: button.clicked()
     }
 
-    ToolTip.visible: mouse.containsMouse && button.tooltip.length > 0
-    ToolTip.text: button.tooltip
-    ToolTip.delay: 400
+    ShellToolTip {
+      anchorItem: button
+      shown: mouse.containsMouse
+      text: button.tooltip
+      delay: 400
+    }
   }
 }

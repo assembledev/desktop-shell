@@ -264,7 +264,6 @@ Scope {
 
               CalendarButton {
                 icon: ""
-                tooltip: "Previous month"
                 onClicked: root.changeMonth(-1)
               }
 
@@ -288,7 +287,6 @@ Scope {
 
               CalendarButton {
                 icon: ""
-                tooltip: "Next month"
                 onClicked: root.changeMonth(1)
               }
             }
@@ -426,7 +424,6 @@ Scope {
     id: button
 
     required property string icon
-    property string tooltip: ""
     signal clicked
 
     Layout.preferredWidth: 34
@@ -462,8 +459,5 @@ Scope {
       onClicked: button.clicked()
     }
 
-    ToolTip.visible: mouse.containsMouse && button.tooltip.length > 0
-    ToolTip.text: button.tooltip
-    ToolTip.delay: 500
   }
 }
