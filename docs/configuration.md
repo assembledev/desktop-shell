@@ -177,6 +177,11 @@ module does not take ownership of its monitor policy.
 | `bar.workspaceIcons` | `true` | Show application icons in workspace controls |
 | `bar.networkControls` | `[]` | Ordered generic status/toggle providers |
 
+The landscape bar allocates both sides around the centered clock from their
+measured content. When space is constrained it shortens the clock to the time
+and collapses the active workspace title before allowing either side to cross
+the center; wider outputs keep the full date and expanded workspace.
+
 ## Keyboard layout labels
 
 `keyboard.layoutLabels` is an ordered list of short display labels. Its indexes

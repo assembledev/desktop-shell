@@ -10,6 +10,7 @@ import Quickshell.Wayland
 import Quickshell.Widgets
 import "../common"
 import "../launcher/LauncherSearch.js" as LauncherSearch
+import "BarLayout.js" as BarLayout
 
 Scope {
   id: root
@@ -88,13 +89,52 @@ Scope {
   readonly property int trayStatusGap: 17
   readonly property int portraitTrayStatusGap: 6
   readonly property int trayClockSafeMargin: 20
+  readonly property int desktopOuterMargin: 15
+  readonly property int desktopWorkspaceCompactWidth: 68
+  readonly property int desktopWorkspaceExpandedWidth: 280
+  readonly property int desktopWorkspaceSpacing: 6
   readonly property int portraitTitleReserve: portraitNarrow ? 120 : 170
   readonly property var trayItems: prioritizedTrayItems()
   readonly property int trayItemCount: trayItems.length
+  readonly property int desktopWorkspaceCount: shellConfig.workspaces.length
+  readonly property real desktopPreferredWorkspaceWidth: workspaceIcons
+    ? BarLayout.workspaceRowWidth(
+        desktopWorkspaceCount,
+        desktopWorkspaceCompactWidth,
+        desktopWorkspaceExpandedWidth,
+        desktopWorkspaceSpacing,
+        true)
+    : 0
+  readonly property real desktopMinimumTrayWidth: BarLayout.minimumTrayWidth(
+    trayItemCount, trayIconSize, trayOverflowButtonWidth)
+  readonly property real desktopMinimumRightWidth: Number(rightStatusRow.implicitWidth || 0)
+    + (desktopMinimumTrayWidth > 0 ? desktopMinimumTrayWidth + trayStatusGap : 0)
+  readonly property real desktopFullClockWidth: Number(fullClockMeasure.implicitWidth || 0)
+  readonly property bool desktopCompactClock: !portraitMode && !recording
+    && BarLayout.shouldUseCompactClock(
+      Number(barWindow.width || 0),
+      desktopFullClockWidth,
+      desktopPreferredWorkspaceWidth,
+      desktopMinimumRightWidth,
+      desktopOuterMargin,
+      trayClockSafeMargin)
+  readonly property string desktopClockText: desktopCompactClock ? clockTimeText : clockText
+  readonly property real desktopSideAvailableWidth: BarLayout.availableSideWidth(
+    Number(barWindow.width || 0),
+    Number(clockTarget.width || 0),
+    desktopOuterMargin,
+    trayClockSafeMargin)
+  readonly property bool desktopExpandActiveWorkspace: workspaceIcons
+    && BarLayout.shouldExpandActiveWorkspace(
+      desktopSideAvailableWidth,
+      desktopWorkspaceCount,
+      desktopWorkspaceCompactWidth,
+      desktopWorkspaceExpandedWidth,
+      desktopWorkspaceSpacing)
   readonly property real desktopTrayWidthBudget: Number(barWindow.width || 0) / 2
     - Number(clockTarget.width || 0) / 2
     - trayClockSafeMargin
-    - 15
+    - desktopOuterMargin
     - Number(rightStatusRow.implicitWidth || 0)
     - trayStatusGap
   readonly property real portraitTrayWidthBudget: Number(barWindow.width || 0)
@@ -255,28 +295,14 @@ Scope {
     return attention.concat(regular);
   }
 
-  function trayRowWidth(count, spacing) {
-    return count <= 0 ? 0 : count * trayIconSize + (count - 1) * spacing;
-  }
-
   function inlineTrayCountForBudget() {
-    if (trayItemCount <= 0)
-      return 0;
-
-    if (trayItemCount === 1)
-      return 1;
-
-    if (trayRowWidth(trayItemCount, trayExpandedSpacing) <= trayWidthBudget)
-      return trayItemCount;
-
-    const roomForIcons = trayWidthBudget - trayOverflowButtonWidth;
-    let visibleCount = Math.max(0, Math.min(trayItemCount - 1,
-      Math.floor(roomForIcons / (trayIconSize + trayCompactSpacing))));
-
-    if (trayItemCount - visibleCount === 1 && visibleCount > 0)
-      visibleCount--;
-
-    return visibleCount;
+    return BarLayout.inlineTrayCount(
+      trayItemCount,
+      trayWidthBudget,
+      trayIconSize,
+      trayExpandedSpacing,
+      trayCompactSpacing,
+      trayOverflowButtonWidth);
   }
 
   function updateTrayShelfOpen() {
@@ -639,9 +665,9 @@ Scope {
               textColor: theme.text
               mutedColor: theme.mutedAlt
               hoverColor: theme.surfaceAccent
-              compactWidth: 68
-              expandedWidth: 280
-              expandActive: true
+              compactWidth: root.desktopWorkspaceCompactWidth
+              expandedWidth: root.desktopWorkspaceExpandedWidth
+              expandActive: root.desktopExpandActiveWorkspace
               targetHeight: root.desktopBarHeight
               onClicked: root.focusWorkspace(workspaceId)
             }
@@ -686,8 +712,17 @@ Scope {
             visible: !root.recording
             anchors.centerIn: parent
             anchors.verticalCenterOffset: root.textOpticalYOffset
-            text: root.clockText
+            text: root.desktopClockText
             color: theme.text
+            font.family: theme.fontFamily
+            font.pixelSize: 16
+            font.bold: true
+          }
+
+          Text {
+            id: fullClockMeasure
+            visible: false
+            text: root.clockText
             font.family: theme.fontFamily
             font.pixelSize: 16
             font.bold: true
