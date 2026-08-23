@@ -54,7 +54,6 @@ Scope {
   property var pendingFocusTarget: null
   property string pendingProfileApplyId: ""
 
-  readonly property int maxResults: 10
   readonly property int maxAppReloadAttempts: 30
   readonly property int maxWarmReloadAttempts: 40
   readonly property bool browserTabsEnabled: Quickshell.env("DESKTOP_SHELL_BROWSER_TABS") === "1"
@@ -544,7 +543,7 @@ Scope {
       }
     }
 
-    result.sort(function(a, b) {
+    filtered = result.sort(function(a, b) {
       if (query.length > 0 && a.score !== b.score)
         return b.score - a.score;
 
@@ -563,8 +562,6 @@ Scope {
 
       return String(a.entry.name || "").localeCompare(String(b.entry.name || ""));
     });
-
-    filtered = result.slice(0, maxResults);
     if (selectPreferredResult(preferredId || "", preferredWindowAddress || "", preferredTabKey || ""))
       return;
 
