@@ -320,6 +320,16 @@ Scope {
     }
   }
 
+  function closeUnpinnedTrayShelf() {
+    if (trayShelfPinned)
+      return;
+
+    trayShelfCloseTimer.stop();
+    trayTriggerHovered = false;
+    trayShelfHovered = false;
+    trayShelfOpen = false;
+  }
+
   function normalizeWindowTitle(title) {
     return String(title || "");
   }
@@ -590,6 +600,14 @@ Scope {
         root.trayOpenMenus = 0;
         if (root.portraitMode)
           root.trayShelfPinned = false;
+
+        // A menu layer can cover the shelf before its hover handler receives
+        // a leave event. Do not let that stale hover keep an unpinned shelf
+        // open after the menu has gone away.
+        if (!root.trayShelfPinned) {
+          root.closeUnpinnedTrayShelf();
+          return;
+        }
       }
       root.updateTrayShelfOpen();
     }
@@ -1184,7 +1202,18 @@ Scope {
     }
 
     mask: Region {
-      item: trayShelfBox
+      item: root.trayShelfPinned ? trayShelfBox : trayShelfDismissLayer
+    }
+
+    Item {
+      id: trayShelfDismissLayer
+      anchors.fill: parent
+
+      MouseArea {
+        anchors.fill: parent
+        enabled: !root.trayShelfPinned
+        onClicked: root.closeUnpinnedTrayShelf()
+      }
     }
 
     Rectangle {
