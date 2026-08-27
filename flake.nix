@@ -120,7 +120,12 @@
         in
         {
           package = desktopShell;
-          home-manager = homeConfiguration.activationPackage;
+          home-manager =
+            assert builtins.elem "graphical-session.target"
+              homeConfiguration.config.systemd.user.services.desktop-shell-launch-profile.Unit.After;
+            assert builtins.elem "desktop-shell.service"
+              homeConfiguration.config.systemd.user.services.desktop-shell-launch-profile.Unit.After;
+            homeConfiguration.activationPackage;
 
           nixos-module =
             assert nixosConfiguration.config.services.greetd.enable;

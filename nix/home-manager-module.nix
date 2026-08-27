@@ -531,7 +531,10 @@ in
         Unit = {
           Description = "Apply the Desktop Shell launch profile for this graphical session";
           ConditionEnvironment = "WAYLAND_DISPLAY";
-          After = [ "desktop-shell.service" ];
+          After = [
+            serviceTarget
+            "desktop-shell.service"
+          ];
           Requires = [ "desktop-shell.service" ];
           PartOf = [ serviceTarget ];
           # Keep an already-completed profile application complete across Home
