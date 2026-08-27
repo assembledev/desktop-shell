@@ -25,7 +25,13 @@ Scope {
     id: profileController
     applications: root.apps
     profiles: shellConfig.launchProfiles
+    presentationWindows: root.windows
     onApplyFinished: root.scheduleStateSnapshot()
+  }
+  HyprlandClientSnapshot {
+    id: clientSnapshot
+    onSucceeded: function(clients) { root.acceptClientSnapshot(clients); }
+    onFailed: function(reason) { root.rejectClientSnapshot(reason); }
   }
   MotionTransition {
     id: surfaceTransition
@@ -53,6 +59,7 @@ Scope {
   property bool historyLoaded: false
   property var pendingFocusTarget: null
   property string pendingProfileApplyId: ""
+  property bool stateRefreshQueued: false
 
   readonly property int maxAppReloadAttempts: 30
   readonly property int maxWarmReloadAttempts: 40
@@ -87,6 +94,7 @@ Scope {
     appReloadAttempts = 0;
     loadingApps = true;
     search.text = "";
+    windows = [];
     reloadApps();
     refreshState();
     refreshHistory();
@@ -149,8 +157,9 @@ Scope {
   }
 
   function refreshState() {
-    snapshotHyprlandState();
-    Hyprland.refreshToplevels();
+    snapshotActiveWindow();
+    if (!clientSnapshot.request())
+      stateRefreshQueued = true;
   }
 
   function refreshHistory() {
@@ -159,18 +168,35 @@ Scope {
 
   function scheduleStateSnapshot() {
     if (open)
-      nativeStateTimer.restart();
+      clientStateTimer.restart();
   }
 
-  function snapshotHyprlandState() {
-    const preferredId = selectedEntryId();
-    const preferredWindowAddress = selectedWindowAddress();
-    const preferredTabKey = selectedTabKey();
-    windows = (Hyprland.toplevels.values || []).map(HyprlandWindow.dataForToplevel);
+  function snapshotActiveWindow() {
     const current = Hyprland.activeToplevel
       || (Hyprland.toplevels.values || []).find(function(toplevel) { return toplevel?.activated; });
     activeWindow = current ? HyprlandWindow.dataForToplevel(current) : {};
+  }
+
+  function finishClientSnapshot() {
+    const queued = stateRefreshQueued;
+    stateRefreshQueued = false;
+    if (queued && open)
+      Qt.callLater(function() { refreshState(); });
+  }
+
+  function acceptClientSnapshot(clients) {
+    const preferredId = selectedEntryId();
+    const preferredWindowAddress = selectedWindowAddress();
+    const preferredTabKey = selectedTabKey();
+    windows = LauncherSearch.manageableClients(clients);
+    snapshotActiveWindow();
     applyFilter(preferredId, preferredWindowAddress, preferredTabKey);
+    finishClientSnapshot();
+  }
+
+  function rejectClientSnapshot(reason) {
+    console.error("launcher: authoritative client snapshot failed: " + reason);
+    finishClientSnapshot();
   }
 
   function loadHistory(raw) {
@@ -395,7 +421,7 @@ Scope {
         entry: {
           id: "window-" + (windowClass || key),
           name: windowClass || String(win?.title || "Unknown application"),
-          icon: "application-x-executable"
+          icon: "applications-other"
         },
         window: win,
         identityScore: -1
@@ -470,6 +496,21 @@ Scope {
     }
 
     return result;
+  }
+
+  function iconSource(icon) {
+    const value = String(icon || "").trim();
+    if (value.startsWith("/"))
+      return "file://" + value;
+    if (value.indexOf(":") >= 0)
+      return value;
+    if (value.length > 0 && Quickshell.hasThemeIcon(value))
+      return Quickshell.iconPath(value);
+
+    const fallback = "applications-other";
+    return Quickshell.hasThemeIcon(fallback)
+      ? Quickshell.iconPath(fallback)
+      : "";
   }
 
   function selectedEntryId() {
@@ -751,10 +792,10 @@ Scope {
   }
 
   Timer {
-    id: nativeStateTimer
+    id: clientStateTimer
     interval: 0
     repeat: false
-    onTriggered: root.snapshotHyprlandState()
+    onTriggered: root.refreshState()
   }
 
   Instantiator {
@@ -1209,6 +1250,7 @@ Scope {
     readonly property bool focusMode: mode === "focus"
     readonly property bool profileMode: !focusMode && item?.kind === "profile"
     readonly property bool tabMode: focusMode && item?.kind === "tab"
+    readonly property string entryIconSource: root.iconSource(entry?.icon)
     readonly property bool targetActive: tabMode
       ? Boolean(targetTab?.current)
       : focusMode && root.isActiveWindow(targetWindow)
@@ -1281,11 +1323,22 @@ Scope {
         border.width: 1
 
         IconImage {
+          visible: row.entryIconSource.length > 0
           anchors.centerIn: parent
           width: row.focusMode ? 27 : 30
           height: width
           asynchronous: true
-          source: Quickshell.iconPath(row.entry?.icon || "", "application-x-executable")
+          source: row.entryIconSource
+        }
+
+        Text {
+          visible: row.entryIconSource.length === 0
+          anchors.centerIn: parent
+          text: "◇"
+          color: row.selected ? row.accent : root.muted
+          font.family: theme.fontFamily
+          font.pixelSize: row.focusMode ? 22 : 24
+          font.bold: true
         }
       }
 

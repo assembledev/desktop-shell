@@ -29,6 +29,40 @@ TestCase {
     compare(ProfileLogic.matchingWindows(applications[0], [browser]).length, 0);
   }
 
+  function test_launcher_identity_never_uses_window_title() {
+    const browser = {
+      address: "0x1",
+      class: "librewolf",
+      title: "ChatGPT - LibreWolf",
+      workspace: { id: 2 }
+    };
+    compare(LauncherSearch.appWindowIdentityScore(applications[0], browser), -1);
+  }
+
+  function test_launcher_identity_uses_technical_class() {
+    const client = {
+      address: "0x2",
+      class: "chatgpt",
+      title: "Unrelated title",
+      workspace: { id: 1 }
+    };
+    verify(LauncherSearch.appWindowIdentityScore(applications[0], client) >= 0);
+  }
+
+  function test_launcher_presents_only_manageable_authoritative_clients() {
+    const clients = [
+      { address: "0x1", class: "steam", mapped: true, hidden: false },
+      { address: "0x2", class: "steam", mapped: false, hidden: false },
+      { address: "0x3", class: "steam", mapped: true, hidden: true },
+      { address: "", class: "steam", mapped: true, hidden: false },
+      null
+    ];
+    const visible = LauncherSearch.manageableClients(clients);
+    compare(visible.length, 1);
+    compare(visible[0].address, "0x1");
+    compare(LauncherSearch.manageableClients({}).length, 0);
+  }
+
   function test_hidden_client_keeps_identity_but_is_not_a_manageable_target() {
     const hidden = {
       address: "0xaaa",

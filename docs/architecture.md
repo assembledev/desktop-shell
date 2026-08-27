@@ -42,11 +42,15 @@ their own dispatch vocabulary. The adapter targets Hyprland's Lua dispatcher
 API. Supporting another compositor would require a complete integration with
 equivalent focus, workspace, layer-shell, and screencopy behavior.
 
-Launcher window state comes from Quickshell's persistent Hyprland model.
-Applying a profile takes one authoritative `j/clients` snapshot over the native
-request socket, then serializes moves on `movewindowv2` events from the native
-event socket. Application dispatch and atomic launcher-history writes stay in
-QML; the latency-sensitive path does not spawn the command backend.
+Launcher membership, open-window counts, focus results, and profile summaries
+come from authoritative `j/clients` snapshots over Hyprland's native request
+socket. Quickshell's persistent Hyprland model supplies change notifications
+and the active-toplevel signal, but it is not treated as a client registry
+because transient or removed toplevel objects may outlive compositor clients.
+Profile application takes its own authoritative snapshot, then serializes moves
+on `movewindowv2` events from the native event socket. Application dispatch and
+atomic launcher-history writes stay in QML; the latency-sensitive path does not
+spawn the command backend.
 
 ### Command backend
 

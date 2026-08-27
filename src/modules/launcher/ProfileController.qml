@@ -12,6 +12,7 @@ Scope {
 
   required property var applications
   required property var profiles
+  required property var presentationWindows
 
   signal applyFinished(string profileId, bool success)
 
@@ -70,7 +71,7 @@ Scope {
 
   function snapshot(profileId) {
     const entries = profileApplications(profileId);
-    return ProfileLogic.snapshot(entries, applications, currentWindows());
+    return ProfileLogic.snapshot(entries, applications, presentationWindows || []);
   }
 
   function summary(profileId) {
@@ -89,7 +90,7 @@ Scope {
 
   function resultEntries(query) {
     const result = [];
-    const windows = currentWindows();
+    const windows = presentationWindows || [];
     for (const profileId of Object.keys(profiles || {}).sort()) {
       const configured = profile(profileId);
       let score = 0;

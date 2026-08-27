@@ -121,25 +121,21 @@ function appWindowManageableTechnicalIdentityScore(app, win) {
 }
 
 function appWindowIdentityScore(app, win) {
-  const technicalScore = appWindowManageableTechnicalIdentityScore(app, win);
-  if (technicalScore >= 0)
-    return technicalScore;
+  // Titles are presentation and search text, not application identity. Using
+  // them here makes a browser tab or a stale transient window impersonate an
+  // unrelated desktop entry and inflates the launcher's open-window count.
+  return appWindowManageableTechnicalIdentityScore(app, win);
+}
 
-  if (!win || win.hidden)
-    return -1;
-
-  const name = normalize(app?.name);
-  const id = normalize(app?.id);
-  const cls = normalize(win?.class || win?.initialClass);
-  const title = normalize(win?.title || win?.initialTitle);
-
-  if (id.length > 0 && cls.indexOf(id) >= 0)
-    return 520;
-  if (name.length > 0 && cls === name)
-    return 500;
-  if (name.length > 0 && title.indexOf(name) >= 0)
-    return 100;
-  return -1;
+function manageableClients(clients) {
+  if (!Array.isArray(clients))
+    return [];
+  return clients.filter(function(win) {
+    return win
+      && win.hidden !== true
+      && win.mapped !== false
+      && String(win.address || "").trim().length > 0;
+  });
 }
 
 function applicationForWindow(applications, win) {
