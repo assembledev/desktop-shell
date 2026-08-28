@@ -125,10 +125,7 @@ Scope {
     }
 
     function onError(error) {
-      root.resetInput();
-      root.failed = true;
-      root.message = error.length > 0 ? error : "Authentication error";
-      root.refocus();
+      Qt.quit();
     }
   }
 
