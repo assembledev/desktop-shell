@@ -172,7 +172,7 @@ module does not take ownership of its monitor policy.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `bar.compact` | `false` | Reduce spacing in the landscape bar |
+| `bar.compact` | `false` | Select the compact landscape spacing density while preserving the bar's group hierarchy |
 | `bar.showVram` | `true` | Show VRAM metrics when available |
 | `bar.workspaceIcons` | `true` | Show application icons in workspace controls |
 | `bar.networkControls` | `[]` | Ordered generic status/toggle providers |
@@ -181,6 +181,13 @@ The landscape bar allocates both sides around the centered clock from their
 measured content. When space is constrained it shortens the clock to the time
 and collapses the active workspace title before allowing either side to cross
 the center; wider outputs keep the full date and expanded workspace.
+
+Bar spacing follows a semantic 2 px scale owned by `BarSpacing.qml`. The bar
+edge uses `edgeInset`; tray, status, and action clusters are separated by
+`groupGap`; parents place neighboring controls with `itemGap`; and controls own
+only their internal `itemPadding` and `contentGap`. Compact mode selects denser
+landscape values from the same hierarchy instead of applying per-control
+margin exceptions; portrait mode retains touch-sized actions and padding.
 
 ## Keyboard layout labels
 

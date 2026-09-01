@@ -8,9 +8,11 @@ Item {
 
   property string backend
   property string configPath
-  property bool compact: false
   property bool pollingEnabled: true
   property int targetHeight: 37
+  required property int itemPadding
+  required property int itemGap
+  required property int contentGap
   property var controls: []
   property var statusById: ({})
   property int refreshNonce: 0
@@ -22,7 +24,6 @@ Item {
   visible: controls.length > 0
   Layout.preferredWidth: visible ? content.implicitWidth : 0
   Layout.preferredHeight: targetHeight
-  Layout.rightMargin: visible ? (compact ? 5 : 12) : 0
 
   Theme {
     id: theme
@@ -309,7 +310,7 @@ Item {
   RowLayout {
     id: content
     anchors.centerIn: parent
-    spacing: network.compact ? 4 : 6
+    spacing: network.itemGap
 
     Repeater {
       model: network.controls
@@ -318,7 +319,7 @@ Item {
         required property int index
         required property var modelData
 
-        spacing: network.compact ? 4 : 6
+        spacing: network.itemGap
 
         Item {
           id: statusItem
@@ -328,7 +329,7 @@ Item {
           readonly property bool busy: Boolean(currentStatus.busy)
           readonly property bool failed: String(currentStatus.error || "").length > 0
 
-          Layout.preferredWidth: statusContent.implicitWidth + 10
+          Layout.preferredWidth: statusContent.implicitWidth + network.itemPadding * 2
           Layout.preferredHeight: network.targetHeight
           scale: itemMouse.pressed ? 0.94 : (itemMouse.containsMouse ? 1.025 : 1)
 
@@ -353,7 +354,7 @@ Item {
           Row {
             id: statusContent
             anchors.centerIn: parent
-            spacing: 6
+            spacing: network.contentGap
 
             Image {
               width: 18

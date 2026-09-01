@@ -23,6 +23,12 @@ Scope {
     id: shellConfig
   }
 
+  BarSpacing {
+    id: barSpacing
+    compact: root.compact
+    portrait: root.portraitMode
+  }
+
   HyprlandAdapter {
     id: hyprland
   }
@@ -83,16 +89,14 @@ Scope {
   readonly property int textOpticalYOffset: 1
   readonly property int trayIconSize: portraitMode ? 36 : 20
   readonly property int trayIconImageSize: 20
-  readonly property int trayExpandedSpacing: portraitMode ? 2 : 8
-  readonly property int trayCompactSpacing: portraitMode ? 0 : 4
+  readonly property int trayExpandedSpacing: portraitMode ? barSpacing.portraitTrayItemGap : barSpacing.trayItemGap
+  readonly property int trayCompactSpacing: portraitMode ? barSpacing.portraitTrayTightGap : barSpacing.trayTightGap
   readonly property int trayOverflowButtonWidth: portraitMode ? 40 : 34
-  readonly property int trayStatusGap: 17
-  readonly property int portraitTrayStatusGap: 6
-  readonly property int trayClockSafeMargin: 20
-  readonly property int desktopOuterMargin: 15
+  readonly property int desktopCenterClearance: barSpacing.centerClearance
+  readonly property int desktopEdgeInset: barSpacing.edgeInset
   readonly property int desktopWorkspaceCompactWidth: 68
   readonly property int desktopWorkspaceExpandedWidth: 280
-  readonly property int desktopWorkspaceSpacing: 6
+  readonly property int desktopWorkspaceGap: barSpacing.workspaceGap
   readonly property int portraitTitleReserve: portraitNarrow ? 120 : 170
   readonly property var trayItems: prioritizedTrayItems()
   readonly property int trayItemCount: trayItems.length
@@ -102,13 +106,13 @@ Scope {
         desktopWorkspaceCount,
         desktopWorkspaceCompactWidth,
         desktopWorkspaceExpandedWidth,
-        desktopWorkspaceSpacing,
+        desktopWorkspaceGap,
         true)
     : 0
   readonly property real desktopMinimumTrayWidth: BarLayout.minimumTrayWidth(
     trayItemCount, trayIconSize, trayOverflowButtonWidth)
   readonly property real desktopMinimumRightWidth: Number(rightStatusRow.implicitWidth || 0)
-    + (desktopMinimumTrayWidth > 0 ? desktopMinimumTrayWidth + trayStatusGap : 0)
+    + (desktopMinimumTrayWidth > 0 ? desktopMinimumTrayWidth + barSpacing.groupGap : 0)
   readonly property real desktopFullClockWidth: Number(fullClockMeasure.implicitWidth || 0)
   readonly property bool desktopCompactClock: !portraitMode && !recording
     && BarLayout.shouldUseCompactClock(
@@ -116,32 +120,33 @@ Scope {
       desktopFullClockWidth,
       desktopPreferredWorkspaceWidth,
       desktopMinimumRightWidth,
-      desktopOuterMargin,
-      trayClockSafeMargin)
+      desktopEdgeInset,
+      desktopCenterClearance)
   readonly property string desktopClockText: desktopCompactClock ? clockTimeText : clockText
   readonly property real desktopSideAvailableWidth: BarLayout.availableSideWidth(
     Number(barWindow.width || 0),
     Number(clockTarget.width || 0),
-    desktopOuterMargin,
-    trayClockSafeMargin)
+    desktopEdgeInset,
+    desktopCenterClearance)
   readonly property bool desktopExpandActiveWorkspace: workspaceIcons
     && BarLayout.shouldExpandActiveWorkspace(
       desktopSideAvailableWidth,
       desktopWorkspaceCount,
       desktopWorkspaceCompactWidth,
       desktopWorkspaceExpandedWidth,
-      desktopWorkspaceSpacing)
+      desktopWorkspaceGap)
   readonly property real desktopTrayWidthBudget: Number(barWindow.width || 0) / 2
     - Number(clockTarget.width || 0) / 2
-    - trayClockSafeMargin
-    - desktopOuterMargin
+    - desktopCenterClearance
+    - desktopEdgeInset
     - Number(rightStatusRow.implicitWidth || 0)
-    - trayStatusGap
+    - barSpacing.groupGap
   readonly property real portraitTrayWidthBudget: Number(barWindow.width || 0)
     - portraitTitleReserve
     - Number(portraitFixedStatusRow.implicitWidth || 0)
-    - portraitTrayStatusGap
-    - 28
+    - barSpacing.groupGap
+    - barSpacing.portraitEdgeInset * 2
+    - barSpacing.itemGap
   readonly property real trayWidthBudget: Math.max(0, portraitMode
     ? portraitTrayWidthBudget
     : desktopTrayWidthBudget)
@@ -155,8 +160,8 @@ Scope {
   readonly property int trayShelfWidth: trayShelfColumns * trayIconSize + Math.max(0, trayShelfColumns - 1) * trayShelfSpacing + 20
   readonly property int trayShelfHeight: trayShelfRows * trayIconSize + Math.max(0, trayShelfRows - 1) * trayShelfSpacing + 20
   readonly property real trayShelfRightMargin: portraitMode
-    ? 10 + Number(portraitFixedStatusRow.implicitWidth || 0) + portraitTrayStatusGap
-    : 15 + Number(rightStatusRow.implicitWidth || 0) + trayStatusGap
+    ? barSpacing.portraitEdgeInset + Number(portraitFixedStatusRow.implicitWidth || 0) + barSpacing.groupGap
+    : barSpacing.edgeInset + Number(rightStatusRow.implicitWidth || 0) + barSpacing.groupGap
 
   MotionTransition {
     id: barTransition
@@ -660,53 +665,57 @@ Scope {
         RowLayout {
           visible: !root.portraitMode
           anchors.left: parent.left
-          anchors.leftMargin: 15
+          anchors.leftMargin: barSpacing.edgeInset
           anchors.right: clockTarget.left
-          anchors.rightMargin: 20
+          anchors.rightMargin: barSpacing.centerClearance
           anchors.verticalCenter: parent.verticalCenter
-          spacing: root.workspaceIcons ? 6 : 10
+          spacing: barSpacing.groupGap
 
-          Repeater {
-            model: root.workspaceIcons ? shellConfig.workspaces : []
-            delegate: WorkspaceIconButton {
-              required property var modelData
-              workspaceId: modelData.id
-              label: modelData.label
-              active: root.workspaceActive(workspaceId)
-              occupied: root.workspaceOccupied(workspaceId)
-              applications: {
-                root.workspaceIconRevision;
-                return root.workspaceApplications(workspaceId);
+          RowLayout {
+            spacing: root.workspaceIcons ? barSpacing.workspaceGap : barSpacing.workspaceTextGap
+
+            Repeater {
+              model: root.workspaceIcons ? shellConfig.workspaces : []
+              delegate: WorkspaceIconButton {
+                required property var modelData
+                workspaceId: modelData.id
+                label: modelData.label
+                active: root.workspaceActive(workspaceId)
+                occupied: root.workspaceOccupied(workspaceId)
+                applications: {
+                  root.workspaceIconRevision;
+                  return root.workspaceApplications(workspaceId);
+                }
+                activeTitle: active ? root.activeTitle : ""
+                activeColor: theme.blue
+                textColor: theme.text
+                mutedColor: theme.mutedAlt
+                hoverColor: theme.surfaceAccent
+                compactWidth: root.desktopWorkspaceCompactWidth
+                expandedWidth: root.desktopWorkspaceExpandedWidth
+                expandActive: root.desktopExpandActiveWorkspace
+                targetHeight: root.desktopBarHeight
+                onClicked: root.focusWorkspace(workspaceId)
               }
-              activeTitle: active ? root.activeTitle : ""
-              activeColor: theme.blue
-              textColor: theme.text
-              mutedColor: theme.mutedAlt
-              hoverColor: theme.surfaceAccent
-              compactWidth: root.desktopWorkspaceCompactWidth
-              expandedWidth: root.desktopWorkspaceExpandedWidth
-              expandActive: root.desktopExpandActiveWorkspace
-              targetHeight: root.desktopBarHeight
-              onClicked: root.focusWorkspace(workspaceId)
             }
-          }
 
-          Repeater {
-            model: root.workspaceIcons ? [] : shellConfig.workspaces
-            delegate: WorkspaceButton {
-              required property var modelData
-              workspaceId: modelData.id
-              label: modelData.label
-              active: root.workspaceActive(workspaceId)
-              occupied: root.workspaceOccupied(workspaceId)
-              onClicked: root.focusWorkspace(workspaceId)
+            Repeater {
+              model: root.workspaceIcons ? [] : shellConfig.workspaces
+              delegate: WorkspaceButton {
+                required property var modelData
+                workspaceId: modelData.id
+                label: modelData.label
+                active: root.workspaceActive(workspaceId)
+                occupied: root.workspaceOccupied(workspaceId)
+                onClicked: root.focusWorkspace(workspaceId)
+              }
             }
           }
 
           Text {
+            visible: !root.workspaceIcons
             Layout.fillWidth: true
-            Layout.leftMargin: 10
-            text: root.workspaceIcons ? "" : root.activeTitle
+            text: root.activeTitle
             color: text.length > 0 ? theme.text : "transparent"
             font.family: theme.fontFamily
             font.pixelSize: 16
@@ -766,15 +775,14 @@ Scope {
         RowLayout {
           visible: !root.portraitMode
           anchors.right: parent.right
-          anchors.rightMargin: 15
+          anchors.rightMargin: barSpacing.edgeInset
           anchors.verticalCenter: parent.verticalCenter
-          spacing: 0
+          spacing: barSpacing.groupGap
 
           Item {
             visible: root.trayItemCount > 0
             Layout.preferredWidth: visible ? trayInlineRow.implicitWidth : 0
             Layout.preferredHeight: root.barHeight
-            Layout.rightMargin: visible ? root.trayStatusGap : 0
 
             RowLayout {
               id: trayInlineRow
@@ -806,105 +814,111 @@ Scope {
 
           RowLayout {
             id: rightStatusRow
-            spacing: 0
+            spacing: barSpacing.groupGap
 
-            BarSegment {
-              visible: Boolean(root.sink?.ready && root.sink?.audio)
-              icon: root.sink?.audio?.muted ? "󰖁" : "󰕾"
-              label: root.sink?.audio?.muted ? "OFF" : Math.round((root.sink?.audio?.volume || 0) * 100) + "%"
-              iconColor: theme.blue
-              clickable: true
-              onClicked: {
-                if (root.sink?.audio)
-                  root.sink.audio.muted = !root.sink.audio.muted;
+            RowLayout {
+              id: desktopStatusGroup
+              spacing: barSpacing.itemGap
+
+              BarSegment {
+                visible: Boolean(root.sink?.ready && root.sink?.audio)
+                icon: root.sink?.audio?.muted ? "󰖁" : "󰕾"
+                label: root.sink?.audio?.muted ? "OFF" : Math.round((root.sink?.audio?.volume || 0) * 100) + "%"
+                iconColor: theme.blue
+                clickable: true
+                onClicked: {
+                  if (root.sink?.audio)
+                    root.sink.audio.muted = !root.sink.audio.muted;
+                }
               }
-            }
 
-            NetworkControls {
-              backend: root.backend
-              configPath: root.networkControlsPath
-              compact: root.compact
-              pollingEnabled: !root.portraitMode
-            }
+              NetworkControls {
+                backend: root.backend
+                configPath: root.networkControlsPath
+                pollingEnabled: !root.portraitMode
+                itemPadding: barSpacing.itemPadding
+                itemGap: barSpacing.itemGap
+                contentGap: barSpacing.contentGap
+              }
 
-            BarSegment {
-              icon: "󰟜"
-              label: String(root.metrics.ramText || "--").split("/")[0]
-              iconColor: theme.green
-            }
-
-            BarSegment {
-              visible: root.showVram && root.metrics.hasVram
-              icon: "󰢮"
-              label: String(root.metrics.vramText || "--").split("/")[0]
-              iconColor: theme.blue
-            }
-
-            Loader {
-              id: batterySegmentLoader
-              active: root.battery.available
-              visible: active
-              Layout.preferredWidth: active && item ? item.preferredWidth : 0
-              Layout.preferredHeight: root.barHeight
-              Layout.rightMargin: active ? (root.compact ? 4 : 12) : 0
-
-              sourceComponent: BarSegment {
-                icon: root.batteryIcon()
-                label: Math.round(root.battery.capacity || 0) + "%"
+              BarSegment {
+                icon: "󰟜"
+                label: String(root.metrics.ramText || "--").split("/")[0]
                 iconColor: theme.green
-                textColor: Number(root.battery.capacity || 0) <= 15 && root.battery.status !== "Charging" ? theme.red : (Number(root.battery.capacity || 0) <= 30 && root.battery.status !== "Charging" ? theme.yellow : theme.text)
-                Layout.rightMargin: 0
-                onHoveredChanged: {
-                  root.batterySegmentHovered = hovered;
-                  root.updateBatteryAnalysisOpen();
+              }
+
+              BarSegment {
+                visible: root.showVram && root.metrics.hasVram
+                icon: "󰢮"
+                label: String(root.metrics.vramText || "--").split("/")[0]
+                iconColor: theme.blue
+              }
+
+              Loader {
+                id: batterySegmentLoader
+                active: root.battery.available
+                visible: active
+                Layout.preferredWidth: active && item ? item.preferredWidth : 0
+                Layout.preferredHeight: root.barHeight
+
+                sourceComponent: BarSegment {
+                  icon: root.batteryIcon()
+                  label: Math.round(root.battery.capacity || 0) + "%"
+                  iconColor: theme.green
+                  textColor: Number(root.battery.capacity || 0) <= 15 && root.battery.status !== "Charging" ? theme.red : (Number(root.battery.capacity || 0) <= 30 && root.battery.status !== "Charging" ? theme.yellow : theme.text)
+                  onHoveredChanged: {
+                    root.batterySegmentHovered = hovered;
+                    root.updateBatteryAnalysisOpen();
+                  }
                 }
               }
             }
 
-            BarSegment {
-              icon: ""
-              label: root.keyboardLabel()
-              iconColor: theme.yellow
-              Layout.leftMargin: root.compact ? 4 : 18
-              Layout.rightMargin: 2
-              preferredWidth: 56
-            }
+            RowLayout {
+              id: desktopActionGroup
+              spacing: barSpacing.itemGap
 
-            NotificationSegment {
-              icon: root.notificationStatus.text || ""
-              unread: root.notificationUnread
-              dnd: root.dnd
-              onClicked: Quickshell.execDetached([root.backend, "toggle"])
-            }
-
-            Text {
-              id: powerIcon
-              Layout.leftMargin: 2
-              Layout.rightMargin: 0
-              Layout.preferredWidth: 32
-              text: ""
-              color: powerMouse.containsMouse || root.powerMenuOpen ? theme.brightRed : theme.red
-              font.family: theme.fontFamily
-              font.pixelSize: 21
-              font.bold: true
-              horizontalAlignment: Text.AlignHCenter
-              verticalAlignment: Text.AlignVCenter
-              topPadding: root.textOpticalYOffset
-              scale: powerMouse.pressed ? 0.86 : (powerMouse.containsMouse ? 1.08 : 1)
-
-              Behavior on color {
-                MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-              }
-              Behavior on scale {
-                MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+              BarSegment {
+                icon: ""
+                label: root.keyboardLabel()
+                iconColor: theme.yellow
               }
 
-              MouseArea {
-                id: powerMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.powerMenuOpen = !root.powerMenuOpen
+              NotificationSegment {
+                icon: root.notificationStatus.text || ""
+                unread: root.notificationUnread
+                dnd: root.dnd
+                onClicked: Quickshell.execDetached([root.backend, "toggle"])
+              }
+
+              Text {
+                id: powerIcon
+                Layout.preferredWidth: barSpacing.actionSize
+                Layout.preferredHeight: root.barHeight
+                text: ""
+                color: powerMouse.containsMouse || root.powerMenuOpen ? theme.brightRed : theme.red
+                font.family: theme.fontFamily
+                font.pixelSize: 21
+                font.bold: true
+                horizontalAlignment: Text.AlignHCenter
+                verticalAlignment: Text.AlignVCenter
+                topPadding: root.textOpticalYOffset
+                scale: powerMouse.pressed ? 0.86 : (powerMouse.containsMouse ? 1.08 : 1)
+
+                Behavior on color {
+                  MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+                }
+                Behavior on scale {
+                  MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+                }
+
+                MouseArea {
+                  id: powerMouse
+                  anchors.fill: parent
+                  hoverEnabled: true
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.powerMenuOpen = !root.powerMenuOpen
+                }
               }
             }
           }
@@ -917,9 +931,9 @@ Scope {
 
           Rectangle {
             anchors.left: parent.left
-            anchors.leftMargin: 10
+            anchors.leftMargin: barSpacing.portraitEdgeInset
             anchors.right: parent.right
-            anchors.rightMargin: 10
+            anchors.rightMargin: barSpacing.portraitEdgeInset
             y: root.portraitPrimaryHeight
             height: 1
             color: Qt.alpha(theme.borderSubtle, 0.68)
@@ -928,10 +942,10 @@ Scope {
           RowLayout {
             id: portraitWorkspaceRow
             anchors.left: parent.left
-            anchors.leftMargin: 10
+            anchors.leftMargin: barSpacing.portraitEdgeInset
             anchors.top: parent.top
             height: root.portraitPrimaryHeight
-            spacing: root.workspaceIcons ? 6 : 10
+            spacing: root.workspaceIcons ? barSpacing.workspaceGap : barSpacing.workspaceTextGap
 
             Repeater {
               model: root.workspaceIcons ? shellConfig.workspaces : []
@@ -950,7 +964,7 @@ Scope {
                 textColor: theme.text
                 mutedColor: theme.mutedAlt
                 hoverColor: theme.surfaceAccent
-                compactWidth: 68
+                compactWidth: root.desktopWorkspaceCompactWidth
                 expandActive: false
                 targetHeight: root.portraitPrimaryHeight
                 onClicked: root.focusWorkspace(workspaceId)
@@ -1011,10 +1025,10 @@ Scope {
 
           RowLayout {
             anchors.right: parent.right
-            anchors.rightMargin: 8
+            anchors.rightMargin: barSpacing.portraitEdgeInset
             anchors.top: parent.top
             height: root.portraitPrimaryHeight
-            spacing: 0
+            spacing: barSpacing.itemGap
 
             BarSegment {
               visible: !root.portraitNarrow
@@ -1022,9 +1036,6 @@ Scope {
               label: root.keyboardLabel()
               iconColor: theme.yellow
               targetHeight: root.portraitPrimaryHeight
-              Layout.leftMargin: root.compact ? 4 : 18
-              Layout.rightMargin: 2
-              preferredWidth: 56
             }
 
             NotificationSegment {
@@ -1037,9 +1048,7 @@ Scope {
 
             Text {
               id: portraitPowerIcon
-              Layout.leftMargin: 2
-              Layout.rightMargin: 0
-              Layout.preferredWidth: 32
+              Layout.preferredWidth: barSpacing.actionSize
               Layout.preferredHeight: root.portraitPrimaryHeight
               text: ""
               color: portraitPowerMouse.containsMouse || root.powerMenuOpen ? theme.brightRed : theme.red
@@ -1070,13 +1079,13 @@ Scope {
 
           RowLayout {
             anchors.left: parent.left
-            anchors.leftMargin: 14
+            anchors.leftMargin: barSpacing.portraitEdgeInset
             anchors.right: parent.right
-            anchors.rightMargin: 10
+            anchors.rightMargin: barSpacing.portraitEdgeInset
             anchors.top: parent.top
             anchors.topMargin: root.portraitPrimaryHeight + 1
             anchors.bottom: parent.bottom
-            spacing: 6
+            spacing: barSpacing.groupGap
 
             Text {
               Layout.fillWidth: true
@@ -1099,7 +1108,6 @@ Scope {
               visible: root.trayItemCount > 0
               Layout.preferredWidth: visible ? portraitTrayInlineRow.implicitWidth : 0
               Layout.preferredHeight: root.portraitSecondaryHeight
-              Layout.rightMargin: visible ? root.portraitTrayStatusGap : 0
 
               RowLayout {
                 id: portraitTrayInlineRow
@@ -1131,7 +1139,7 @@ Scope {
 
             RowLayout {
               id: portraitFixedStatusRow
-              spacing: 0
+              spacing: barSpacing.itemGap
 
               BarSegment {
                 visible: Boolean(root.sink?.ready && root.sink?.audio)
@@ -1149,9 +1157,11 @@ Scope {
               NetworkControls {
                 backend: root.backend
                 configPath: root.networkControlsPath
-                compact: root.compact
                 pollingEnabled: root.portraitMode
                 targetHeight: root.portraitSecondaryHeight
+                itemPadding: barSpacing.itemPadding
+                itemGap: barSpacing.itemGap
+                contentGap: barSpacing.contentGap
               }
 
               BarSegment {
@@ -1527,19 +1537,17 @@ Scope {
     property color textColor: theme.text
     property bool clickable: false
     readonly property bool hovered: segmentMouse.containsMouse
-    property int preferredWidth: content.implicitWidth + 14
+    property int preferredWidth: content.implicitWidth + barSpacing.itemPadding * 2
     property int targetHeight: root.barHeight
     signal clicked
 
     Layout.preferredWidth: preferredWidth
     Layout.preferredHeight: targetHeight
-    Layout.leftMargin: 0
-    Layout.rightMargin: root.compact ? 4 : 12
 
     Row {
       id: content
       anchors.centerIn: parent
-      spacing: 5
+      spacing: barSpacing.contentGap
       scale: segmentMouse.pressed ? 0.92 : (segment.hovered ? 1.035 : 1)
 
       Behavior on scale {
@@ -1589,7 +1597,6 @@ Scope {
     implicitHeight: 24
     Layout.preferredWidth: implicitWidth
     Layout.preferredHeight: implicitHeight
-    Layout.leftMargin: 4
     radius: 8
     color: Qt.alpha(theme.brightRed, 0.12)
     border.color: Qt.alpha(theme.brightRed, 0.5)
@@ -1727,10 +1734,8 @@ Scope {
     property int targetHeight: root.barHeight
     signal clicked
 
-    Layout.preferredWidth: 28
+    Layout.preferredWidth: barSpacing.actionSize
     Layout.preferredHeight: targetHeight
-    Layout.leftMargin: 2
-    Layout.rightMargin: 2
 
     Text {
       id: notificationIcon
