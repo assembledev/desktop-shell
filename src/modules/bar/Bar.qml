@@ -51,7 +51,7 @@ Scope {
     ? portraitPrimaryHeight + portraitSecondaryHeight
     : desktopBarHeight
 
-  readonly property string clockText: Qt.formatDateTime(clock.date, "ddd, MMMM dd HH:mm")
+  readonly property string clockText: Qt.formatDateTime(clock.date, "ddd, MMM dd HH:mm")
   readonly property string clockTimeText: Qt.formatDateTime(clock.date, "HH:mm")
   readonly property string clockDateText: Qt.formatDateTime(clock.date, "ddd, MMM d")
   property var metrics: ({ ramText: "--", hasVram: false, vramText: "--" })
