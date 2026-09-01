@@ -18,8 +18,8 @@ QtObject {
 
   readonly property int contentGap: dense ? space2 : space3
   readonly property int itemPadding: dense ? space2 : space3
-  readonly property int itemGap: space2
-  readonly property int groupGap: dense ? space4 : space6
+  readonly property int itemGap: space3
+  readonly property int groupGap: dense ? space5 : space6
 
   readonly property int edgeInset: space8
   readonly property int centerClearance: space10
@@ -27,8 +27,8 @@ QtObject {
   readonly property int workspaceGap: dense ? space2 : space3
   readonly property int workspaceTextGap: dense ? space4 : space5
 
-  readonly property int trayItemGap: dense ? space2 : space4
-  readonly property int trayTightGap: dense ? space1 : space2
+  readonly property int trayItemGap: dense ? space3 : space4
+  readonly property int trayTightGap: space2
   readonly property int portraitTrayItemGap: space1
   readonly property int portraitTrayTightGap: 0
   readonly property int actionSize: portrait ? 36 : (dense ? 28 : 32)
