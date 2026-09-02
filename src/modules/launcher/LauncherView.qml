@@ -76,12 +76,14 @@ Scope {
   readonly property color bg: theme.surfaceToast
   readonly property color bgRaised: theme.surfaceRaised
   readonly property color bgHover: theme.surfaceHover
-  readonly property color text: theme.foreground
-  readonly property color muted: theme.mutedAlt
-  readonly property color blue: theme.blue
-  readonly property color yellow: theme.yellow
-  readonly property color green: theme.green
-  readonly property color border: theme.border
+  readonly property color textPrimary: theme.textPrimary
+  readonly property color textMuted: theme.textMuted
+  readonly property color accent: theme.accent
+  readonly property color infoAccent: theme.info
+  readonly property color launchAccent: theme.utility
+  readonly property color focusAccent: theme.special
+  readonly property color resourceAccent: theme.resource
+  readonly property color modeAccent: mode === "focus" ? focusAccent : launchAccent
 
   function openLauncher() {
     if (pendingProfileApplyId.length > 0)
@@ -913,7 +915,7 @@ Scope {
           Layout.preferredHeight: 56
           radius: 10
           color: Qt.alpha(theme.surfaceGlass, 0.78)
-          border.color: search.activeFocus ? root.blue : Qt.alpha(theme.borderSubtle, 0.52)
+          border.color: search.activeFocus ? root.accent : Qt.alpha(theme.borderSubtle, 0.52)
           border.width: 1
 
           Text {
@@ -921,7 +923,7 @@ Scope {
             anchors.leftMargin: 18
             anchors.verticalCenter: parent.verticalCenter
             text: ""
-            color: root.blue
+            color: root.accent
             font.family: theme.fontFamily
             font.pixelSize: 18
           }
@@ -936,7 +938,7 @@ Scope {
             ModeText {
               label: "Launch"
               active: root.mode === "launch"
-              accent: root.yellow
+              accent: root.launchAccent
               onClicked: {
                 root.setMode("launch");
                 search.forceActiveFocus();
@@ -946,7 +948,7 @@ Scope {
             ModeText {
               label: "Focus"
               active: root.mode === "focus"
-              accent: root.green
+              accent: root.focusAccent
               onClicked: {
                 root.setMode("focus");
                 search.forceActiveFocus();
@@ -964,13 +966,13 @@ Scope {
             anchors.verticalCenter: parent.verticalCenter
             height: parent.height - 12
             background: null
-            color: root.text
+            color: root.textPrimary
             selectedTextColor: theme.bgSolid
-            selectionColor: root.blue
+            selectionColor: root.accent
             placeholderText: root.mode === "focus"
               ? "Search open windows and tabs"
               : "Search applications or @profile"
-            placeholderTextColor: root.muted
+            placeholderTextColor: root.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 16
             font.bold: true
@@ -1027,8 +1029,8 @@ Scope {
             height: list.currentItem?.height || 0
             y: list.currentItem?.y || 0
             radius: 10
-            color: Qt.alpha(root.mode === "focus" ? root.green : root.yellow, root.mode === "focus" ? 0.105 : 0.065)
-            border.color: Qt.alpha(root.mode === "focus" ? root.green : root.yellow, 0.42)
+            color: Qt.alpha(root.modeAccent, root.mode === "focus" ? 0.12 : 0.08)
+            border.color: Qt.alpha(root.modeAccent, 0.46)
             border.width: 1
             z: 1
 
@@ -1051,7 +1053,7 @@ Scope {
               anchors.bottom: parent.bottom
               width: 3
               radius: 2
-              color: root.mode === "focus" ? root.green : root.yellow
+              color: root.modeAccent
             }
           }
 
@@ -1121,7 +1123,7 @@ Scope {
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
               text: root.mode === "focus" ? "󰖯" : (root.launchProfileQuery() !== null ? "󰐕" : "")
-              color: root.mode === "focus" ? root.green : root.blue
+              color: root.mode === "focus" ? root.focusAccent : root.accent
               font.family: theme.fontFamily
               font.pixelSize: 22
             }
@@ -1129,7 +1131,7 @@ Scope {
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
               text: root.emptyResultTitle()
-              color: root.text
+              color: root.textPrimary
               font.family: theme.fontFamily
               font.pixelSize: 18
               font.bold: true
@@ -1138,7 +1140,7 @@ Scope {
             Text {
               anchors.horizontalCenter: parent.horizontalCenter
               text: root.emptyResultDetail()
-              color: root.muted
+              color: root.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 11
             }
@@ -1169,7 +1171,7 @@ Scope {
               text: root.mode === "focus"
                 ? "↑↓ select   ·   Tab switch mode   ·   ! tabs only"
                 : "↑↓ select   ·   @ profile   ·   Tab switch mode"
-              color: root.muted
+              color: root.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 10
             }
@@ -1184,7 +1186,7 @@ Scope {
                   return "Enter focus tab";
                 return "Enter focus   ·   Ctrl+Enter launch new";
               }
-              color: root.mode === "focus" ? root.green : root.yellow
+              color: root.modeAccent
               font.family: theme.fontFamily
               font.pixelSize: 10
               font.bold: true
@@ -1199,7 +1201,7 @@ Scope {
     id: switchText
     property string label: ""
     property bool active: false
-    property color accent: root.blue
+    property color accent: root.accent
     signal clicked()
 
     width: labelItem.implicitWidth
@@ -1216,7 +1218,7 @@ Scope {
       id: labelItem
       anchors.centerIn: parent
       text: switchText.label
-      color: switchText.active ? switchText.accent : root.muted
+      color: switchText.active ? switchText.accent : root.textMuted
       font.family: theme.fontFamily
       font.pixelSize: 12
       font.bold: true
@@ -1254,7 +1256,7 @@ Scope {
     readonly property bool targetActive: tabMode
       ? Boolean(targetTab?.current)
       : focusMode && root.isActiveWindow(targetWindow)
-    readonly property color accent: mode === "focus" ? root.green : root.yellow
+    readonly property color accent: root.modeAccent
     readonly property string primaryText: focusMode
       ? (tabMode
           ? String(targetTab?.title || "Untitled tab")
@@ -1283,7 +1285,7 @@ Scope {
     radius: 10
     color: !selected && rowHover.containsMouse
       ? theme.surfaceAccent
-      : (targetActive ? Qt.alpha(root.blue, 0.035) : "transparent")
+      : (targetActive ? Qt.alpha(root.infoAccent, 0.055) : "transparent")
     border.color: "transparent"
     border.width: 1
     scale: rowHover.pressed ? 0.985 : 1
@@ -1318,7 +1320,7 @@ Scope {
         radius: row.focusMode ? 10 : 11
         color: row.selected
           ? Qt.alpha(row.accent, 0.18)
-          : Qt.alpha(row.targetActive ? root.blue : row.accent, 0.09)
+          : Qt.alpha(row.targetActive ? root.infoAccent : row.accent, 0.09)
         border.color: row.selected ? Qt.alpha(row.accent, 0.28) : "transparent"
         border.width: 1
 
@@ -1335,7 +1337,7 @@ Scope {
           visible: row.entryIconSource.length === 0
           anchors.centerIn: parent
           text: "◇"
-          color: row.selected ? row.accent : root.muted
+          color: row.selected ? row.accent : root.textMuted
           font.family: theme.fontFamily
           font.pixelSize: row.focusMode ? 22 : 24
           font.bold: true
@@ -1350,7 +1352,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: row.primaryText
-          color: root.text
+          color: root.textPrimary
           elide: Text.ElideRight
           font.family: theme.fontFamily
           font.pixelSize: row.focusMode ? 14 : 16
@@ -1361,7 +1363,7 @@ Scope {
           visible: row.secondaryText.length > 0
           Layout.fillWidth: true
           text: row.secondaryText
-          color: row.focusMode && row.selected ? Qt.alpha(root.text, 0.72) : root.muted
+          color: row.focusMode && row.selected ? Qt.alpha(root.textPrimary, 0.72) : root.textMuted
           elide: Text.ElideRight
           font.family: theme.fontFamily
           font.pixelSize: 10
@@ -1376,7 +1378,7 @@ Scope {
         Text {
           visible: row.targetActive
           text: "CURRENT"
-          color: root.blue
+          color: root.infoAccent
           font.family: theme.fontFamily
           font.pixelSize: 9
           font.bold: true
@@ -1386,15 +1388,15 @@ Scope {
           Layout.preferredHeight: 24
           implicitWidth: workspaceText.implicitWidth + 16
           radius: 8
-          color: row.selected ? Qt.alpha(root.green, 0.10) : "transparent"
-          border.color: row.selected ? Qt.alpha(root.green, 0.36) : theme.borderMuted
+          color: row.selected ? Qt.alpha(root.focusAccent, 0.10) : "transparent"
+          border.color: row.selected ? Qt.alpha(root.focusAccent, 0.36) : theme.borderMuted
           border.width: 1
 
           Text {
             id: workspaceText
             anchors.centerIn: parent
             text: row.tabMode ? "TAB" : root.workspaceLabel(row.targetWindow)
-            color: row.selected ? root.green : (row.targetActive ? root.blue : root.muted)
+            color: row.selected ? root.focusAccent : (row.targetActive ? root.infoAccent : root.textMuted)
             font.family: theme.fontFamily
             font.pixelSize: 10
             font.bold: true
@@ -1408,14 +1410,14 @@ Scope {
         Layout.preferredHeight: 20
         implicitWidth: openLabel.implicitWidth + 14
         radius: 10
-        color: Qt.alpha(root.green, 0.08)
-        border.color: Qt.alpha(root.green, 0.24)
+        color: Qt.alpha(root.resourceAccent, 0.08)
+        border.color: Qt.alpha(root.resourceAccent, 0.24)
 
         Text {
           id: openLabel
           anchors.centerIn: parent
           text: row.wins.length + " OPEN"
-          color: root.green
+          color: root.resourceAccent
           font.family: theme.fontFamily
           font.pixelSize: 9
           font.bold: true
@@ -1428,14 +1430,14 @@ Scope {
         Layout.preferredHeight: 22
         implicitWidth: profileLabel.implicitWidth + 14
         radius: 10
-        color: Qt.alpha(root.yellow, 0.08)
-        border.color: Qt.alpha(root.yellow, 0.24)
+        color: Qt.alpha(root.launchAccent, 0.08)
+        border.color: Qt.alpha(root.launchAccent, 0.24)
 
         Text {
           id: profileLabel
           anchors.centerIn: parent
           text: "PROFILE"
-          color: root.yellow
+          color: root.launchAccent
           font.family: theme.fontFamily
           font.pixelSize: 9
           font.bold: true

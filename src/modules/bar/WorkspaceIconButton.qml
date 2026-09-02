@@ -27,6 +27,7 @@ Item {
 
   readonly property bool expanded: active && expandActive
   readonly property int shownApplicationCount: Math.min(3, applications?.length || 0)
+  readonly property real inactiveOpacity: occupied ? 0.86 : 0.55
   readonly property int labelWidth: Math.ceil(workspaceText.implicitWidth)
   readonly property int compactIconClusterWidth: shownApplicationCount === 1 ? 21
     : shownApplicationCount === 2 ? 34
@@ -102,7 +103,7 @@ Item {
     height: root.active ? 3 : 2
     radius: 2
     color: root.active ? root.activeColor : root.textColor
-    opacity: root.active ? 1 : 0.6
+    opacity: root.active ? 1 : root.inactiveOpacity
 
     Behavior on color {
       MotionColorAnimation { role: MotionNumberAnimation.Feedback }
@@ -230,7 +231,7 @@ Item {
         anchors.fill: parent
         text: root.label
         color: root.active ? root.activeColor : root.textColor
-        opacity: root.active ? 1 : (root.occupied ? 0.86 : 0.55)
+        opacity: root.active ? 1 : root.inactiveOpacity
         font.family: theme.fontFamily
         font.pixelSize: 17
         font.bold: true

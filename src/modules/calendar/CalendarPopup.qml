@@ -234,7 +234,7 @@ Scope {
               Text {
                 Layout.fillWidth: true
                 text: Qt.formatDate(root.today, "dddd").toUpperCase()
-                color: theme.yellow
+                color: theme.utility
                 font.family: theme.fontFamily
                 font.pixelSize: 11
                 font.bold: true
@@ -244,7 +244,7 @@ Scope {
               Text {
                 Layout.fillWidth: true
                 text: Qt.formatDate(root.today, "d MMMM yyyy")
-                color: theme.foreground
+                color: theme.textPrimary
                 font.family: theme.fontFamily
                 font.pixelSize: 22
                 font.bold: true
@@ -270,7 +270,7 @@ Scope {
               Text {
                 Layout.fillWidth: true
                 text: Qt.formatDate(new Date(root.viewYear, root.viewMonth, 1), "MMMM yyyy")
-                color: theme.text
+                color: theme.textSecondary
                 font.family: theme.fontFamily
                 font.pixelSize: 15
                 font.bold: true
@@ -303,8 +303,7 @@ Scope {
                 Layout.preferredWidth: 24
                 Layout.preferredHeight: 24
                 text: "#"
-                color: theme.muted
-                opacity: 0.72
+                color: theme.textMuted
                 font.family: theme.fontFamily
                 font.pixelSize: 9
                 font.bold: true
@@ -324,7 +323,7 @@ Scope {
                   required property string narrowName
 
                   text: narrowName.toUpperCase()
-                  color: theme.mutedAlt
+                  color: theme.textMuted
                   font.family: theme.fontFamily
                   font.pixelSize: 10
                   font.bold: true
@@ -344,8 +343,7 @@ Scope {
                   required property int weekNumber
 
                   text: weekNumber
-                  color: theme.muted
-                  opacity: 0.72
+                  color: theme.textMuted
                   font.family: theme.fontFamily
                   font.pixelSize: 9
                   font.bold: true
@@ -379,12 +377,12 @@ Scope {
                     width: 30
                     height: 30
                     radius: 9
-                    color: dayCell.isToday ? theme.blue : "transparent"
+                    color: dayCell.isToday ? theme.accent : "transparent"
 
                     Text {
                       anchors.centerIn: parent
                       text: dayCell.model.day
-                      color: dayCell.isToday ? theme.bgSolid : theme.text
+                      color: dayCell.isToday ? theme.textOnAccent : theme.textSecondary
                       font.family: theme.fontFamily
                       font.pixelSize: 12
                       font.bold: dayCell.isToday
@@ -400,7 +398,7 @@ Scope {
               Layout.alignment: Qt.AlignHCenter
               Layout.preferredHeight: 12
               text: "Return to today"
-              color: theme.blue
+              color: theme.accent
               opacity: root.currentMonth ? 0 : 1
               font.family: theme.fontFamily
               font.pixelSize: 10
@@ -430,7 +428,7 @@ Scope {
     Layout.preferredHeight: 30
     radius: 9
     color: mouse.containsMouse ? theme.surfaceHover : theme.surfaceMuted
-    border.color: mouse.containsMouse ? theme.blue : theme.borderMuted
+    border.color: mouse.containsMouse ? theme.accent : theme.borderMuted
     border.width: 1
     scale: mouse.pressed ? 0.92 : 1
 
@@ -444,7 +442,7 @@ Scope {
     Text {
       anchors.centerIn: parent
       text: button.icon
-      color: mouse.containsMouse ? theme.blue : theme.mutedAlt
+      color: mouse.containsMouse ? theme.accent : theme.textMuted
       font.family: theme.fontFamily
       font.pixelSize: 11
       font.bold: true

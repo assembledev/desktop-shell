@@ -717,7 +717,7 @@ Scope {
                 Text {
                   Layout.fillWidth: true
                   text: root.windowByAddress(root.selectedAddress)?.title || "No windows"
-                  color: theme.foreground
+                  color: theme.textPrimary
                   font.family: theme.fontFamily
                   font.pixelSize: 16
                   font.bold: true
@@ -731,7 +731,7 @@ Scope {
                       return "";
                     return (win.class || "Window") + " · workspace " + (win.workspace?.id || "");
                   }
-                  color: theme.terminalBlue
+                  color: theme.textMuted
                   font.family: theme.fontFamily
                   font.pixelSize: 11
                   elide: Text.ElideRight
@@ -748,7 +748,7 @@ Scope {
                     const count = root.orderedWindows().length;
                     count > 0 ? (index + 1) + " / " + count : "";
                   }
-                  color: theme.text
+                  color: theme.textSecondary
                   font.family: theme.fontFamily
                   font.pixelSize: 12
                 }
@@ -756,7 +756,7 @@ Scope {
                 Text {
                   Layout.alignment: Qt.AlignRight
                   text: "ARROWS select · RELEASE ALT focus · DRAG move"
-                  color: theme.mutedAlt
+                  color: theme.textMuted
                   font.family: theme.fontFamily
                   font.pixelSize: 9
                 }
@@ -846,8 +846,8 @@ Scope {
     Layout.fillWidth: true
     Layout.preferredHeight: titleHeight + contentHeight + previewPadding
     radius: 11
-    color: active ? Qt.alpha(theme.blue, 0.08) : Qt.alpha(theme.surfaceGlass, occupied ? 0.72 : 0.38)
-    border.color: moveTarget ? theme.purple : active ? Qt.alpha(theme.blue, 0.78) : Qt.alpha(theme.borderSubtle, occupied ? 0.54 : 0.26)
+    color: active ? Qt.alpha(theme.info, 0.08) : Qt.alpha(theme.surfaceGlass, occupied ? 0.72 : 0.38)
+    border.color: moveTarget ? theme.special : active ? Qt.alpha(theme.info, 0.78) : Qt.alpha(theme.borderSubtle, occupied ? 0.54 : 0.26)
     border.width: 1
     clip: !dragSource
     z: dragSource ? 100 : 0
@@ -892,7 +892,7 @@ Scope {
       anchors.leftMargin: 12
       anchors.topMargin: 9
       text: shellConfig.workspaceLabel(ws.workspace)
-      color: ws.active ? theme.blue : theme.foreground
+      color: ws.active ? theme.info : theme.textPrimary
       opacity: ws.occupied || ws.active ? 1 : 0.5
       font.family: theme.fontFamily
       font.pixelSize: 14
@@ -907,7 +907,7 @@ Scope {
       anchors.rightMargin: 12
       anchors.topMargin: 11
       text: "SCROLL · " + root.columnCount(ws.workspace) + " COLS"
-      color: theme.purple
+      color: theme.textMuted
       font.family: theme.fontFamily
       font.pixelSize: 9
       font.bold: true
@@ -918,10 +918,9 @@ Scope {
       visible: ws.workspaceWindows.length === 0
       anchors.centerIn: screenFrame
       text: "Empty workspace"
-      color: theme.muted
+      color: theme.textMuted
       font.family: theme.fontFamily
       font.pixelSize: 11
-      opacity: 0.5
       z: 3
     }
 
@@ -942,7 +941,7 @@ Scope {
       height: ws.viewportHeight
       radius: 6
       color: "transparent"
-      border.color: Qt.alpha(theme.purple, 0.9)
+      border.color: Qt.alpha(theme.special, 0.9)
       border.width: 1
       z: 35
 
@@ -952,7 +951,7 @@ Scope {
         anchors.rightMargin: 4
         anchors.topMargin: 2
         text: "VIEW"
-        color: theme.purple
+        color: theme.special
         font.family: theme.fontFamily
         font.pixelSize: 7
         font.bold: true
@@ -963,8 +962,8 @@ Scope {
       anchors.fill: screenFrame
       radius: screenFrame.radius
       visible: root.draggingAddress.length > 0
-      color: ws.moveTarget && !ws.dragSource ? Qt.alpha(theme.purple, 0.2) : Qt.alpha(theme.bgSolid, 0.32)
-      border.color: ws.moveTarget && !ws.dragSource ? theme.purple : Qt.alpha(theme.borderSubtle, 0.42)
+      color: ws.moveTarget && !ws.dragSource ? Qt.alpha(theme.special, 0.2) : Qt.alpha(theme.bgSolid, 0.32)
+      border.color: ws.moveTarget && !ws.dragSource ? theme.special : Qt.alpha(theme.borderSubtle, 0.42)
       border.width: ws.moveTarget && !ws.dragSource ? 2 : 1
       z: 45
 
@@ -975,7 +974,7 @@ Scope {
         Text {
           anchors.horizontalCenter: parent.horizontalCenter
           text: ws.moveTarget && !ws.dragSource ? "󰁔" : shellConfig.workspaceLabel(ws.workspace)
-          color: ws.moveTarget && !ws.dragSource ? theme.purple : theme.mutedAlt
+          color: ws.moveTarget && !ws.dragSource ? theme.special : theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: ws.moveTarget && !ws.dragSource ? 22 : 18
           font.bold: true
@@ -986,7 +985,7 @@ Scope {
           text: ws.dragSource ? "CURRENT WORKSPACE"
             : ws.moveTarget ? "RELEASE · MOVE HERE"
             : "WORKSPACE " + ws.workspace
-          color: ws.moveTarget && !ws.dragSource ? theme.foreground : theme.mutedAlt
+          color: ws.moveTarget && !ws.dragSource ? theme.textPrimary : theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: 9
           font.bold: ws.moveTarget && !ws.dragSource
@@ -1024,8 +1023,8 @@ Scope {
     width: Math.min(availableWidth, Math.max(24, (windowData?.size?.[0] || 480) * scaleFactorX))
     height: Math.min(availableHeight, Math.max(20, (windowData?.size?.[1] || 300) * scaleFactorY))
     radius: Math.min(7, Math.max(4, height * 0.08))
-    color: selected ? Qt.alpha(theme.blue, 0.16) : theme.surfaceRaised
-    border.color: selected ? theme.blue : (root.dropWindow === address ? theme.purple : Qt.alpha(theme.borderSubtle, 0.78))
+    color: selected ? Qt.alpha(theme.info, 0.16) : theme.surfaceRaised
+    border.color: selected ? theme.info : (root.dropWindow === address ? theme.special : Qt.alpha(theme.borderSubtle, 0.78))
     border.width: 1
     z: dragging ? 60 : (selected ? 10 : 2)
     scale: dragging ? 1.04 : (selected ? 1.018 : 1)
@@ -1124,7 +1123,7 @@ Scope {
         anchors.rightMargin: 7
         verticalAlignment: Text.AlignVCenter
         text: tile.windowData?.title || tile.windowData?.class || "Window"
-        color: theme.foreground
+        color: theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: Math.min(10, Math.max(8, parent.height * 0.42))
         elide: Text.ElideRight
@@ -1135,7 +1134,7 @@ Scope {
       anchors.fill: parent
       radius: tile.radius
       color: "transparent"
-      border.color: theme.blue
+      border.color: theme.info
       border.width: 1
       visible: tile.selected
       opacity: 0.9

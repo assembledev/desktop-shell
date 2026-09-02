@@ -62,7 +62,7 @@ PopupWindow {
       anchors.centerIn: parent
       width: Math.min(tipMetrics.advanceWidth, root.availableTextWidth)
       text: root.text
-      color: theme.foreground
+      color: theme.textPrimary
       font.family: theme.fontFamily
       font.pixelSize: 10
       wrapMode: Text.WrapAtWordBoundaryOrAnywhere

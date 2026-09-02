@@ -1,37 +1,53 @@
 let
   withAlpha = alpha: color: "#${alpha}${builtins.substring 1 6 color}";
-  bgSolid = "#1a1b26";
-  bgRaised = "#242940";
-  bgMuted = "#24283b";
-  bgHover = "#343b5f";
-  bgHoverAlt = "#2f354f";
-  bgToast = "#1b1f31";
-  selectedBg = "#414868";
+
+  bgSolid = "#151725";
+  bgRaised = "#23283b";
+  bgMuted = "#1c2030";
+  bgHover = "#303650";
+  bgHoverAlt = "#2a3047";
+  bgToast = "#191c2b";
+  selectedBg = "#3a4060";
+  accent = "#a78bfa";
+  border = "#424a68";
 in
 {
   inherit
+    accent
     bgHover
     bgHoverAlt
     bgMuted
     bgRaised
     bgSolid
     bgToast
+    border
     selectedBg
     ;
 
-  foreground = "#c0caf5";
   fontFamily = "FiraCode Nerd Font";
-  text = "#cfc9c2";
-  muted = "#565f89";
-  mutedAlt = "#7c819f";
-  blue = "#7dcfff";
-  terminalBlue = "#7aa2f7";
-  green = "#9ece6a";
-  yellow = "#e0af68";
-  orange = "#ff9e64";
-  red = "#f7768e";
-  brightRed = "#ff7a93";
-  purple = "#bb9af7";
+
+  # Content hierarchy. Chromatic colors are deliberately excluded here.
+  textPrimary = "#eef0f8";
+  textSecondary = "#c7ccdc";
+  textMuted = "#929cb2";
+  textDisabled = "#69748b";
+  textOnAccent = bgSolid;
+
+  # Navigation, domains, and state share one luminous aurora family. Domain
+  # accents belong on compact anchors such as icons and badges, not body text.
+  accentHover = "#c4b5fd";
+  info = "#67d4e8";
+  special = "#d08cf3";
+  resource = "#9ece6a";
+  utility = "#f0c36e";
+  success = "#9ece6a";
+  warning = "#f0c36e";
+  caution = "#f3a66e";
+  danger = "#f283a2";
+  dangerStrong = "#ff7898";
+
+  borderMuted = "#343b55";
+  borderSubtle = withAlpha "70" border;
 
   surfaceGlass = withAlpha "bf" bgSolid;
   surfaceGlassStrong = withAlpha "ca" bgSolid;
@@ -45,5 +61,4 @@ in
   surfaceMutedHover = withAlpha "bc" bgHoverAlt;
   surfaceAccent = withAlpha "38" bgSolid;
   surfaceToast = withAlpha "d8" bgToast;
-  borderSubtle = withAlpha "70" selectedBg;
 }

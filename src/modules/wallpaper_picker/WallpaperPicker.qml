@@ -430,7 +430,7 @@ Scope {
               anchors.centerIn: parent
               visible: image.status !== Image.Ready
               text: "󰋩"
-              color: theme.mutedAlt
+              color: theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 34
               font.bold: true
@@ -462,7 +462,7 @@ Scope {
             width: tile.PathView.isCurrentItem ? Math.min(imageFrame.width - 24, 118) : 0
             height: 2
             radius: 1
-            color: theme.blue
+            color: theme.info
             opacity: tile.PathView.isCurrentItem ? 1 : 0
 
             Behavior on width {
@@ -476,7 +476,7 @@ Scope {
             anchors.horizontalCenter: parent.horizontalCenter
             width: tile.PathView.isCurrentItem ? parent.width - 16 : imageFrame.width - 18
             text: tile.relativePath
-            color: tile.PathView.isCurrentItem ? theme.foreground : theme.mutedAlt
+            color: tile.PathView.isCurrentItem ? theme.textPrimary : theme.textMuted
             opacity: tile.PathView.labelOpacity ?? 0.45
             font.pointSize: 10
             font.weight: tile.PathView.isCurrentItem ? Font.Medium : Font.Normal
@@ -521,7 +521,7 @@ Scope {
           anchors.leftMargin: launcher.padding
           anchors.verticalCenter: parent.verticalCenter
           text: "wallpaper"
-          color: theme.terminalBlue
+          color: theme.info
           font.pointSize: 11
           font.weight: Font.Medium
         }
@@ -534,9 +534,9 @@ Scope {
           anchors.right: parent.right
           anchors.rightMargin: launcher.padding
           anchors.verticalCenter: parent.verticalCenter
-          color: theme.foreground
+          color: theme.textPrimary
           selectionColor: theme.selectedBg
-          selectedTextColor: theme.foreground
+          selectedTextColor: theme.textPrimary
           font.pointSize: 11
           clip: true
           focus: false
@@ -576,7 +576,7 @@ Scope {
         Text {
           anchors.verticalCenter: parent.verticalCenter
           text: "No wallpapers found"
-          color: theme.foreground
+          color: theme.textPrimary
           font.pointSize: 15
           font.weight: Font.Medium
         }

@@ -258,7 +258,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: "Clipboard"
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 22
             font.bold: true
@@ -267,7 +267,7 @@ Scope {
 
           Text {
             text: String(filteredModel.count)
-            color: theme.terminalBlue
+            color: theme.accent
             font.family: theme.fontFamily
             font.pixelSize: 13
             font.bold: true
@@ -291,7 +291,7 @@ Scope {
           height: 44
           radius: 10
           color: theme.surfaceMuted
-          border.color: search.activeFocus ? theme.blue : theme.borderMuted
+          border.color: search.activeFocus ? theme.accent : theme.borderMuted
           border.width: 1
 
           Text {
@@ -299,7 +299,7 @@ Scope {
             anchors.leftMargin: 14
             anchors.verticalCenter: parent.verticalCenter
             text: ""
-            color: theme.blue
+            color: search.activeFocus ? theme.iconAccent : theme.iconMuted
             font.family: theme.fontFamily
             font.pixelSize: 14
           }
@@ -311,9 +311,9 @@ Scope {
             anchors.right: parent.right
             anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            color: theme.foreground
+            color: theme.textPrimary
             selectionColor: theme.selectedBg
-            selectedTextColor: theme.foreground
+            selectedTextColor: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 13
             clip: true
@@ -352,7 +352,7 @@ Scope {
             radius: 10
             color: theme.surfaceMuted
             border.width: 1
-            border.color: Qt.alpha(theme.blue, 0.46)
+            border.color: Qt.alpha(theme.accent, 0.46)
             z: 1
 
             Behavior on y {
@@ -368,7 +368,7 @@ Scope {
               anchors.bottom: parent.bottom
               width: 3
               radius: 2
-              color: theme.blue
+              color: theme.accent
             }
           }
 
@@ -495,7 +495,7 @@ Scope {
                 Layout.preferredWidth: item.image ? 210 : 46
                 Layout.preferredHeight: item.image ? 132 : 46
                 radius: 7
-                color: item.image ? theme.surfaceMuted : Qt.alpha(theme.blue, 0.14)
+                color: theme.surfaceMuted
                 border.width: item.image ? 1 : 0
                 border.color: theme.border
                 clip: true
@@ -514,7 +514,7 @@ Scope {
                   visible: !item.image || item.previewPath.length === 0
                   anchors.centerIn: parent
                   text: item.image ? "󰋩" : "󰅍"
-                  color: item.image ? theme.blue : theme.foreground
+                  color: item.image ? theme.info : theme.iconPrimary
                   font.family: theme.fontFamily
                   font.pixelSize: item.image ? 28 : 20
                 }
@@ -533,7 +533,7 @@ Scope {
                   Text {
                     Layout.fillWidth: true
                     text: "Image"
-                    color: theme.foreground
+                    color: theme.textPrimary
                     font.family: theme.fontFamily
                     font.pixelSize: 15
                     font.bold: item.selected
@@ -543,7 +543,7 @@ Scope {
 
                   Text {
                     text: item.dimensions
-                    color: theme.blue
+                    color: theme.info
                     font.family: theme.fontFamily
                     font.pixelSize: 11
                   }
@@ -554,7 +554,7 @@ Scope {
                   Layout.fillHeight: true
                   text: item.image ? item.label : item.cleanLabel
                   textFormat: Text.PlainText
-                  color: item.image ? theme.mutedAlt : theme.foreground
+                  color: item.image ? theme.textMuted : theme.textPrimary
                   font.family: theme.fontFamily
                   font.pixelSize: item.image ? 11 : 13
                   wrapMode: item.image ? Text.NoWrap : Text.Wrap
@@ -579,7 +579,7 @@ Scope {
           Layout.fillWidth: true
           visible: root.loading || filteredModel.count === 0 || root.message.length > 0
           text: root.message.length > 0 ? root.message : root.loading ? "Loading..." : "Clipboard is empty"
-          color: theme.muted
+          color: theme.textSecondary
           font.family: theme.fontFamily
           font.pixelSize: 13
           horizontalAlignment: Text.AlignHCenter
@@ -606,7 +606,7 @@ Scope {
     radius: 8
     color: mouse.pressed ? theme.selectedBg : mouse.containsMouse ? theme.surfaceAccent : "transparent"
     border.width: 1
-    border.color: mouse.containsMouse ? (danger ? Qt.alpha(theme.red, 0.45) : theme.borderSubtle) : "transparent"
+    border.color: mouse.containsMouse ? (danger ? Qt.alpha(theme.danger, 0.45) : theme.borderSubtle) : "transparent"
     scale: mouse.pressed ? 0.9 : 1
 
     Behavior on color {
@@ -622,7 +622,7 @@ Scope {
     Text {
       anchors.centerIn: parent
       text: button.icon
-      color: button.danger ? theme.red : theme.foreground
+      color: button.danger ? theme.danger : theme.textPrimary
       font.family: theme.fontFamily
       font.pixelSize: 14
     }

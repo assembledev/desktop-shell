@@ -336,9 +336,9 @@ only the values that differ:
 programs.desktop-shell.theme = {
   fontFamily = "FiraCode Nerd Font";
   bgSolid = "#10131c";
-  text = "#d8dee9";
-  blue = "#88c0d0";
-  purple = "#b48ead";
+  textPrimary = "#e7eaf2";
+  textSecondary = "#b7becd";
+  accent = "#a78bfa";
 };
 ```
 
@@ -348,8 +348,10 @@ available fields are:
 
 ```text
 fontFamily bgSolid bgRaised bgMuted bgHover bgHoverAlt bgToast selectedBg
-foreground text muted mutedAlt blue terminalBlue green yellow orange
-red brightRed purple
+textPrimary textSecondary textMuted textDisabled textOnAccent
+accent accentHover info special resource utility
+success warning caution danger dangerStrong
+border borderMuted
 surfaceGlass surfaceGlassStrong surfaceScrim surface surfaceBar
 surfaceRaised surfaceSoft surfaceHover surfaceMuted surfaceMutedHover
 surfaceAccent surfaceToast borderSubtle
@@ -358,3 +360,12 @@ surfaceAccent surfaceToast borderSubtle
 Surface colors include their opacity. When changing the base palette, update
 the corresponding surface values as well; they are explicit colors rather than
 being recomputed from a base color at Home Manager evaluation time.
+
+The previous primitive names are accepted as renamed Home Manager options and
+emit a migration warning. Their mappings are `foreground` → `textPrimary`,
+`text` → `textSecondary`, `mutedAlt` → `textMuted`, `muted` → `textDisabled`,
+`terminalBlue` → `accent`, `blue` → `info`, `green` → `success`, `yellow` →
+`warning`, `orange` → `caution`, `red` → `danger`, `brightRed` →
+`dangerStrong`, and `purple` → `special`.
+
+See [the design system](../DESIGN.md) for the role contract and contrast rules.

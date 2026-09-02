@@ -201,6 +201,23 @@
                 touch "$out"
               '';
 
+          theme-contract =
+            pkgs.runCommand "desktop-shell-theme-contract-check"
+              {
+                nativeBuildInputs = [ pkgs.ripgrep ];
+              }
+              ''
+                if rg -n \
+                  'theme\.(foreground|text|muted|mutedAlt|blue|terminalBlue|green|yellow|orange|red|brightRed|purple)\b' \
+                  ${self}/src/modules \
+                  --glob '*.qml' \
+                  --glob '!Theme.qml'; then
+                  printf 'shell components must use semantic theme roles\n' >&2
+                  exit 1
+                fi
+                touch "$out"
+              '';
+
           browser-tab-bridge =
             pkgs.runCommand "desktop-shell-browser-tab-bridge-check"
               {

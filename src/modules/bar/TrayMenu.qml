@@ -265,7 +265,7 @@ Scope {
           anchors.margins: 1
           radius: 13
           color: "transparent"
-          border.color: Qt.alpha(theme.foreground, 0.045)
+          border.color: Qt.alpha(theme.textPrimary, 0.045)
           border.width: 1
         }
 
@@ -299,7 +299,7 @@ Scope {
             anchors.rightMargin: backButton.visible ? 8 : 0
             y: contextLabel.visible ? 2 : Math.round((parent.height - implicitHeight) / 2)
             text: root.applicationTitle
-            color: theme.text
+            color: theme.textSecondary
             font.family: theme.fontFamily
             font.pixelSize: 13
             font.bold: true
@@ -314,7 +314,7 @@ Scope {
             anchors.topMargin: 1
             visible: text.length > 0
             text: root.contextTitle
-            color: root.depth > 1 ? theme.blue : theme.mutedAlt
+            color: root.depth > 1 ? theme.accent : theme.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 10
             font.bold: root.depth > 1
@@ -331,7 +331,7 @@ Scope {
             anchors.verticalCenter: parent.verticalCenter
             color: backMouse.containsMouse ? theme.surfaceHover : theme.surfaceAccent
             border.color: backMouse.containsMouse
-              ? Qt.alpha(theme.blue, 0.6)
+              ? Qt.alpha(theme.accent, 0.6)
               : Qt.alpha(theme.borderSubtle, 0.55)
             border.width: 1
             scale: backMouse.pressed ? 0.88 : (backMouse.containsMouse ? 1.04 : 1)
@@ -350,7 +350,7 @@ Scope {
               anchors.centerIn: parent
               anchors.verticalCenterOffset: -1
               text: "‹"
-              color: theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 23
               font.bold: true
@@ -405,7 +405,7 @@ Scope {
                 Text {
                   anchors.centerIn: parent
                   text: "No actions available"
-                  color: theme.mutedAlt
+                  color: theme.textMuted
                   font.family: theme.fontFamily
                   font.pixelSize: 11
                 }
@@ -470,7 +470,7 @@ Scope {
                     height: 16
                     radius: 1
                     anchors.verticalCenter: parent.verticalCenter
-                    color: theme.blue
+                    color: theme.accent
                   }
 
                   Item {
@@ -495,11 +495,11 @@ Scope {
                       radius: entryRow.radioEntry ? 8 : 4
                       anchors.centerIn: parent
                       color: entryRow.checked || entryRow.partiallyChecked
-                        ? theme.blue
+                        ? theme.accent
                         : "transparent"
                       border.color: entryRow.checked || entryRow.partiallyChecked
-                        ? Qt.alpha(theme.blue, 0.95)
-                        : theme.mutedAlt
+                        ? Qt.alpha(theme.accent, 0.95)
+                        : theme.textMuted
                       border.width: 1
 
                       Behavior on color {
@@ -537,8 +537,8 @@ Scope {
                     height: parent.height
                     text: entryRow.modelData.text
                     color: entryRow.sectionLabel
-                      ? Qt.alpha(theme.yellow, 0.9)
-                      : entryRow.modelData.enabled ? theme.text : theme.mutedAlt
+                      ? theme.utility
+                      : entryRow.modelData.enabled ? theme.textSecondary : theme.textMuted
                     font.family: theme.fontFamily
                     font.pixelSize: entryRow.sectionLabel ? 11 : 12
                     font.bold: entryRow.sectionLabel || entryRow.modelData.hasChildren
@@ -557,7 +557,7 @@ Scope {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.verticalCenterOffset: -1
                     text: "›"
-                    color: entryMouse.containsMouse ? theme.blue : theme.mutedAlt
+                    color: entryMouse.containsMouse ? theme.accent : theme.textMuted
                     font.family: theme.fontFamily
                     font.pixelSize: 20
                     font.bold: true

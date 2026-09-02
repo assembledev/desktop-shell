@@ -27,12 +27,10 @@ Item {
   readonly property color bg: theme.bgSolid
   readonly property color surface: theme.surfaceGlass
   readonly property color surfaceStrong: theme.surfaceGlassStrong
-  readonly property color outline: failed ? theme.red : theme.borderSubtle
-  readonly property color text: theme.foreground
-  readonly property color muted: theme.mutedAlt
-  readonly property color primary: theme.blue
-  readonly property color secondary: theme.purple
-  readonly property color warm: theme.yellow
+  readonly property color outline: failed ? theme.danger : theme.borderSubtle
+  readonly property color textPrimary: theme.textPrimary
+  readonly property color textMuted: theme.textMuted
+  readonly property color accent: theme.accent
   readonly property int fieldWidth: Math.min(580, Math.max(320, width - 64))
 
   signal appendText(string text)
@@ -146,14 +144,14 @@ Item {
         compact: true
         icon: ""
         text: root.keyboardText
-        accent: root.warm
+        accent: theme.utility
       }
 
       StatusChip {
         visible: root.batteryVisible
         icon: ""
         text: root.batteryText
-        accent: theme.green
+        accent: theme.success
       }
     }
 
@@ -184,7 +182,7 @@ Item {
           Text {
             width: parent.width
             text: root.clockText
-            color: root.text
+            color: root.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: Math.max(64, Math.min(116, root.width * 0.082))
             font.bold: true
@@ -194,7 +192,7 @@ Item {
           Text {
             width: parent.width
             text: root.dateText
-            color: root.warm
+            color: theme.textSecondary
             font.family: theme.fontFamily
             font.pixelSize: Math.max(15, Math.min(22, root.width * 0.014))
             font.bold: true
@@ -208,7 +206,7 @@ Item {
             radius: 15
             anchors.horizontalCenter: parent.horizontalCenter
             color: Qt.alpha(theme.surfaceGlassStrong, 0.64)
-            border.color: Qt.alpha(theme.blue, 0.46)
+            border.color: Qt.alpha(theme.accent, 0.46)
             border.width: 1
 
             Row {
@@ -219,7 +217,7 @@ Item {
               Text {
                 height: parent.height
                 text: ""
-                color: root.primary
+                color: root.accent
                 font.family: theme.fontFamily
                 font.pixelSize: 12
                 font.bold: true
@@ -229,7 +227,7 @@ Item {
               Text {
                 height: parent.height
                 text: root.userText
-                color: theme.text
+                color: theme.textSecondary
                 font.family: theme.fontFamily
                 font.pixelSize: 13
                 font.bold: true
@@ -248,7 +246,7 @@ Item {
         radius: height / 2
         anchors.horizontalCenter: parent.horizontalCenter
         color: Qt.alpha(root.surfaceStrong, 0.94)
-        border.color: root.failed ? root.outline : Qt.alpha(theme.blue, 0.42)
+        border.color: root.failed ? root.outline : Qt.alpha(theme.accent, 0.42)
         border.width: root.failed ? 2 : 1
 
         layer.enabled: true
@@ -284,12 +282,12 @@ Item {
             height: 52
             radius: height / 2
             anchors.verticalCenter: parent.verticalCenter
-            color: root.authRunning ? Qt.alpha(root.warm, 0.18) : Qt.alpha(root.primary, 0.18)
+            color: Qt.alpha(root.accent, 0.18)
 
             LockGlyph {
               anchors.centerIn: parent
               active: root.authRunning
-              color: root.authRunning ? root.warm : root.primary
+              color: root.accent
             }
           }
 
@@ -312,7 +310,7 @@ Item {
                   return root.message;
                 return "Enter password";
               }
-              color: root.failed ? theme.red : (root.authRunning ? root.warm : root.muted)
+              color: root.failed ? theme.danger : (root.authRunning ? theme.warning : root.textMuted)
               font.family: theme.fontFamily
               font.pixelSize: 16
               font.bold: true
@@ -337,7 +335,7 @@ Item {
                   width: 9
                   height: 9
                   radius: 3
-                  color: root.text
+                  color: root.textPrimary
                   opacity: 0.88
                   visible: index < root.passwordLength
                   scale: visible ? 1 : 0.35
@@ -351,7 +349,7 @@ Item {
               Text {
                 visible: root.passwordLength > 32
                 text: "+"
-                color: root.text
+                color: root.textPrimary
                 font.family: theme.fontFamily
                 font.pixelSize: 16
                 font.bold: true
@@ -366,7 +364,7 @@ Item {
             height: 54
             radius: height / 2
             anchors.verticalCenter: parent.verticalCenter
-            color: root.passwordLength > 0 && !root.authRunning ? root.primary : theme.surfaceMuted
+            color: root.passwordLength > 0 && !root.authRunning ? root.accent : theme.surfaceMuted
             scale: submitMouse.pressed ? 0.88 : (submitMouse.containsMouse && submitMouse.enabled ? 1.04 : 1)
 
             Behavior on color {
@@ -379,7 +377,7 @@ Item {
             Text {
               anchors.centerIn: parent
               text: ""
-              color: root.passwordLength > 0 && !root.authRunning ? root.bg : root.muted
+              color: root.passwordLength > 0 && !root.authRunning ? root.bg : root.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 20
               font.bold: true
@@ -401,7 +399,7 @@ Item {
         width: parent.width
         height: 22
         text: root.failed && root.message.length === 0 ? "Wrong password" : ""
-        color: theme.red
+        color: theme.danger
         font.family: theme.fontFamily
         font.pixelSize: 13
         font.bold: true
@@ -453,7 +451,7 @@ Item {
         width: chip.compact ? chip.implicitWidth : implicitWidth
         height: chip.implicitHeight
         text: chip.text
-        color: root.text
+        color: root.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 13
         font.bold: true
@@ -467,7 +465,7 @@ Item {
     id: glyph
 
     property bool active: false
-    property color color: root.primary
+    property color color: root.accent
 
     width: 24
     height: 26

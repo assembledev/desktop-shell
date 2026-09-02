@@ -15,6 +15,7 @@ let
   cfg = config.programs.desktop-shell;
   defaultConfig = import ./default-config.nix;
   defaultTheme = import ./theme.nix;
+  themeNames = builtins.attrNames defaultTheme;
 
   workspaceType = types.submodule {
     options = {
@@ -211,7 +212,7 @@ let
         loginWallpaperSync
         ;
     };
-    inherit (cfg) theme;
+    theme = lib.getAttrs themeNames cfg.theme;
   };
   configFile = pkgs.writeText "desktop-shell-config.json" (builtins.toJSON generatedConfig);
   finalPackage =
@@ -227,6 +228,57 @@ let
   serviceTarget = cfg.systemd.target;
 in
 {
+  imports = [
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "foreground" ]
+      [ "programs" "desktop-shell" "theme" "textPrimary" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "text" ]
+      [ "programs" "desktop-shell" "theme" "textSecondary" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "mutedAlt" ]
+      [ "programs" "desktop-shell" "theme" "textMuted" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "muted" ]
+      [ "programs" "desktop-shell" "theme" "textDisabled" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "terminalBlue" ]
+      [ "programs" "desktop-shell" "theme" "accent" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "blue" ]
+      [ "programs" "desktop-shell" "theme" "info" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "green" ]
+      [ "programs" "desktop-shell" "theme" "success" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "yellow" ]
+      [ "programs" "desktop-shell" "theme" "warning" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "orange" ]
+      [ "programs" "desktop-shell" "theme" "caution" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "red" ]
+      [ "programs" "desktop-shell" "theme" "danger" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "brightRed" ]
+      [ "programs" "desktop-shell" "theme" "dangerStrong" ]
+    )
+    (lib.mkRenamedOptionModule
+      [ "programs" "desktop-shell" "theme" "purple" ]
+      [ "programs" "desktop-shell" "theme" "special" ]
+    )
+  ];
+
   options.programs.desktop-shell = {
     enable = mkEnableOption "Desktop Shell";
 

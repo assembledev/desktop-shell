@@ -110,9 +110,9 @@ Scope {
       + osdRowCount * osdRowHeight
       + Math.max(0, osdRowCount - 1) * osdRowSpacing
   readonly property var osdKinds: ({
-    brightness: { icon: "󰃠", accent: theme.yellow },
-    volume: { icon: "", accent: theme.blue },
-    fallback: { icon: "󰘳", accent: theme.purple }
+    brightness: { icon: "󰃠", accent: theme.utility },
+    volume: { icon: "", accent: theme.info },
+    fallback: { icon: "󰘳", accent: theme.special }
   })
   property var notifications: []
   property var clearedNotifications: []
@@ -406,7 +406,7 @@ Scope {
   }
 
   function streamAccent(node) {
-    return streamProperty(node, "media.class") === "Stream/Input/Audio" ? theme.purple : theme.blue;
+    return streamProperty(node, "media.class") === "Stream/Input/Audio" ? theme.special : theme.info;
   }
 
   function signalGlyph(value) {
@@ -2308,7 +2308,7 @@ Scope {
           anchors.top: parent.top
           anchors.bottom: parent.bottom
           width: 1
-          color: Qt.alpha(theme.blue, 0.42)
+          color: Qt.alpha(theme.accent, 0.42)
         }
 
         MouseArea {
@@ -2524,7 +2524,7 @@ Scope {
       anchors.right: parent.right
       anchors.top: parent.top
       height: root.focusBarOpen ? 2 : 4
-      color: theme.blue
+      color: theme.special
       opacity: root.focusBarOpen ? 0.35 : 0.8
 
       Behavior on height {
@@ -2580,7 +2580,7 @@ Scope {
               title: "Wi-Fi"
               subtitle: root.wifiSummaryText()
               active: root.wifiConnected
-              accent: theme.blue
+              accent: theme.info
               onClicked: root.page = "wifi"
             }
 
@@ -2590,7 +2590,7 @@ Scope {
               title: "Bluetooth"
               subtitle: root.bluetoothSummaryText()
               active: root.bluetoothConnectedDevices().length > 0
-              accent: theme.purple
+              accent: theme.special
               onClicked: root.page = "bluetooth"
             }
 
@@ -2600,7 +2600,7 @@ Scope {
               title: root.dnd ? "Silent" : "Notify"
               subtitle: root.dnd ? "DND" : "Live"
               active: root.dnd
-              accent: theme.purple
+              accent: theme.special
               onClicked: {
                 root.dnd = !root.dnd;
                 dndFile.setText(root.dnd ? "1" : "0");
@@ -2613,7 +2613,7 @@ Scope {
               title: "Focus"
               subtitle: root.focusMode ? "On" : "Off"
               active: root.focusMode
-              accent: theme.green
+              accent: theme.special
               onClicked: root.setFocusMode(!root.focusMode)
             }
           }
@@ -2621,6 +2621,7 @@ Scope {
 
         Section {
           title: "Audio"
+          accent: theme.info
 
           Rectangle {
             Layout.fillWidth: true
@@ -2645,7 +2646,7 @@ Scope {
                 devices: root.outputDevices
                 expanded: root.outputExpanded
                 showDivider: false
-                accent: theme.blue
+                accent: theme.info
                 onToggleExpanded: root.outputExpanded = !root.outputExpanded
                 onVolumeChanged: function(value) { root.setNodeVolume(root.sink, value); }
                 onToggleMute: root.toggleNodeMute(root.sink)
@@ -2661,7 +2662,7 @@ Scope {
                 current: root.source
                 devices: root.inputDevices
                 expanded: root.inputExpanded
-                accent: theme.purple
+                accent: theme.special
                 onToggleExpanded: root.inputExpanded = !root.inputExpanded
                 onVolumeChanged: function(value) { root.setNodeVolume(root.source, value); }
                 onToggleMute: root.toggleNodeMute(root.source)
@@ -2679,7 +2680,7 @@ Scope {
 
                 Text {
                   text: "Applications"
-                  color: theme.terminalBlue
+                  color: theme.textMuted
                   font.family: theme.fontFamily
                   font.pixelSize: 10
                   font.bold: true
@@ -2707,6 +2708,7 @@ Scope {
 
         Section {
           title: "Display"
+          accent: theme.utility
           visible: root.displaysReady || root.brightnessSupported
 
           Rectangle {
@@ -2731,7 +2733,7 @@ Scope {
                 title: "Displays"
                 subtitle: root.displaySummaryText()
                 active: root.displays.length > 1
-                accent: theme.blue
+                accent: theme.info
                 onClicked: root.page = "display"
               }
 
@@ -2743,7 +2745,7 @@ Scope {
                 value: root.brightness
                 enabled: root.brightnessWritable
                 showDivider: false
-                accent: theme.yellow
+                accent: theme.utility
                 onChanged: function(value) { root.setBrightness(value); }
               }
             }
@@ -2752,6 +2754,7 @@ Scope {
 
         Section {
           title: "Power profile"
+          accent: theme.utility
           visible: false
           RowLayout {
             Layout.fillWidth: true
@@ -2772,6 +2775,7 @@ Scope {
 
         Section {
           title: "Device load"
+          accent: theme.resource
           visible: false
           RowLayout {
             Layout.fillWidth: true
@@ -2781,14 +2785,14 @@ Scope {
               label: "CPU"
               value: root.metrics.cpu || 0
               textValue: Math.round((root.metrics.cpu || 0) * 100) + "%"
-              accent: theme.green
+              accent: theme.info
             }
             MiniGauge {
               Layout.fillWidth: true
               label: "RAM"
               value: root.metrics.ram || 0
               textValue: root.metrics.ramText || "--"
-              accent: theme.purple
+              accent: theme.resource
             }
             MiniGauge {
               Layout.fillWidth: true
@@ -2796,13 +2800,14 @@ Scope {
               label: "VRAM"
               value: root.metrics.vram || 0
               textValue: root.metrics.vramText || "--"
-              accent: theme.orange
+              accent: theme.special
             }
           }
         }
 
         Section {
           title: "Notifications"
+          accent: theme.special
           RowLayout {
             Layout.fillWidth: true
             spacing: 8
@@ -2811,7 +2816,7 @@ Scope {
               text: root.notifications.length === 0
                 ? (root.clearedNotifications.length > 0 ? "History cleared" : "No notifications")
                 : root.notifications.length + " notification" + (root.notifications.length === 1 ? "" : "s")
-              color: theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 12
             }
@@ -2827,8 +2832,8 @@ Scope {
             implicitHeight: 48
             visible: root.clearedNotifications.length > 0
             radius: 9
-            color: Qt.alpha(theme.purple, 0.12)
-            border.color: Qt.alpha(theme.purple, 0.42)
+            color: Qt.alpha(theme.success, 0.12)
+            border.color: Qt.alpha(theme.success, 0.42)
             border.width: 1
 
             RowLayout {
@@ -2839,7 +2844,7 @@ Scope {
 
               Text {
                 text: "󰕌"
-                color: theme.purple
+                color: theme.success
                 font.family: theme.fontFamily
                 font.pixelSize: 15
               }
@@ -2847,7 +2852,7 @@ Scope {
               Text {
                 Layout.fillWidth: true
                 text: root.clearedNotifications.length + " cleared"
-                color: theme.text
+                color: theme.textSecondary
                 font.family: theme.fontFamily
                 font.pixelSize: 11
                 font.bold: true
@@ -2865,7 +2870,7 @@ Scope {
             Layout.fillWidth: true
             visible: root.notificationGroups(true).length > 0
             text: "NEEDS ATTENTION"
-            color: theme.red
+            color: theme.danger
             font.family: theme.fontFamily
             font.pixelSize: 10
             font.bold: true
@@ -2885,7 +2890,7 @@ Scope {
             Layout.fillWidth: true
             visible: root.notificationGroups(false).length > 0
             text: "RECENT"
-            color: theme.mutedAlt
+            color: theme.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 10
             font.bold: true
@@ -2930,8 +2935,8 @@ Scope {
           implicitHeight: 68
           visible: root.displayPendingToken.length > 0
           radius: 9
-          color: Qt.alpha(theme.yellow, 0.12)
-          border.color: Qt.alpha(theme.yellow, 0.56)
+          color: Qt.alpha(theme.warning, 0.12)
+          border.color: Qt.alpha(theme.warning, 0.56)
           border.width: 1
 
           RowLayout {
@@ -2942,7 +2947,7 @@ Scope {
 
             Text {
               text: "󰍹"
-              color: theme.yellow
+              color: theme.warning
               font.family: theme.fontFamily
               font.pixelSize: 18
               Layout.preferredWidth: 24
@@ -2955,7 +2960,7 @@ Scope {
               Text {
                 Layout.fillWidth: true
                 text: "Testing this layout"
-                color: theme.foreground
+                color: theme.textPrimary
                 font.family: theme.fontFamily
                 font.pixelSize: 12
                 font.bold: true
@@ -2963,7 +2968,7 @@ Scope {
               Text {
                 Layout.fillWidth: true
                 text: "Reverting in " + root.displayConfirmSeconds + " seconds"
-                color: theme.text
+                color: theme.textSecondary
                 font.family: theme.fontFamily
                 font.pixelSize: 10
               }
@@ -2987,7 +2992,7 @@ Scope {
           Layout.fillWidth: true
           visible: root.displayError.length > 0
           text: root.displayError
-          color: theme.red
+          color: theme.danger
           font.family: theme.fontFamily
           font.pixelSize: 11
           wrapMode: Text.Wrap
@@ -3011,7 +3016,7 @@ Scope {
               Text {
                 Layout.fillWidth: true
                 text: "Arrangement"
-                color: theme.terminalBlue
+                color: theme.textMuted
                 font.family: theme.fontFamily
                 font.pixelSize: 12
                 font.bold: true
@@ -3027,7 +3032,7 @@ Scope {
               Layout.fillWidth: true
               visible: !root.displaysReady
               text: "Detecting displays…"
-              color: theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 11
             }
@@ -3036,7 +3041,7 @@ Scope {
               Layout.fillWidth: true
               visible: root.displaysReady && root.displays.length === 0
               text: "No connected displays"
-              color: theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 11
             }
@@ -3054,7 +3059,7 @@ Scope {
               Layout.fillWidth: true
               visible: root.displays.filter(function(output) { return Boolean(output.enabled); }).length > 1
               text: "Drag displays to place them left, right, above, or below. Edges snap together."
-              color: theme.mutedAlt
+              color: theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 9
               wrapMode: Text.Wrap
@@ -3093,7 +3098,7 @@ Scope {
                       Layout.fillHeight: true
                       enabled: Boolean(modelData.available)
                       color: root.displayCurrentPreset() === modelData.id
-                        ? Qt.alpha(theme.blue, 0.22)
+                        ? Qt.alpha(theme.info, 0.22)
                         : (displayPresetMouse.containsMouse ? theme.surfaceMutedHover : "transparent")
                       opacity: enabled ? 1 : 0.4
 
@@ -3110,8 +3115,8 @@ Scope {
                         anchors.centerIn: parent
                         text: displayPresetSegment.modelData.label
                         color: root.displayCurrentPreset() === displayPresetSegment.modelData.id
-                          ? theme.foreground
-                          : theme.text
+                          ? theme.textPrimary
+                          : theme.textSecondary
                         font.family: theme.fontFamily
                         font.pixelSize: 10
                         font.bold: root.displayCurrentPreset() === displayPresetSegment.modelData.id
@@ -3134,7 +3139,7 @@ Scope {
                 Layout.fillWidth: true
                 visible: root.displayCurrentPreset() === "duplicate"
                 text: "Duplicate uses the highest resolution shared by every connected display."
-                color: theme.mutedAlt
+                color: theme.textMuted
                 font.family: theme.fontFamily
                 font.pixelSize: 9
                 wrapMode: Text.Wrap
@@ -3192,7 +3197,7 @@ Scope {
                       text: root.displayProfileAvailable
                         ? "A saved arrangement currently overrides this startup layout."
                         : "This is the configured layout used when no saved arrangement matches."
-                      color: theme.mutedAlt
+                      color: theme.textMuted
                       font.family: theme.fontFamily
                       font.pixelSize: 9
                       wrapMode: Text.Wrap
@@ -3215,7 +3220,7 @@ Scope {
               Text {
                 Layout.fillWidth: true
                 text: root.displayProfileAvailable ? "Saved for this display set" : "No saved arrangement for this display set"
-                color: root.displayProfileAvailable ? theme.blue : theme.mutedAlt
+                color: root.displayProfileAvailable ? theme.success : theme.textMuted
                 font.family: theme.fontFamily
                 font.pixelSize: 9
               }
@@ -3249,7 +3254,7 @@ Scope {
               implicitHeight: 34
               radius: 8
               color: theme.surfaceGlassStrong
-              border.color: Qt.alpha(theme.yellow, 0.5)
+              border.color: Qt.alpha(theme.warning, 0.5)
               border.width: 1
 
               RowLayout {
@@ -3259,7 +3264,7 @@ Scope {
 
                 Text {
                   text: ""
-                  color: theme.yellow
+                  color: theme.warning
                   font.family: theme.fontFamily
                   font.pixelSize: 11
                 }
@@ -3268,7 +3273,7 @@ Scope {
                   text: root.displayPendingToken.length > 0
                     ? "Confirm or revert to edit again"
                     : "Applying display changes…"
-                  color: theme.foreground
+                  color: theme.textPrimary
                   font.family: theme.fontFamily
                   font.pixelSize: 10
                   font.bold: true
@@ -3292,7 +3297,7 @@ Scope {
         radius: 12
         color: Qt.alpha(theme.surfaceGlass, 0.82)
         border.color: root.wifiConnected
-          ? Qt.alpha(theme.blue, 0.46)
+          ? Qt.alpha(theme.info, 0.46)
           : Qt.alpha(theme.borderSubtle, 0.52)
         border.width: 1
 
@@ -3306,13 +3311,13 @@ Scope {
             Layout.preferredHeight: 40
             radius: 12
             color: root.wifiConnected
-              ? Qt.alpha(theme.blue, 0.16)
+              ? Qt.alpha(theme.info, 0.16)
               : Qt.alpha(theme.surfaceMuted, 0.86)
 
             Text {
               anchors.centerIn: parent
               text: root.wifiEnabled ? "" : "󰤮"
-              color: root.wifiConnected ? theme.blue : (root.wifiEnabled ? theme.foreground : theme.mutedAlt)
+              color: root.wifiConnected ? theme.info : (root.wifiEnabled ? theme.textPrimary : theme.textMuted)
               font.family: theme.fontFamily
               font.pixelSize: 19
             }
@@ -3325,7 +3330,7 @@ Scope {
             Text {
               Layout.fillWidth: true
               text: root.wifiHeaderTitle()
-              color: theme.foreground
+              color: theme.textPrimary
               font.family: theme.fontFamily
               font.pixelSize: 14
               font.bold: true
@@ -3335,7 +3340,7 @@ Scope {
             Text {
               Layout.fillWidth: true
               text: root.wifiHeaderSubtitle()
-              color: root.wifiConnected ? theme.blue : theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 11
               elide: Text.ElideRight
@@ -3345,6 +3350,7 @@ Scope {
           RadioSwitch {
             checked: root.wifiEnabled
             busy: false
+            accent: theme.info
             enabled: wifi.backendAvailable && wifi.hardwareEnabled && wifi.device !== null && !root.wifiBusy
             onToggled: root.toggleWifi()
           }
@@ -3356,8 +3362,8 @@ Scope {
         visible: root.wifiError.length > 0
         implicitHeight: wifiErrorRow.implicitHeight + 18
         radius: 9
-        color: Qt.alpha(theme.red, 0.09)
-        border.color: Qt.alpha(theme.red, 0.4)
+        color: Qt.alpha(theme.danger, 0.09)
+        border.color: Qt.alpha(theme.danger, 0.4)
         border.width: 1
 
         RowLayout {
@@ -3371,7 +3377,7 @@ Scope {
 
           Text {
             text: ""
-            color: theme.red
+            color: theme.danger
             font.family: theme.fontFamily
             font.pixelSize: 13
           }
@@ -3379,7 +3385,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.wifiError
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 11
             wrapMode: Text.WordWrap
@@ -3399,7 +3405,7 @@ Scope {
 
         Text {
           text: "AVAILABLE NETWORKS"
-          color: theme.mutedAlt
+          color: theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: 10
           font.bold: true
@@ -3409,7 +3415,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: root.wifiNetworks.length + " found · live"
-          color: theme.mutedAlt
+          color: theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: 10
           horizontalAlignment: Text.AlignRight
@@ -3475,12 +3481,12 @@ Scope {
               Layout.preferredWidth: 52
               Layout.preferredHeight: 52
               radius: 16
-              color: Qt.alpha(root.wifiAdapterAvailable() ? theme.blue : theme.mutedAlt, 0.11)
+              color: Qt.alpha(root.wifiAdapterAvailable() ? theme.info : theme.textMuted, 0.11)
 
               Text {
                 anchors.centerIn: parent
                 text: root.wifiAdapterAvailable() ? "󰤯" : "󰤮"
-                color: root.wifiAdapterAvailable() ? theme.blue : theme.mutedAlt
+                color: root.wifiAdapterAvailable() ? theme.info : theme.textMuted
                 font.family: theme.fontFamily
                 font.pixelSize: 23
               }
@@ -3493,7 +3499,7 @@ Scope {
                 : (!wifi.hardwareEnabled || !wifi.device
                     ? "Wi-Fi is unavailable"
                     : (!root.wifiEnabled ? "Wi-Fi is off" : "Looking for networks"))
-              color: theme.foreground
+              color: theme.textPrimary
               font.family: theme.fontFamily
               font.pixelSize: 14
               font.bold: true
@@ -3509,7 +3515,7 @@ Scope {
                     : (!root.wifiEnabled
                         ? "Turn it on to discover nearby networks."
                         : "Nearby networks will appear automatically."))
-              color: theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 11
               wrapMode: Text.WordWrap
@@ -3545,7 +3551,7 @@ Scope {
         radius: 12
         color: Qt.alpha(theme.surfaceGlass, 0.82)
         border.color: root.bluetoothConnectedDevices().length > 0
-          ? Qt.alpha(theme.purple, 0.5)
+          ? Qt.alpha(theme.special, 0.5)
           : Qt.alpha(theme.borderSubtle, 0.52)
         border.width: 1
 
@@ -3559,15 +3565,15 @@ Scope {
             Layout.preferredHeight: 40
             radius: 12
             color: root.bluetoothConnectedDevices().length > 0
-              ? Qt.alpha(theme.purple, 0.17)
+              ? Qt.alpha(theme.special, 0.17)
               : Qt.alpha(theme.surfaceMuted, 0.86)
 
             Text {
               anchors.centerIn: parent
               text: root.bluetoothEnabled ? "󰂯" : "󰂲"
               color: root.bluetoothConnectedDevices().length > 0
-                ? theme.purple
-                : (root.bluetoothEnabled ? theme.foreground : theme.mutedAlt)
+                ? theme.special
+                : (root.bluetoothEnabled ? theme.textPrimary : theme.textMuted)
               font.family: theme.fontFamily
               font.pixelSize: 20
             }
@@ -3580,7 +3586,7 @@ Scope {
             Text {
               Layout.fillWidth: true
               text: root.bluetoothHeaderTitle()
-              color: theme.foreground
+              color: theme.textPrimary
               font.family: theme.fontFamily
               font.pixelSize: 14
               font.bold: true
@@ -3590,7 +3596,7 @@ Scope {
             Text {
               Layout.fillWidth: true
               text: root.bluetoothHeaderSubtitle()
-              color: root.bluetoothDiscoverable ? theme.purple : theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 11
               elide: Text.ElideRight
@@ -3600,6 +3606,7 @@ Scope {
           RadioSwitch {
             checked: root.bluetoothEnabled
             busy: root.bluetoothOperation === "enable" || root.bluetoothOperation === "disable"
+            accent: theme.special
             enabled: root.bluetoothStatusReady && root.bluetoothAvailable && !root.bluetoothBusy
             onToggled: root.toggleBluetooth()
           }
@@ -3611,8 +3618,8 @@ Scope {
         visible: root.bluetoothError.length > 0
         implicitHeight: bluetoothErrorRow.implicitHeight + 18
         radius: 9
-        color: Qt.alpha(theme.red, 0.09)
-        border.color: Qt.alpha(theme.red, 0.4)
+        color: Qt.alpha(theme.danger, 0.09)
+        border.color: Qt.alpha(theme.danger, 0.4)
         border.width: 1
 
         RowLayout {
@@ -3626,7 +3633,7 @@ Scope {
 
           Text {
             text: ""
-            color: theme.red
+            color: theme.danger
             font.family: theme.fontFamily
             font.pixelSize: 13
           }
@@ -3634,7 +3641,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.bluetoothError
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 11
             wrapMode: Text.WordWrap
@@ -3651,8 +3658,8 @@ Scope {
         Layout.fillWidth: true
         implicitHeight: 62
         radius: 11
-        color: Qt.alpha(root.bluetoothDiscoverable ? theme.purple : theme.green, 0.09)
-        border.color: Qt.alpha(root.bluetoothDiscoverable ? theme.purple : theme.green, 0.32)
+        color: Qt.alpha(theme.special, 0.09)
+        border.color: Qt.alpha(theme.special, 0.32)
         border.width: 1
 
         RowLayout {
@@ -3665,12 +3672,12 @@ Scope {
             Layout.preferredWidth: 34
             Layout.preferredHeight: 34
             radius: 10
-            color: Qt.alpha(root.bluetoothDiscoverable ? theme.purple : theme.green, 0.15)
+            color: Qt.alpha(theme.special, 0.15)
 
             Text {
               anchors.centerIn: parent
               text: root.bluetoothDiscoverable ? "󰑐" : "󰌾"
-              color: root.bluetoothDiscoverable ? theme.purple : theme.green
+              color: theme.special
               font.family: theme.fontFamily
               font.pixelSize: 16
             }
@@ -3683,7 +3690,7 @@ Scope {
             Text {
               Layout.fillWidth: true
               text: root.bluetoothDiscoverable ? "Visible while this page is open" : "Not discoverable"
-              color: theme.foreground
+              color: theme.textPrimary
               font.family: theme.fontFamily
               font.pixelSize: 12
               font.bold: true
@@ -3694,7 +3701,7 @@ Scope {
               text: root.bluetoothDiscoverable
                 ? "Nearby devices can find this computer and pair with it."
                 : (root.bluetoothEnabled ? "Paired devices can still reconnect normally." : "The Bluetooth radio is off.")
-              color: theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 10
               elide: Text.ElideRight
@@ -3705,7 +3712,7 @@ Scope {
             icon: root.bluetoothDiscoverable ? "󰂞" : "󰒃"
             label: root.bluetoothDiscoverable ? "VISIBLE" : "HIDDEN"
             active: true
-            accent: root.bluetoothDiscoverable ? theme.purple : theme.green
+            accent: theme.special
           }
         }
       }
@@ -3717,7 +3724,7 @@ Scope {
 
         Text {
           text: "DEVICES"
-          color: theme.mutedAlt
+          color: theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: 10
           font.bold: true
@@ -3729,7 +3736,7 @@ Scope {
           text: !root.bluetoothDevicesReady
             ? "Loading…"
             : root.bluetoothDevices.length + " found"
-          color: root.bluetoothSessionActive ? theme.purple : theme.mutedAlt
+          color: theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: 10
           horizontalAlignment: Text.AlignRight
@@ -3738,6 +3745,7 @@ Scope {
         IconButton {
           icon: ""
           active: root.bluetoothSessionActive
+          accent: theme.special
           enabled: root.bluetoothSessionActive && !root.bluetoothBusy
           onClicked: root.restartBluetoothDiscovery()
         }
@@ -3771,7 +3779,7 @@ Scope {
               Layout.fillWidth: true
               visible: root.bluetoothPairedDevices().length > 0
               text: "MY DEVICES"
-              color: theme.mutedAlt
+              color: theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 9
               font.bold: true
@@ -3791,7 +3799,7 @@ Scope {
               Layout.fillWidth: true
               visible: root.bluetoothNearbyDevices().length > 0
               text: "NEARBY"
-              color: theme.mutedAlt
+              color: theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 9
               font.bold: true
@@ -3827,7 +3835,7 @@ Scope {
               Layout.preferredWidth: 52
               Layout.preferredHeight: 52
               radius: 16
-              color: Qt.alpha(root.bluetoothEnabled ? theme.purple : theme.mutedAlt, 0.11)
+              color: Qt.alpha(root.bluetoothEnabled ? theme.special : theme.textMuted, 0.11)
 
               Text {
                 anchors.centerIn: parent
@@ -3836,7 +3844,7 @@ Scope {
                   : (!root.bluetoothAvailable || !root.bluetoothEnabled
                       ? "󰂲"
                       : "󰂯")
-                color: root.bluetoothEnabled ? theme.purple : theme.mutedAlt
+                color: root.bluetoothEnabled ? theme.special : theme.textMuted
                 font.family: theme.fontFamily
                 font.pixelSize: 23
 
@@ -3860,7 +3868,7 @@ Scope {
                         : (!root.bluetoothDevicesReady
                             ? "Looking for devices"
                             : "No devices found")))
-              color: theme.foreground
+              color: theme.textPrimary
               font.family: theme.fontFamily
               font.pixelSize: 14
               font.bold: true
@@ -3876,7 +3884,7 @@ Scope {
                     : (!root.bluetoothEnabled
                         ? "Turn it on to reconnect paired devices or add a new one."
                         : "Put the accessory in pairing mode. It will appear here without leaving this screen."))
-              color: theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 11
               wrapMode: Text.WordWrap
@@ -3889,6 +3897,7 @@ Scope {
               label: root.bluetoothEnabled ? "Scan again" : "Turn on Bluetooth"
               icon: root.bluetoothEnabled ? "" : "󰂯"
               active: !root.bluetoothEnabled
+              accent: theme.special
               enabled: !root.bluetoothBusy
               onClicked: root.bluetoothEnabled ? root.restartBluetoothDiscovery() : root.toggleBluetooth()
             }
@@ -3899,15 +3908,28 @@ Scope {
   }
 
   component Section: ColumnLayout {
+    id: section
     property string title
+    property color accent: theme.accent
     Layout.fillWidth: true
     spacing: 8
-    Text {
-      text: parent.title
-      color: theme.terminalBlue
-      font.family: theme.fontFamily
-      font.pixelSize: 12
-      font.bold: true
+    RowLayout {
+      spacing: 7
+
+      Rectangle {
+        Layout.preferredWidth: 3
+        Layout.preferredHeight: 11
+        radius: 2
+        color: section.accent
+      }
+
+      Text {
+        text: section.title
+        color: theme.textMuted
+        font.family: theme.fontFamily
+        font.pixelSize: 12
+        font.bold: true
+      }
     }
   }
 
@@ -3925,7 +3947,7 @@ Scope {
     contentItem: Rectangle {
       implicitWidth: 4
       radius: 2
-      color: theme.blue
+      color: theme.accent
       opacity: 0.72
 
     }
@@ -3964,7 +3986,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: header.pageTitle
-          color: theme.foreground
+          color: theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: 22
           font.bold: true
@@ -3976,7 +3998,7 @@ Scope {
           icon: ""
           label: String(root.notifications.length)
           active: true
-          accent: theme.yellow
+          accent: theme.accent
         }
       }
 
@@ -3994,7 +4016,7 @@ Scope {
     property string icon
     property string label
     property bool active: false
-    property color accent: theme.blue
+    property color accent: theme.accent
 
     implicitWidth: pillRow.implicitWidth + 18
     implicitHeight: 26
@@ -4011,7 +4033,7 @@ Scope {
 
       Text {
         text: pill.icon
-        color: pill.active ? pill.accent : theme.mutedAlt
+        color: pill.active ? pill.accent : theme.textMuted
         font.family: theme.fontFamily
         font.pixelSize: 11
       }
@@ -4019,7 +4041,7 @@ Scope {
       Text {
         Layout.fillWidth: true
         text: pill.label
-        color: pill.active ? theme.foreground : theme.text
+        color: pill.active ? theme.textPrimary : theme.textSecondary
         font.family: theme.fontFamily
         font.pixelSize: 10
         font.bold: pill.active
@@ -4034,7 +4056,7 @@ Scope {
     property string title
     property string subtitle
     property bool active: false
-    property color accent: theme.blue
+    property color accent: theme.accent
     signal clicked
 
     Layout.preferredHeight: 50
@@ -4059,7 +4081,7 @@ Scope {
 
       Text {
         text: command.icon
-        color: command.active ? command.accent : theme.foreground
+        color: command.active ? command.accent : theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 17
         Layout.preferredWidth: 24
@@ -4073,7 +4095,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: command.title
-          color: theme.foreground
+          color: theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: 12
           font.bold: true
@@ -4083,7 +4105,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: command.subtitle
-          color: command.active ? command.accent : theme.text
+          color: theme.textSecondary
           font.family: theme.fontFamily
           font.pixelSize: 10
           elide: Text.ElideRight
@@ -4114,6 +4136,7 @@ Scope {
     property string icon: ""
     property string iconSource: ""
     property bool active: false
+    property color accent: theme.accent
     property real maximumWidth: -1
     signal clicked
     implicitHeight: 34
@@ -4122,8 +4145,8 @@ Scope {
       return maximumWidth > 0 ? Math.min(maximumWidth, naturalWidth) : naturalWidth;
     }
     radius: 8
-    color: active ? theme.terminalBlue : (btnMouse.containsMouse ? theme.surfaceAccent : theme.surfaceMuted)
-    border.color: active ? theme.blue : (btnMouse.containsMouse ? theme.borderSubtle : theme.borderMuted)
+    color: active ? btn.accent : (btnMouse.containsMouse ? theme.surfaceAccent : theme.surfaceMuted)
+    border.color: active ? btn.accent : (btnMouse.containsMouse ? theme.borderSubtle : theme.borderMuted)
     border.width: 1
     opacity: enabled ? 1 : 0.46
     scale: btnMouse.pressed ? 0.94 : (btnMouse.containsMouse ? 1.025 : 1)
@@ -4146,7 +4169,7 @@ Scope {
       Text {
         visible: btn.icon.length > 0
         text: btn.icon
-        color: btn.active ? theme.bgSolid : theme.blue
+        color: btn.active ? theme.bgSolid : btn.accent
         font.family: theme.fontFamily
         font.pixelSize: 13
       }
@@ -4164,7 +4187,7 @@ Scope {
         id: labelText
         Layout.fillWidth: true
         text: btn.label
-        color: btn.active ? theme.bgSolid : theme.text
+        color: btn.active ? theme.bgSolid : theme.textSecondary
         font.family: theme.fontFamily
         font.pixelSize: 12
         font.bold: true
@@ -4187,6 +4210,7 @@ Scope {
     id: radioSwitch
     property bool checked: false
     property bool busy: false
+    property color accent: theme.accent
     signal toggled
     implicitWidth: 48
     implicitHeight: 30
@@ -4203,8 +4227,8 @@ Scope {
       height: 24
       anchors.centerIn: parent
       radius: 12
-      color: radioSwitch.checked ? theme.terminalBlue : theme.surfaceMuted
-      border.color: radioSwitch.checked ? theme.blue : theme.borderMuted
+      color: radioSwitch.checked ? radioSwitch.accent : theme.surfaceMuted
+      border.color: radioSwitch.checked ? radioSwitch.accent : theme.borderMuted
       border.width: 1
 
       Behavior on color {
@@ -4221,7 +4245,7 @@ Scope {
         width: 18
         height: 18
         radius: 9
-        color: radioSwitch.checked ? theme.bgSolid : theme.mutedAlt
+        color: radioSwitch.checked ? theme.bgSolid : theme.textMuted
         opacity: radioSwitch.busy ? 0.55 : 1
 
         Behavior on x {
@@ -4256,11 +4280,12 @@ Scope {
     property string title
     property string subtitle
     property bool active: false
+    property color accent: theme.accent
     signal clicked
     implicitHeight: 58
     radius: 10
-    color: active ? Qt.alpha(theme.blue, 0.16) : tileHover.containsMouse ? theme.surfaceAccent : "transparent"
-    border.color: active ? Qt.alpha(theme.blue, 0.48) : tileHover.containsMouse ? theme.borderSubtle : "transparent"
+    color: active ? Qt.alpha(tile.accent, 0.16) : tileHover.containsMouse ? theme.surfaceAccent : "transparent"
+    border.color: active ? Qt.alpha(tile.accent, 0.48) : tileHover.containsMouse ? theme.borderSubtle : "transparent"
     border.width: 1
     scale: tileHover.pressed ? 0.975 : (tileHover.containsMouse ? 1.012 : 1)
 
@@ -4284,7 +4309,7 @@ Scope {
       Text {
         Layout.preferredWidth: 28
         text: tile.icon
-        color: tile.active ? theme.blue : theme.foreground
+        color: tile.active ? tile.accent : theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 18
         horizontalAlignment: Text.AlignHCenter
@@ -4295,7 +4320,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: tile.title
-          color: theme.foreground
+          color: theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: 13
           font.bold: true
@@ -4304,7 +4329,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: tile.subtitle
-          color: theme.text
+          color: theme.textSecondary
           font.family: theme.fontFamily
           font.pixelSize: 11
           elide: Text.ElideRight
@@ -4314,7 +4339,7 @@ Scope {
       Text {
         id: tileChevron
         text: "›"
-        color: tile.active ? theme.blue : theme.muted
+        color: tile.active ? tile.accent : theme.iconMuted
         font.family: theme.fontFamily
         font.pixelSize: 17
         scale: tileHover.containsMouse ? 1.16 : 1
@@ -4339,7 +4364,7 @@ Scope {
       anchors.bottom: parent.bottom
       width: tile.active ? 3 : 0
       radius: 2
-      color: theme.blue
+      color: tile.accent
       Behavior on width {
         MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
       }
@@ -4351,12 +4376,13 @@ Scope {
     property string icon
     property string tooltip: ""
     property bool active: false
+    property color accent: theme.accent
     signal clicked
     implicitWidth: 34
     implicitHeight: 34
     radius: 8
-    color: active ? theme.terminalBlue : (iconMouse.containsMouse ? theme.surfaceAccent : theme.surfaceMuted)
-    border.color: active ? theme.blue : (iconMouse.containsMouse ? theme.borderSubtle : theme.borderMuted)
+    color: active ? iconButton.accent : (iconMouse.containsMouse ? theme.surfaceAccent : theme.surfaceMuted)
+    border.color: active ? iconButton.accent : (iconMouse.containsMouse ? theme.borderSubtle : theme.borderMuted)
     border.width: 1
     opacity: enabled ? 1 : 0.46
     scale: iconMouse.pressed ? 0.88 : (iconMouse.containsMouse ? 1.04 : 1)
@@ -4374,7 +4400,7 @@ Scope {
     Text {
       anchors.centerIn: parent
       text: iconButton.icon
-      color: iconButton.active ? theme.bgSolid : theme.foreground
+      color: iconButton.active ? theme.bgSolid : theme.textPrimary
       font.family: theme.fontFamily
       font.pixelSize: 14
     }
@@ -4403,8 +4429,8 @@ Scope {
     implicitWidth: gainText.implicitWidth + (boosted ? 14 : 0)
     implicitHeight: 22
     radius: 7
-    color: boosted ? Qt.alpha(theme.orange, 0.14) : "transparent"
-    border.color: boosted ? Qt.alpha(theme.orange, 0.48) : "transparent"
+    color: boosted ? Qt.alpha(theme.caution, 0.14) : "transparent"
+    border.color: boosted ? Qt.alpha(theme.caution, 0.48) : "transparent"
     border.width: 1
     opacity: muted ? 0.52 : 1
 
@@ -4412,7 +4438,7 @@ Scope {
       id: gainText
       anchors.centerIn: parent
       text: (gainBadge.boosted ? "Boost " : "") + Math.round(gainBadge.value * 100) + "%"
-      color: gainBadge.boosted ? theme.orange : theme.text
+      color: gainBadge.boosted ? theme.caution : theme.textSecondary
       font.family: theme.fontFamily
       font.pixelSize: gainBadge.boosted ? 9 : 11
       font.bold: gainBadge.boosted
@@ -4421,7 +4447,7 @@ Scope {
 
   component GainSlider: Slider {
     id: gainSlider
-    property color accent: theme.blue
+    property color accent: theme.accent
     property bool boostAllowed: false
     property bool dimmed: false
     readonly property real unityPosition: root.clamp((1 - from) / Math.max(0.001, to - from), 0, 1)
@@ -4446,7 +4472,7 @@ Scope {
         width: parent.width * (1 - gainSlider.unityPosition)
         height: parent.height
         radius: parent.radius
-        color: Qt.alpha(theme.orange, 0.11)
+        color: Qt.alpha(theme.caution, 0.11)
       }
 
       Rectangle {
@@ -4464,7 +4490,7 @@ Scope {
         width: parent.width * (gainSlider.visualPosition - gainSlider.unityPosition)
         height: parent.height
         radius: parent.radius
-        color: theme.orange
+        color: theme.caution
       }
 
       Rectangle {
@@ -4474,7 +4500,7 @@ Scope {
         width: 2
         height: 11
         radius: 1
-        color: theme.foreground
+        color: theme.textPrimary
         opacity: 0.44
       }
     }
@@ -4485,7 +4511,7 @@ Scope {
       implicitWidth: 14
       implicitHeight: 14
       radius: 7
-      color: gainSlider.boostAllowed && gainSlider.value > 1 ? theme.orange : gainSlider.accent
+      color: gainSlider.boostAllowed && gainSlider.value > 1 ? theme.caution : gainSlider.accent
       border.color: theme.bgSolid
       border.width: 2
     }
@@ -4493,7 +4519,7 @@ Scope {
 
   component Bar: Rectangle {
     property real value: 0
-    property color accent: theme.blue
+    property color accent: theme.accent
     implicitHeight: 8
     radius: 4
     color: theme.surfaceMuted
@@ -4517,7 +4543,7 @@ Scope {
     property string icon: ""
     property real level: 0
     property string label: ""
-    property color accent: theme.blue
+    property color accent: theme.accent
     spacing: 12
 
     Text {
@@ -4536,7 +4562,7 @@ Scope {
     }
     Text {
       text: osdRow.label
-      color: theme.text
+      color: theme.textSecondary
       font.family: theme.fontFamily
       font.pixelSize: 12
       horizontalAlignment: Text.AlignRight
@@ -4554,7 +4580,7 @@ Scope {
     property bool dragging: false
     property bool showDivider: true
     readonly property real displayedValue: dragging ? dragValue : value
-    property color accent: theme.blue
+    property color accent: theme.accent
     signal changed(real value)
     signal toggle
     Layout.fillWidth: true
@@ -4594,7 +4620,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: card.title
-          color: theme.foreground
+          color: theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: 13
           font.bold: true
@@ -4602,7 +4628,7 @@ Scope {
         }
         Text {
           text: Math.round(card.displayedValue * 100) + "%"
-          color: theme.text
+          color: theme.textSecondary
           font.family: theme.fontFamily
           font.pixelSize: 12
         }
@@ -4610,7 +4636,7 @@ Scope {
       Text {
         Layout.fillWidth: true
         text: card.subtitle
-        color: theme.muted
+        color: theme.textMuted
         font.family: theme.fontFamily
         font.pixelSize: 11
         elide: Text.ElideRight
@@ -4772,10 +4798,10 @@ Scope {
         height: Math.max(52, logicalSize.height * arrangement.layoutScale)
         radius: 6
         color: arrangement.selectedName === String(output.name)
-          ? Qt.alpha(theme.blue, 0.22)
+          ? Qt.alpha(theme.info, 0.22)
           : Qt.alpha(theme.surfaceRaised, 0.92)
         border.color: arrangement.selectedName === String(output.name)
-          ? theme.blue
+          ? theme.info
           : Qt.alpha(theme.borderSubtle, 0.88)
         border.width: arrangement.selectedName === String(output.name) ? 2 : 1
         z: dragging ? 4 : (arrangement.selectedName === String(output.name) ? 2 : 1 + overlapIndex)
@@ -4798,7 +4824,7 @@ Scope {
             Layout.fillWidth: true
             text: root.displayName(displayTile.output)
               + (root.displayPrimary === String(displayTile.output.name) ? "  ★" : "")
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 10
             font.bold: true
@@ -4809,7 +4835,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: String(displayTile.output.name)
-            color: arrangement.selectedName === String(displayTile.output.name) ? theme.blue : theme.mutedAlt
+            color: arrangement.selectedName === String(displayTile.output.name) ? theme.info : theme.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 8
             horizontalAlignment: Text.AlignHCenter
@@ -4893,7 +4919,7 @@ Scope {
 
         Text {
           text: displayInspector.output?.internal ? "󰌢" : "󰍹"
-          color: theme.blue
+          color: theme.info
           font.family: theme.fontFamily
           font.pixelSize: 18
           Layout.preferredWidth: 24
@@ -4907,7 +4933,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.displayName(displayInspector.output)
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 12
             font.bold: true
@@ -4918,7 +4944,7 @@ Scope {
             Layout.fillWidth: true
             text: String(displayInspector.output?.name || "")
               + " · position " + displayInspector.selectedPosition.x + "×" + displayInspector.selectedPosition.y
-            color: theme.text
+            color: theme.textSecondary
             font.family: theme.fontFamily
             font.pixelSize: 9
             elide: Text.ElideRight
@@ -4928,7 +4954,7 @@ Scope {
         Text {
           visible: root.displayPrimary === String(displayInspector.output?.name || "")
           text: "Primary"
-          color: theme.blue
+          color: theme.info
           font.family: theme.fontFamily
           font.pixelSize: 9
           font.bold: true
@@ -4940,6 +4966,7 @@ Scope {
             ? ""
             : "Set as primary display"
           active: root.displayPrimary === String(displayInspector.output?.name || "")
+          accent: theme.info
           onClicked: root.displayPrimary = String(displayInspector.output?.name || "")
         }
       }
@@ -4958,7 +4985,7 @@ Scope {
 
         Text {
           text: "Mode"
-          color: theme.mutedAlt
+          color: theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: 10
           Layout.preferredWidth: 48
@@ -4989,7 +5016,7 @@ Scope {
             leftPadding: 10
             rightPadding: 28
             text: root.displayModeLabel(displayModeBox.displayText)
-            color: theme.text
+            color: theme.textSecondary
             font.family: theme.fontFamily
             font.pixelSize: 10
             verticalAlignment: Text.AlignVCenter
@@ -4999,7 +5026,7 @@ Scope {
             implicitHeight: 34
             radius: 6
             color: displayModeBox.hovered ? theme.surfaceMutedHover : theme.surfaceMuted
-            border.color: displayModeBox.activeFocus ? theme.blue : theme.borderSubtle
+            border.color: displayModeBox.activeFocus ? theme.info : theme.borderSubtle
             border.width: 1
           }
           delegate: ItemDelegate {
@@ -5009,7 +5036,7 @@ Scope {
             hoverEnabled: false
             contentItem: Text {
               text: root.displayModeLabel(modelData)
-              color: theme.text
+              color: theme.textSecondary
               font.family: theme.fontFamily
               font.pixelSize: 10
               verticalAlignment: Text.AlignVCenter
@@ -5066,7 +5093,7 @@ Scope {
 
         Text {
           text: "Scale"
-          color: theme.mutedAlt
+          color: theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: 10
           Layout.preferredWidth: 48
@@ -5078,13 +5105,13 @@ Scope {
           to: 3
           stepSize: 0.25
           value: displayInspector.selectedScale
-          accent: theme.purple
+          accent: theme.info
           onMoved: root.setDisplayDraftValue(displayInspector.output.name, "scale", value)
         }
 
         Text {
           text: Math.round(displayInspector.selectedScale * 100) + "%"
-          color: theme.text
+          color: theme.textSecondary
           font.family: theme.fontFamily
           font.pixelSize: 10
           horizontalAlignment: Text.AlignRight
@@ -5120,7 +5147,7 @@ Scope {
       Text {
         Layout.fillWidth: true
         text: root.startupDisplayName(startupRuleRow.rule)
-        color: theme.foreground
+        color: theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 10
         font.bold: true
@@ -5130,7 +5157,7 @@ Scope {
       Text {
         Layout.fillWidth: true
         text: root.startupDisplayDetails(startupRuleRow.rule)
-        color: theme.text
+        color: theme.textSecondary
         font.family: theme.fontFamily
         font.pixelSize: 9
         elide: Text.ElideRight
@@ -5146,7 +5173,7 @@ Scope {
     property var devices: []
     property bool expanded: false
     property bool showDivider: true
-    property color accent: theme.blue
+    property color accent: theme.accent
     signal toggleExpanded
     signal volumeChanged(real value)
     signal toggleMute
@@ -5193,7 +5220,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: audioSection.title
-            color: audioSection.accent
+            color: theme.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 11
             font.bold: true
@@ -5202,7 +5229,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.deviceName(audioSection.current)
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 12
             font.bold: true
@@ -5248,6 +5275,7 @@ Scope {
             icon: audioSection.title === "Input" ? "" : ""
             node: modelData
             active: modelData === audioSection.current
+            accent: audioSection.accent
             onClicked: audioSection.choose(modelData)
           }
         }
@@ -5260,12 +5288,13 @@ Scope {
     property string icon
     property var node
     property bool active: false
+    property color accent: theme.info
     signal clicked
     Layout.fillWidth: true
     implicitHeight: 46
     radius: 8
-    color: active ? Qt.alpha(theme.blue, 0.28) : theme.surfaceSoft
-    border.color: active ? theme.blue : theme.borderMuted
+    color: active ? Qt.alpha(deviceRow.accent, 0.28) : theme.surfaceSoft
+    border.color: active ? deviceRow.accent : theme.borderMuted
     border.width: 1
 
     RowLayout {
@@ -5275,7 +5304,7 @@ Scope {
       Text {
         Layout.preferredWidth: 24
         text: deviceRow.icon
-        color: deviceRow.active ? theme.blue : theme.foreground
+        color: deviceRow.active ? deviceRow.accent : theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 15
         horizontalAlignment: Text.AlignHCenter
@@ -5283,14 +5312,14 @@ Scope {
       Text {
         Layout.fillWidth: true
         text: root.deviceName(deviceRow.node)
-        color: theme.text
+        color: theme.textSecondary
         font.family: theme.fontFamily
         font.pixelSize: 11
         elide: Text.ElideRight
       }
       Text {
         text: deviceRow.active ? "" : ""
-        color: theme.green
+        color: deviceRow.accent
         font.family: theme.fontFamily
         font.pixelSize: 13
         Layout.preferredWidth: 18
@@ -5366,7 +5395,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.streamName(node)
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 11
             font.bold: true
@@ -5375,7 +5404,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.streamSubtitle(node)
-            color: theme.muted
+            color: theme.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 9
             elide: Text.ElideRight
@@ -5422,7 +5451,7 @@ Scope {
     property string label
     property string textValue
     property real value: 0
-    property color accent: theme.blue
+    property color accent: theme.accent
     implicitHeight: 78
     radius: 8
     color: theme.surfaceRaised
@@ -5437,14 +5466,14 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: gauge.label
-          color: theme.foreground
+          color: theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: 12
           font.bold: true
         }
         Text {
           text: gauge.textValue
-          color: theme.text
+          color: theme.textSecondary
           font.family: theme.fontFamily
           font.pixelSize: 11
         }
@@ -5462,7 +5491,7 @@ Scope {
     property var notification
     property real visualSize: 28
     property string fallbackIcon: root.notificationIsCritical(notification) ? "" : ""
-    property color accent: root.notificationIsCritical(notification) ? theme.red : theme.blue
+    property color accent: root.notificationIsCritical(notification) ? theme.danger : theme.info
 
     implicitWidth: visualSize
     implicitHeight: visualSize
@@ -5506,13 +5535,13 @@ Scope {
       Text {
         Layout.fillWidth: true
         text: "Progress"
-        color: theme.mutedAlt
+        color: theme.textMuted
         font.family: theme.fontFamily
         font.pixelSize: 9
       }
       Text {
         text: notificationProgress.progressData?.text || ""
-        color: theme.terminalBlue
+        color: theme.textSecondary
         font.family: theme.fontFamily
         font.pixelSize: 9
         font.bold: true
@@ -5522,7 +5551,7 @@ Scope {
     Bar {
       Layout.fillWidth: true
       value: Number(notificationProgress.progressData?.value || 0)
-      accent: theme.blue
+      accent: theme.info
     }
   }
 
@@ -5551,8 +5580,8 @@ Scope {
       Layout.fillWidth: true
       implicitHeight: 34
       placeholderText: String(inlineReply.notification?.inlineReplyPlaceholder || "Reply")
-      color: theme.text
-      placeholderTextColor: theme.mutedAlt
+      color: theme.textSecondary
+      placeholderTextColor: theme.textMuted
       font.family: theme.fontFamily
       font.pixelSize: 11
       selectByMouse: true
@@ -5561,7 +5590,7 @@ Scope {
       background: Rectangle {
         radius: 8
         color: theme.surfaceMuted
-        border.color: replyField.activeFocus ? theme.blue : theme.borderMuted
+        border.color: replyField.activeFocus ? theme.accent : theme.borderMuted
         border.width: 1
       }
     }
@@ -5586,8 +5615,8 @@ Scope {
     implicitHeight: groupContent.implicitHeight + 20
     radius: 11
     color: Qt.alpha(theme.surfaceGlass, 0.58)
-    border.color: group?.critical ? Qt.alpha(theme.red, 0.5)
-      : group?.resident ? Qt.alpha(theme.purple, 0.46)
+    border.color: group?.critical ? Qt.alpha(theme.danger, 0.5)
+      : group?.resident ? Qt.alpha(theme.special, 0.46)
       : Qt.alpha(theme.borderSubtle, 0.58)
     border.width: 1
 
@@ -5619,13 +5648,13 @@ Scope {
             Layout.preferredWidth: 28
             Layout.preferredHeight: 28
             fallbackIcon: notificationGroup.group?.critical ? "\uf071" : notificationGroup.group?.resident ? "\uf08d" : "\uf0f3"
-            accent: notificationGroup.group?.critical ? theme.red : notificationGroup.group?.resident ? theme.purple : theme.blue
+            accent: notificationGroup.group?.critical ? theme.danger : notificationGroup.group?.resident ? theme.special : theme.info
           }
 
           Text {
             Layout.fillWidth: true
             text: notificationGroup.group?.appName || "Application"
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 12
             font.bold: true
@@ -5643,7 +5672,7 @@ Scope {
               id: groupCount
               anchors.centerIn: parent
               text: String(notificationGroup.group?.items?.length || 0)
-              color: theme.terminalBlue
+              color: theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 10
               font.bold: true
@@ -5652,7 +5681,7 @@ Scope {
 
           Text {
             text: root.relativeNotificationTime(notificationGroup.group?.latestTime || 0)
-            color: theme.mutedAlt
+            color: theme.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 10
           }
@@ -5660,7 +5689,7 @@ Scope {
           Text {
             visible: notificationGroup.canExpand
             text: notificationGroup.expanded ? "" : ""
-            color: theme.mutedAlt
+            color: theme.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 12
             Layout.preferredWidth: 18
@@ -5729,7 +5758,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: notifRow.notification?.summary || "Notification"
-          color: theme.foreground
+          color: theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: 12
           font.bold: true
@@ -5737,7 +5766,7 @@ Scope {
         }
         Text {
           text: root.relativeNotificationTime(notifRow.item?.time || 0)
-          color: theme.mutedAlt
+          color: theme.textMuted
           font.family: theme.fontFamily
           font.pixelSize: 9
         }
@@ -5751,8 +5780,8 @@ Scope {
         visible: notifRow.hasBody
         text: notifRow.bodyText
         textFormat: Text.StyledText
-        linkColor: theme.terminalBlue
-        color: theme.text
+        linkColor: theme.accent
+        color: theme.textSecondary
         font.family: theme.fontFamily
         font.pixelSize: 11
         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -5895,7 +5924,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.notificationAppName(toast.notification)
-            color: theme.terminalBlue
+            color: theme.textMuted
             font.family: theme.fontFamily
             font.pixelSize: 11
             font.bold: true
@@ -5904,7 +5933,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: toast.notification?.summary || ""
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 14
             font.bold: true
@@ -5922,8 +5951,8 @@ Scope {
         visible: toast.hasBody
         text: toast.bodyText
         textFormat: Text.StyledText
-        linkColor: theme.terminalBlue
-        color: theme.text
+        linkColor: theme.accent
+        color: theme.textSecondary
         font.family: theme.fontFamily
         font.pixelSize: 13
         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -5970,8 +5999,8 @@ Scope {
       duration: root.notificationPopupDuration(toast.notification)
       persistent: toast.persistent
       trackColor: Qt.alpha(theme.surfaceMuted, 0.72)
-      accentColor: theme.blue
-      hoverAccentColor: theme.purple
+      accentColor: theme.info
+      hoverAccentColor: theme.special
       onExpired: {
         if (toast.item?.id !== undefined)
           toast.close(false);
@@ -6002,11 +6031,11 @@ Scope {
     implicitHeight: 64
     radius: 10
     color: device.connected
-      ? Qt.alpha(theme.purple, 0.14)
-      : (operationTarget ? Qt.alpha(theme.purple, 0.08) : (bluetoothHover.containsMouse ? theme.surfaceAccent : "transparent"))
+      ? Qt.alpha(theme.special, 0.14)
+      : (operationTarget ? Qt.alpha(theme.special, 0.08) : (bluetoothHover.containsMouse ? theme.surfaceAccent : "transparent"))
     border.color: device.connected
-      ? Qt.alpha(theme.purple, 0.45)
-      : (operationTarget ? Qt.alpha(theme.purple, 0.25) : Qt.alpha(theme.borderSubtle, 0.28))
+      ? Qt.alpha(theme.special, 0.45)
+      : (operationTarget ? Qt.alpha(theme.special, 0.25) : Qt.alpha(theme.borderSubtle, 0.28))
     border.width: 1
 
     RowLayout {
@@ -6019,12 +6048,12 @@ Scope {
         Layout.preferredWidth: 38
         Layout.preferredHeight: 38
         radius: 12
-        color: Qt.alpha(bluetoothRow.device.connected ? theme.purple : theme.surfaceMuted, bluetoothRow.device.connected ? 0.18 : 0.82)
+        color: Qt.alpha(bluetoothRow.device.connected ? theme.special : theme.surfaceMuted, bluetoothRow.device.connected ? 0.18 : 0.82)
 
         Text {
           anchors.centerIn: parent
           text: root.bluetoothDeviceIcon(bluetoothRow.device)
-          color: bluetoothRow.device.connected ? theme.purple : theme.foreground
+          color: bluetoothRow.device.connected ? theme.special : theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: 17
         }
@@ -6037,7 +6066,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: bluetoothRow.device.name
-          color: theme.foreground
+          color: theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: 13
           font.bold: true
@@ -6047,7 +6076,7 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: root.bluetoothDeviceDescription(bluetoothRow.device)
-          color: bluetoothRow.device.connected ? theme.purple : theme.text
+          color: theme.textSecondary
           font.family: theme.fontFamily
           font.pixelSize: 11
           elide: Text.ElideRight
@@ -6068,6 +6097,7 @@ Scope {
         label: root.bluetoothDeviceAction(bluetoothRow.device)
         maximumWidth: 126
         active: !bluetoothRow.device.paired
+        accent: theme.special
         enabled: !root.bluetoothBusy
         onClicked: root.runBluetoothDeviceAction(bluetoothRow.device)
       }
@@ -6091,11 +6121,11 @@ Scope {
     implicitHeight: expanded ? 120 : 62
     radius: 10
     color: network.connected
-      ? Qt.alpha(theme.blue, 0.13)
-      : (operationTarget ? Qt.alpha(theme.blue, 0.07) : (wifiHover.containsMouse ? theme.surfaceAccent : "transparent"))
+      ? Qt.alpha(theme.info, 0.13)
+      : (operationTarget ? Qt.alpha(theme.info, 0.07) : (wifiHover.containsMouse ? theme.surfaceAccent : "transparent"))
     border.color: network.connected
-      ? Qt.alpha(theme.blue, 0.42)
-      : (operationTarget ? Qt.alpha(theme.blue, 0.24) : Qt.alpha(theme.borderSubtle, 0.28))
+      ? Qt.alpha(theme.info, 0.42)
+      : (operationTarget ? Qt.alpha(theme.info, 0.24) : Qt.alpha(theme.borderSubtle, 0.28))
     border.width: 1
 
     onExpandedChanged: {
@@ -6115,7 +6145,7 @@ Scope {
           Layout.preferredWidth: 34
           Layout.preferredHeight: 18
           value: root.wifiSignal(wifiRow.network)
-          accent: wifiRow.network.connected ? theme.blue : theme.mutedAlt
+          accent: wifiRow.network.connected ? theme.info : theme.textMuted
         }
         ColumnLayout {
           Layout.fillWidth: true
@@ -6123,7 +6153,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: wifiRow.network.name
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 13
             font.bold: true
@@ -6132,7 +6162,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.wifiNetworkDescription(wifiRow.network)
-            color: wifiRow.network.connected ? theme.blue : theme.text
+            color: theme.textSecondary
             font.family: theme.fontFamily
             font.pixelSize: 11
             elide: Text.ElideRight
@@ -6172,12 +6202,12 @@ Scope {
           id: passwordInput
           Layout.fillWidth: true
           placeholderText: "Network password"
-          placeholderTextColor: theme.mutedAlt
+          placeholderTextColor: theme.textMuted
           echoMode: wifiRow.revealPassword ? TextInput.Normal : TextInput.Password
           text: root.pendingPassword
           onTextEdited: root.pendingPassword = text
           enabled: !root.wifiBusy
-          color: theme.text
+          color: theme.textSecondary
           font.family: theme.fontFamily
           font.pixelSize: 12
           background: Rectangle {
@@ -6242,7 +6272,7 @@ Scope {
   component SignalMeter: Item {
     id: meter
     property int value: 0
-    property color accent: theme.green
+    property color accent: theme.accent
 
     Row {
       anchors.centerIn: parent

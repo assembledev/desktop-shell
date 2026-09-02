@@ -349,7 +349,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: "Shortcuts"
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 20
             font.bold: true
@@ -400,7 +400,7 @@ Scope {
                     Text {
                       width: parent.width
                       text: section.modelData.name
-                      color: theme.yellow
+                      color: theme.utility
                       font.family: theme.fontFamily
                       font.pixelSize: 12
                       font.bold: true
@@ -427,7 +427,7 @@ Scope {
                             Layout.alignment: Qt.AlignTop
                             topPadding: 3
                             text: row.modelData.title
-                            color: theme.foreground
+                            color: theme.textPrimary
                             font.family: theme.fontFamily
                             font.pixelSize: 12
                             wrapMode: Text.Wrap
@@ -459,7 +459,7 @@ Scope {
                                   id: keyLabel
                                   anchors.centerIn: parent
                                   text: root.displayKey(modelData)
-                                  color: theme.blue
+                                  color: theme.info
                                   font.family: theme.fontFamily
                                   font.pixelSize: 10
                                   font.bold: true
@@ -482,7 +482,7 @@ Scope {
             Layout.fillWidth: true
             visible: root.categories.length === 0 || root.message.length > 0
             text: root.message.length > 0 ? root.message : "No shortcuts"
-            color: theme.muted
+            color: theme.textSecondary
             font.family: theme.fontFamily
             font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter

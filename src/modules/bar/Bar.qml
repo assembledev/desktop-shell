@@ -346,6 +346,17 @@ Scope {
     return ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"][level];
   }
 
+  function batteryColor() {
+    if (battery.status === "Charging" || battery.status === "Full")
+      return theme.success;
+    const capacity = Number(battery.capacity || 0);
+    if (capacity <= 15)
+      return theme.danger;
+    if (capacity <= 30)
+      return theme.warning;
+    return theme.success;
+  }
+
   function batteryAnalysis() {
     return battery.analysis || {};
   }
@@ -687,9 +698,9 @@ Scope {
                   return root.workspaceApplications(workspaceId);
                 }
                 activeTitle: active ? root.activeTitle : ""
-                activeColor: theme.blue
-                textColor: theme.text
-                mutedColor: theme.mutedAlt
+                activeColor: theme.info
+                textColor: theme.textPrimary
+                mutedColor: theme.textMuted
                 hoverColor: theme.surfaceAccent
                 compactWidth: root.desktopWorkspaceCompactWidth
                 expandedWidth: root.desktopWorkspaceExpandedWidth
@@ -716,7 +727,7 @@ Scope {
             visible: !root.workspaceIcons
             Layout.fillWidth: true
             text: root.activeTitle
-            color: text.length > 0 ? theme.text : "transparent"
+            color: text.length > 0 ? theme.textPrimary : "transparent"
             font.family: theme.fontFamily
             font.pixelSize: 16
             font.bold: true
@@ -740,7 +751,7 @@ Scope {
             anchors.centerIn: parent
             anchors.verticalCenterOffset: root.textOpticalYOffset
             text: root.desktopClockText
-            color: theme.text
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 16
             font.bold: true
@@ -824,7 +835,7 @@ Scope {
                 visible: Boolean(root.sink?.ready && root.sink?.audio)
                 icon: root.sink?.audio?.muted ? "󰖁" : "󰕾"
                 label: root.sink?.audio?.muted ? "OFF" : Math.round((root.sink?.audio?.volume || 0) * 100) + "%"
-                iconColor: theme.blue
+                iconColor: root.sink?.audio?.muted ? theme.iconMuted : theme.info
                 clickable: true
                 onClicked: {
                   if (root.sink?.audio)
@@ -844,14 +855,14 @@ Scope {
               BarSegment {
                 icon: "󰟜"
                 label: String(root.metrics.ramText || "--").split("/")[0]
-                iconColor: theme.green
+                iconColor: theme.resource
               }
 
               BarSegment {
                 visible: root.showVram && root.metrics.hasVram
                 icon: "󰢮"
                 label: String(root.metrics.vramText || "--").split("/")[0]
-                iconColor: theme.blue
+                iconColor: theme.info
               }
 
               Loader {
@@ -864,8 +875,8 @@ Scope {
                 sourceComponent: BarSegment {
                   icon: root.batteryIcon()
                   label: Math.round(root.battery.capacity || 0) + "%"
-                  iconColor: theme.green
-                  textColor: Number(root.battery.capacity || 0) <= 15 && root.battery.status !== "Charging" ? theme.red : (Number(root.battery.capacity || 0) <= 30 && root.battery.status !== "Charging" ? theme.yellow : theme.text)
+                  iconColor: root.batteryColor()
+                  textColor: Number(root.battery.capacity || 0) <= 15 && root.battery.status !== "Charging" ? theme.danger : (Number(root.battery.capacity || 0) <= 30 && root.battery.status !== "Charging" ? theme.warning : theme.textPrimary)
                   onHoveredChanged: {
                     root.batterySegmentHovered = hovered;
                     root.updateBatteryAnalysisOpen();
@@ -881,7 +892,7 @@ Scope {
               BarSegment {
                 icon: ""
                 label: root.keyboardLabel()
-                iconColor: theme.yellow
+                iconColor: theme.utility
               }
 
               NotificationSegment {
@@ -896,7 +907,7 @@ Scope {
                 Layout.preferredWidth: barSpacing.actionSize
                 Layout.preferredHeight: root.barHeight
                 text: ""
-                color: powerMouse.containsMouse || root.powerMenuOpen ? theme.brightRed : theme.red
+                color: powerMouse.containsMouse || root.powerMenuOpen ? theme.dangerStrong : theme.danger
                 font.family: theme.fontFamily
                 font.pixelSize: 21
                 font.bold: true
@@ -960,9 +971,9 @@ Scope {
                   return root.workspaceApplications(workspaceId);
                 }
                 activeTitle: ""
-                activeColor: theme.blue
-                textColor: theme.text
-                mutedColor: theme.mutedAlt
+                activeColor: theme.info
+                textColor: theme.textPrimary
+                mutedColor: theme.textMuted
                 hoverColor: theme.surfaceAccent
                 compactWidth: root.desktopWorkspaceCompactWidth
                 expandActive: false
@@ -999,7 +1010,7 @@ Scope {
               Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.clockTimeText
-                color: theme.text
+                color: theme.textPrimary
                 font.family: theme.fontFamily
                 font.pixelSize: 18
                 font.bold: true
@@ -1009,7 +1020,7 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: !root.portraitNarrow
                 text: root.clockDateText
-                color: theme.mutedAlt
+                color: theme.textMuted
                 font.family: theme.fontFamily
                 font.pixelSize: 9
                 font.bold: true
@@ -1034,7 +1045,7 @@ Scope {
               visible: !root.portraitNarrow
               icon: ""
               label: root.keyboardLabel()
-              iconColor: theme.yellow
+              iconColor: theme.utility
               targetHeight: root.portraitPrimaryHeight
             }
 
@@ -1051,7 +1062,7 @@ Scope {
               Layout.preferredWidth: barSpacing.actionSize
               Layout.preferredHeight: root.portraitPrimaryHeight
               text: ""
-              color: portraitPowerMouse.containsMouse || root.powerMenuOpen ? theme.brightRed : theme.red
+              color: portraitPowerMouse.containsMouse || root.powerMenuOpen ? theme.dangerStrong : theme.danger
               font.family: theme.fontFamily
               font.pixelSize: 21
               font.bold: true
@@ -1091,7 +1102,7 @@ Scope {
               Layout.fillWidth: true
               Layout.minimumWidth: root.portraitTitleReserve
               text: root.activeTitle
-              color: text.length > 0 ? theme.text : theme.mutedAlt
+              color: text.length > 0 ? theme.textPrimary : theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 14
               font.bold: true
@@ -1145,7 +1156,7 @@ Scope {
                 visible: Boolean(root.sink?.ready && root.sink?.audio)
                 icon: root.sink?.audio?.muted ? "󰖁" : "󰕾"
                 label: root.sink?.audio?.muted ? "OFF" : Math.round((root.sink?.audio?.volume || 0) * 100) + "%"
-                iconColor: theme.blue
+                iconColor: root.sink?.audio?.muted ? theme.iconMuted : theme.info
                 clickable: true
                 targetHeight: root.portraitSecondaryHeight
                 onClicked: {
@@ -1168,10 +1179,10 @@ Scope {
                 visible: root.battery.available
                 icon: root.batteryIcon()
                 label: Math.round(root.battery.capacity || 0) + "%"
-                iconColor: theme.green
+                iconColor: root.batteryColor()
                 textColor: Number(root.battery.capacity || 0) <= 15 && root.battery.status !== "Charging"
-                  ? theme.red
-                  : (Number(root.battery.capacity || 0) <= 30 && root.battery.status !== "Charging" ? theme.yellow : theme.text)
+                  ? theme.danger
+                  : (Number(root.battery.capacity || 0) <= 30 && root.battery.status !== "Charging" ? theme.warning : theme.textPrimary)
                 clickable: true
                 targetHeight: root.portraitSecondaryHeight
                 onHoveredChanged: {
@@ -1336,28 +1347,28 @@ Scope {
           icon: "󰔟"
           label: "Remaining"
           value: root.batteryMetric("estimateText")
-          accent: theme.blue
+          accent: theme.info
         }
 
         BatteryMetricRow {
           icon: "󱐋"
           label: "Now"
           value: root.batteryMetric("currentDraw")
-          accent: theme.green
+          accent: theme.resource
         }
 
         BatteryMetricRow {
           icon: "󰔚"
           label: "Last hour"
           value: root.batteryMetric("hourAverage")
-          accent: theme.yellow
+          accent: theme.utility
         }
 
         BatteryMetricRow {
           icon: "󰥔"
           label: "Since boot"
           value: root.batteryMetric("bootAverage")
-          accent: theme.purple
+          accent: theme.special
         }
       }
     }
@@ -1416,7 +1427,7 @@ Scope {
           PowerAction {
             icon: ""
             label: "Lock"
-            accent: theme.purple
+            accent: theme.special
             onClicked: {
               root.powerMenuOpen = false;
               Quickshell.execDetached([root.backend, "lock"]);
@@ -1426,7 +1437,7 @@ Scope {
           PowerAction {
             icon: "󰤄"
             label: "Sleep"
-            accent: theme.blue
+            accent: theme.info
             onClicked: {
               root.powerMenuOpen = false;
               Quickshell.execDetached([root.backend, "bar", "session", "sleep"]);
@@ -1436,7 +1447,7 @@ Scope {
           PowerAction {
             icon: ""
             label: "Restart"
-            accent: theme.yellow
+            accent: theme.warning
             onClicked: {
               root.powerMenuOpen = false;
               Quickshell.execDetached([root.backend, "bar", "session", "restart"]);
@@ -1446,7 +1457,7 @@ Scope {
           PowerAction {
             icon: ""
             label: "Shutdown"
-            accent: theme.red
+            accent: theme.danger
             danger: true
             onClicked: {
               root.powerMenuOpen = false;
@@ -1488,7 +1499,7 @@ Scope {
       anchors.centerIn: parent
       anchors.verticalCenterOffset: root.textOpticalYOffset
       text: wsButton.label
-      color: wsButton.active ? theme.blue : theme.text
+      color: wsButton.active ? theme.info : theme.textPrimary
       opacity: wsButton.active ? 1 : wsButton.inactiveOpacity
       font.family: theme.fontFamily
       font.pixelSize: 16
@@ -1533,8 +1544,8 @@ Scope {
     id: segment
     property string icon
     property string label
-    property color iconColor: theme.text
-    property color textColor: theme.text
+    property color iconColor: theme.textPrimary
+    property color textColor: theme.textPrimary
     property bool clickable: false
     readonly property bool hovered: segmentMouse.containsMouse
     property int preferredWidth: content.implicitWidth + barSpacing.itemPadding * 2
@@ -1598,8 +1609,8 @@ Scope {
     Layout.preferredWidth: implicitWidth
     Layout.preferredHeight: implicitHeight
     radius: 8
-    color: Qt.alpha(theme.brightRed, 0.12)
-    border.color: Qt.alpha(theme.brightRed, 0.5)
+    color: Qt.alpha(theme.dangerStrong, 0.12)
+    border.color: Qt.alpha(theme.dangerStrong, 0.5)
     border.width: 1
 
     Row {
@@ -1612,7 +1623,7 @@ Scope {
         height: 8
         anchors.verticalCenter: parent.verticalCenter
         radius: 4
-        color: theme.brightRed
+        color: theme.dangerStrong
 
         SequentialAnimation on opacity {
           running: indicator.visible
@@ -1626,7 +1637,7 @@ Scope {
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: root.textOpticalYOffset
         text: "REC"
-        color: theme.brightRed
+        color: theme.dangerStrong
         font.family: theme.fontFamily
         font.pixelSize: 12
         font.bold: true
@@ -1636,14 +1647,14 @@ Scope {
         width: 1
         height: 12
         anchors.verticalCenter: parent.verticalCenter
-        color: Qt.alpha(theme.brightRed, 0.34)
+        color: Qt.alpha(theme.dangerStrong, 0.34)
       }
 
       Text {
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: root.textOpticalYOffset
         text: indicator.elapsed
-        color: theme.text
+        color: theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 12
         font.bold: true
@@ -1654,7 +1665,7 @@ Scope {
         width: visible ? 1 : 0
         height: 12
         anchors.verticalCenter: parent.verticalCenter
-        color: Qt.alpha(theme.brightRed, 0.34)
+        color: Qt.alpha(theme.dangerStrong, 0.34)
       }
 
       Text {
@@ -1662,7 +1673,7 @@ Scope {
         anchors.verticalCenter: parent.verticalCenter
         anchors.verticalCenterOffset: root.textOpticalYOffset
         text: indicator.clockTime
-        color: theme.text
+        color: theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 12
         font.bold: true
@@ -1675,7 +1686,7 @@ Scope {
     property string icon
     property string label
     property string value
-    property color accent: theme.blue
+    property color accent: theme.accent
 
     Layout.fillWidth: true
     Layout.preferredHeight: 23
@@ -1699,7 +1710,7 @@ Scope {
 
     Text {
       text: metric.label
-      color: theme.text
+      color: theme.textPrimary
       font.family: theme.fontFamily
       font.pixelSize: 11
       font.bold: true
@@ -1715,7 +1726,7 @@ Scope {
       Text {
         anchors.fill: parent
         text: metric.value
-        color: theme.text
+        color: theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 12
         font.bold: true
@@ -1742,7 +1753,7 @@ Scope {
       anchors.centerIn: parent
       anchors.verticalCenterOffset: root.textOpticalYOffset
       text: notif.icon
-      color: theme.text
+      color: theme.textPrimary
       font.family: theme.fontFamily
       font.pixelSize: 19
       font.bold: true
@@ -1758,7 +1769,7 @@ Scope {
       width: 7
       height: 7
       radius: 4
-      color: theme.brightRed
+      color: theme.dangerStrong
       anchors.right: parent.right
       anchors.rightMargin: 4
       anchors.top: parent.top
@@ -1836,7 +1847,7 @@ Scope {
     Layout.preferredHeight: root.portraitMode ? 36 : 24
     radius: root.portraitMode ? 11 : 8
     color: overflow.hovered || root.trayShelfOpen ? theme.surfaceAccent : "transparent"
-    border.color: root.trayShelfPinned ? Qt.alpha(theme.blue, 0.72) : "transparent"
+    border.color: root.trayShelfPinned ? Qt.alpha(theme.accent, 0.72) : "transparent"
     border.width: 1
 
     scale: overflowMouse.pressed ? 0.9 : (overflow.hovered ? 1.04 : 1)
@@ -1883,7 +1894,7 @@ Scope {
           anchors.centerIn: parent
           anchors.verticalCenterOffset: root.textOpticalYOffset
           text: overflow.items.length > 9 ? "9+" : String(overflow.items.length)
-          color: theme.text
+          color: theme.textPrimary
           font.family: theme.fontFamily
           font.pixelSize: overflow.items.length > 9 ? 8 : 9
           font.bold: true
@@ -1904,14 +1915,14 @@ Scope {
     id: action
     property string icon
     property string label
-    property color accent: theme.blue
+    property color accent: theme.accent
     property bool danger: false
     signal clicked
 
     Layout.fillWidth: true
     Layout.preferredHeight: 42
     radius: 9
-    color: powerHover.containsMouse ? (danger ? Qt.alpha(theme.red, 0.14) : theme.surfaceAccent) : "transparent"
+    color: powerHover.containsMouse ? (danger ? Qt.alpha(theme.danger, 0.14) : theme.surfaceAccent) : "transparent"
     border.color: "transparent"
     border.width: 0
     scale: powerHover.pressed ? 0.97 : 1
@@ -1951,7 +1962,7 @@ Scope {
 
       Text {
         text: action.label
-        color: theme.foreground
+        color: theme.textPrimary
         font.family: theme.fontFamily
         font.pixelSize: 13
         font.bold: true

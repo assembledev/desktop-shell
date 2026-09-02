@@ -32,8 +32,8 @@ Scope {
     return artist || album || playerName;
   }
   readonly property color artworkTone: hasLocalArtwork
-    ? (artworkPalette.colors[0] ?? theme.purple)
-    : theme.purple
+    ? (artworkPalette.colors[0] ?? theme.special)
+    : theme.special
 
   MotionTransition {
     id: surfaceTransition
@@ -159,7 +159,7 @@ Scope {
         gradient: Gradient {
           orientation: Gradient.Horizontal
           GradientStop { position: 0; color: Qt.alpha(root.artworkTone, 0.22) }
-          GradientStop { position: 0.56; color: Qt.alpha(theme.purple, 0.06) }
+          GradientStop { position: 0.56; color: Qt.alpha(theme.special, 0.07) }
           GradientStop { position: 1; color: Qt.alpha(theme.bgSolid, 0.12) }
         }
       }
@@ -178,8 +178,8 @@ Scope {
           Layout.preferredWidth: 64
           Layout.preferredHeight: 64
           radius: 11
-          color: Qt.alpha(theme.purple, 0.15)
-          border.color: Qt.alpha(theme.foreground, 0.2)
+          color: Qt.alpha(theme.special, 0.15)
+          border.color: Qt.alpha(theme.textPrimary, 0.2)
           border.width: 1
           contentUnderBorder: true
 
@@ -197,7 +197,7 @@ Scope {
             anchors.centerIn: parent
             visible: artworkImage.status !== Image.Ready
             text: "󰎈"
-            color: theme.purple
+            color: theme.special
             font.family: theme.fontFamily
             font.pixelSize: 26
           }
@@ -218,12 +218,12 @@ Scope {
               Layout.preferredWidth: 16
               Layout.preferredHeight: 3
               radius: 2
-              color: theme.purple
+              color: theme.special
             }
 
             Text {
               text: "NOW PLAYING"
-              color: theme.purple
+              color: theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 9
               font.bold: true
@@ -234,13 +234,13 @@ Scope {
               Layout.preferredWidth: 3
               Layout.preferredHeight: 3
               radius: 2
-              color: theme.mutedAlt
+              color: theme.textMuted
             }
 
             Text {
               Layout.fillWidth: true
               text: root.playerName.toUpperCase()
-              color: theme.mutedAlt
+              color: theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 9
               elide: Text.ElideRight
@@ -248,7 +248,7 @@ Scope {
 
             Text {
               text: root.hasKnownLength ? root.formatTime(root.playbackLength) : "--:--"
-              color: root.hovered ? theme.purple : theme.mutedAlt
+              color: root.hovered ? theme.textSecondary : theme.textMuted
               font.family: theme.fontFamily
               font.pixelSize: 9
               font.bold: root.hovered
@@ -258,7 +258,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.title
-            color: theme.foreground
+            color: theme.textPrimary
             font.family: theme.fontFamily
             font.pixelSize: 13
             font.bold: true
@@ -268,7 +268,7 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: root.subtitle
-            color: theme.text
+            color: theme.textSecondary
             font.family: theme.fontFamily
             font.pixelSize: 10
             elide: Text.ElideRight
@@ -284,7 +284,7 @@ Scope {
         duration: root.displayTimeout
         trackColor: Qt.alpha(theme.surfaceMuted, 0.72)
         accentColor: Qt.alpha(root.artworkTone, 0.86)
-        hoverAccentColor: theme.purple
+        hoverAccentColor: theme.special
         onExpired: root.hide()
       }
 

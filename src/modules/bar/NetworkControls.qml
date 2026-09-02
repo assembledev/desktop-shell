@@ -343,7 +343,7 @@ Item {
             height: 24
             radius: 7
             color: statusItem.failed
-              ? Qt.alpha(theme.red, itemMouse.containsMouse ? 0.18 : 0.09)
+              ? Qt.alpha(theme.danger, itemMouse.containsMouse ? 0.18 : 0.09)
               : (itemMouse.containsMouse ? theme.surfaceAccent : "transparent")
 
             Behavior on color {
@@ -370,7 +370,7 @@ Item {
               text: statusItem.failed
                 ? ((modelData.label || statusItem.currentStatus.text || "Network") + " !")
                 : (statusItem.currentStatus.text || modelData.label || "")
-              color: statusItem.failed ? theme.red : theme.text
+              color: statusItem.failed ? theme.danger : theme.textPrimary
               font.family: theme.fontFamily
               font.pixelSize: 15
               font.bold: true
@@ -382,8 +382,8 @@ Item {
               radius: 3
               anchors.verticalCenter: parent.verticalCenter
               color: statusItem.busy
-                ? theme.yellow
-                : (statusItem.active ? theme.green : (statusItem.login ? theme.yellow : theme.red))
+                ? theme.warning
+                : (statusItem.active ? theme.success : (statusItem.login ? theme.warning : theme.textMuted))
             }
           }
 
@@ -401,7 +401,7 @@ Item {
           Layout.preferredWidth: visible ? 1 : 0
           Layout.preferredHeight: 14
           Layout.alignment: Qt.AlignVCenter
-          color: Qt.alpha(theme.mutedAlt, 0.44)
+          color: Qt.alpha(theme.textMuted, 0.44)
           radius: 1
         }
       }
