@@ -1386,7 +1386,7 @@ Scope {
 
         Rectangle {
           Layout.preferredHeight: 24
-          implicitWidth: workspaceText.implicitWidth + 16
+          implicitWidth: Math.max(36, workspaceText.implicitWidth + 16)
           radius: 8
           color: row.selected ? Qt.alpha(root.focusAccent, 0.10) : "transparent"
           border.color: row.selected ? Qt.alpha(root.focusAccent, 0.36) : theme.borderMuted
@@ -1394,12 +1394,14 @@ Scope {
 
           Text {
             id: workspaceText
-            anchors.centerIn: parent
+            anchors.fill: parent
             text: row.tabMode ? "TAB" : root.workspaceLabel(row.targetWindow)
             color: row.selected ? root.focusAccent : (row.targetActive ? root.infoAccent : root.textMuted)
             font.family: theme.fontFamily
             font.pixelSize: 10
             font.bold: true
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
           }
         }
       }
