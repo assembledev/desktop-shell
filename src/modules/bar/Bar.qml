@@ -86,6 +86,23 @@ Scope {
     : []
   property int workspaceIconRevision: 0
   property var sink: Pipewire.defaultAudioSink
+  // Inspect every source, including non-default and virtual microphones. Sink
+  // monitor capture is output recording and must not light the microphone badge.
+  readonly property var microphoneLinks: Pipewire.linkGroups.values.filter(link =>
+    Boolean(link.source?.audio && !link.source.isStream && !link.source.isSink))
+  readonly property var activeMicrophoneLinks: microphoneLinks.filter(link =>
+    link.state === PwLinkState.Active)
+  readonly property string microphoneTooltip: {
+    const names = [];
+    for (const link of activeMicrophoneLinks) {
+      const node = link.target;
+      const name = String(node?.properties?.["application.name"]
+        || node?.description || node?.name || "Unknown app");
+      if (names.indexOf(name) < 0)
+        names.push(name);
+    }
+    return "Microphone in use\n" + names.join("\n");
+  }
   readonly property int textOpticalYOffset: 1
   readonly property int trayIconSize: portraitMode ? 36 : 20
   readonly property int trayIconImageSize: 20
@@ -546,7 +563,11 @@ Scope {
   }
 
   PwObjectTracker {
-    objects: [sink]
+    objects: Pipewire.nodes.values
+  }
+
+  PwObjectTracker {
+    objects: root.microphoneLinks
   }
 
   Process {
@@ -830,6 +851,8 @@ Scope {
             RowLayout {
               id: desktopStatusGroup
               spacing: barSpacing.itemGap
+
+              MicrophoneIndicator {}
 
               BarSegment {
                 visible: Boolean(root.sink?.ready && root.sink?.audio)
@@ -1151,6 +1174,8 @@ Scope {
             RowLayout {
               id: portraitFixedStatusRow
               spacing: barSpacing.itemGap
+
+              MicrophoneIndicator {}
 
               BarSegment {
                 visible: Boolean(root.sink?.ready && root.sink?.audio)
@@ -1597,6 +1622,47 @@ Scope {
           segment.clicked();
       }
     }
+  }
+
+  component MicrophoneIndicator: Rectangle {
+    visible: root.activeMicrophoneLinks.length > 0
+    implicitWidth: microphoneContent.implicitWidth + barSpacing.itemPadding * 2
+    implicitHeight: 24
+    Layout.preferredWidth: implicitWidth
+    Layout.preferredHeight: implicitHeight
+    Layout.alignment: Qt.AlignVCenter
+    radius: 8
+    color: Qt.alpha(theme.dangerStrong, 0.12)
+    border.color: Qt.alpha(theme.dangerStrong, 0.5)
+    border.width: 1
+
+    Row {
+      id: microphoneContent
+      anchors.centerIn: parent
+      spacing: barSpacing.contentGap
+
+      Text {
+        text: "󰍬"
+        color: theme.dangerStrong
+        font.family: theme.fontFamily
+        font.pixelSize: 16
+        anchors.verticalCenter: parent.verticalCenter
+      }
+
+      Text {
+        text: "MIC"
+        color: theme.dangerStrong
+        font.family: theme.fontFamily
+        font.pixelSize: 11
+        font.bold: true
+        anchors.verticalCenter: parent.verticalCenter
+      }
+    }
+
+    HoverHandler { id: microphoneHover }
+    ToolTip.visible: visible && microphoneHover.hovered
+    ToolTip.delay: 350
+    ToolTip.text: root.microphoneTooltip
   }
 
   component RecordingIndicator: Rectangle {

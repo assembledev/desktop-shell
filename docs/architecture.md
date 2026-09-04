@@ -17,6 +17,8 @@ $ desktop-shell run
 Quickshell. The entry point owns the long-lived shell surfaces:
 
 - bar, tray, workspaces, calendar, and an optional recording indicator;
+- a microphone badge while any PipeWire audio source has an active connection,
+  with consuming app names on hover; output-monitor capture is excluded;
 - launcher and existing-window focus search;
 - control center, notification server, Wi-Fi, Bluetooth, and audio mixer;
 - clipboard history and wallpaper picker;
