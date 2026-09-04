@@ -2545,9 +2545,11 @@ Scope {
       contentHeight: mainContent.implicitHeight
       boundsBehavior: Flickable.StopAtBounds
       ScrollBar.vertical: ThemedScrollBar {
-        parent: mainScroll
+        parent: mainScroll.parent
+        visible: mainScroll.visible
         anchors.top: mainScroll.top
-        anchors.right: mainScroll.right
+        anchors.left: mainScroll.right
+        anchors.leftMargin: 7
         anchors.bottom: mainScroll.bottom
       }
 
@@ -2919,9 +2921,11 @@ Scope {
       contentHeight: displayContent.implicitHeight
       boundsBehavior: Flickable.StopAtBounds
       ScrollBar.vertical: ThemedScrollBar {
-        parent: displayScroll
+        parent: displayScroll.parent
+        visible: displayScroll.visible
         anchors.top: displayScroll.top
-        anchors.right: displayScroll.right
+        anchors.left: displayScroll.right
+        anchors.leftMargin: 7
         anchors.bottom: displayScroll.bottom
       }
 
@@ -3442,9 +3446,11 @@ Scope {
           contentHeight: wifiContent.implicitHeight
           boundsBehavior: Flickable.StopAtBounds
           ScrollBar.vertical: ThemedScrollBar {
-            parent: wifiScroll
+            parent: wifiScroll.parent
+            visible: wifiScroll.visible
             anchors.top: wifiScroll.top
-            anchors.right: wifiScroll.right
+            anchors.left: wifiScroll.right
+            anchors.leftMargin: 7
             anchors.bottom: wifiScroll.bottom
           }
 
@@ -3764,9 +3770,11 @@ Scope {
           contentHeight: bluetoothContent.implicitHeight
           boundsBehavior: Flickable.StopAtBounds
           ScrollBar.vertical: ThemedScrollBar {
-            parent: bluetoothScroll
+            parent: bluetoothScroll.parent
+            visible: bluetoothScroll.visible
             anchors.top: bluetoothScroll.top
-            anchors.right: bluetoothScroll.right
+            anchors.left: bluetoothScroll.right
+            anchors.leftMargin: 7
             anchors.bottom: bluetoothScroll.bottom
           }
 
