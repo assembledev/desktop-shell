@@ -23,6 +23,7 @@ let
           qmllint \
             --ignore-settings \
             --import error \
+            --Quick.layout-positioning error \
             --unqualified disable \
             --missing-property disable \
             --incompatible-type disable \

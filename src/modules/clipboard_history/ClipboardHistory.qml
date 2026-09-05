@@ -288,7 +288,7 @@ Scope {
 
         Rectangle {
           Layout.fillWidth: true
-          height: 44
+          Layout.preferredHeight: 44
           radius: 10
           color: theme.surfaceMuted
           border.color: search.activeFocus ? theme.accent : theme.borderMuted

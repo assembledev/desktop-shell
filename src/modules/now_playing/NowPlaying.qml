@@ -171,7 +171,10 @@ Scope {
         spacing: 13
         opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.14) / 0.86))
         transform: Translate {
+          // Translate moves pixels without changing layout geometry.
+          // qmllint disable Quick.layout-positioning
           x: (1 - surfaceTransition.progress) * 10
+          // qmllint enable Quick.layout-positioning
         }
 
         ClippingRectangle {

@@ -2325,7 +2325,10 @@ Scope {
           spacing: 12
           opacity: Math.max(0, Math.min(1, (mainSurfaceTransition.progress - 0.12) / 0.88))
           transform: Translate {
+            // Translate moves pixels without changing layout geometry.
+            // qmllint disable Quick.layout-positioning
             x: (1 - mainSurfaceTransition.progress) * 10
+            // qmllint enable Quick.layout-positioning
           }
 
           ControlHeader {
@@ -2452,7 +2455,10 @@ Scope {
       spacing: 10
       opacity: popupSurfaceTransition.progress
       transform: Translate {
+        // Translate moves pixels without changing layout geometry.
+        // qmllint disable Quick.layout-positioning
         x: (1 - popupSurfaceTransition.progress) * 32
+        // qmllint enable Quick.layout-positioning
       }
 
       HoverHandler {
@@ -4012,7 +4018,7 @@ Scope {
 
       Rectangle {
         Layout.fillWidth: true
-        height: 1
+        Layout.preferredHeight: 1
         color: theme.borderSubtle
         opacity: 0.46
       }

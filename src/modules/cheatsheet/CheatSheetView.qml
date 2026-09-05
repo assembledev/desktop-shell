@@ -337,7 +337,10 @@ Scope {
         spacing: 12
         opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.16) / 0.84))
         transform: Translate {
+          // Translate moves pixels without changing layout geometry.
+          // qmllint disable Quick.layout-positioning
           y: (1 - body.opacity) * 8
+          // qmllint enable Quick.layout-positioning
         }
 
         RowLayout {
