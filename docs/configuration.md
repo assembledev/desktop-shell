@@ -180,7 +180,11 @@ module does not take ownership of its monitor policy.
 The landscape bar allocates both sides around the centered clock from their
 measured content. When space is constrained it shortens the clock to the time
 and collapses the active workspace title before allowing either side to cross
-the center; wider outputs keep the full date and expanded workspace.
+the center; wider outputs keep the full date and expanded workspace. The right
+side collapses tray items into an overflow shelf first. If the status controls
+and the smallest tray representation still cannot fit beside the clock, network
+labels hide as a final fallback, preserving each provider icon and status light
+(including transition and error colors).
 
 Bar spacing follows a semantic 2 px scale owned by `BarSpacing.qml`. The bar
 edge uses `edgeInset`; tray, status, and action clusters are separated by

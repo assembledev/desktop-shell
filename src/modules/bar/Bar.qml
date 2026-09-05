@@ -128,7 +128,14 @@ Scope {
     : 0
   readonly property real desktopMinimumTrayWidth: BarLayout.minimumTrayWidth(
     trayItemCount, trayIconSize, trayOverflowButtonWidth)
-  readonly property real desktopMinimumRightWidth: Number(rightStatusRow.implicitWidth || 0)
+  // Read preferred child sizes, never allocated widths: the compact decision
+  // must not depend on the geometry it changes.
+  readonly property real desktopFullStatusWidth: fullStatusGroupWidth()
+    + barSpacing.groupGap + desktopActionGroup.implicitWidth
+  readonly property bool desktopCompactNetwork: !portraitMode
+    && BarLayout.shouldCompactNetwork(desktopSideAvailableWidth,
+      desktopFullStatusWidth, desktopMinimumTrayWidth, barSpacing.groupGap)
+  readonly property real desktopMinimumRightWidth: desktopFullStatusWidth
     + (desktopMinimumTrayWidth > 0 ? desktopMinimumTrayWidth + barSpacing.groupGap : 0)
   readonly property real desktopFullClockWidth: Number(fullClockMeasure.implicitWidth || 0)
   readonly property bool desktopCompactClock: !portraitMode && !recording
@@ -166,7 +173,7 @@ Scope {
     - barSpacing.itemGap
   readonly property real trayWidthBudget: Math.max(0, portraitMode
     ? portraitTrayWidthBudget
-    : desktopTrayWidthBudget)
+    : (desktopCompactNetwork ? Math.min(desktopTrayWidthBudget, desktopMinimumTrayWidth) : desktopTrayWidthBudget))
   readonly property int trayInlineCount: inlineTrayCountForBudget()
   readonly property var trayInlineItems: trayItems.slice(0, trayInlineCount)
   readonly property var trayOverflowItems: trayItems.slice(trayInlineCount)
@@ -315,6 +322,21 @@ Scope {
     }
 
     return attention.concat(regular);
+  }
+
+  function fullStatusGroupWidth() {
+    let total = 0;
+    let count = 0;
+    for (const child of desktopStatusGroup.children) {
+      if (!child.visible)
+        continue;
+      const preferred = child === desktopNetworkControls
+        ? desktopNetworkControls.fullWidth
+        : (child.Layout.preferredWidth >= 0 ? child.Layout.preferredWidth : child.implicitWidth);
+      total += Math.ceil(preferred);
+      count++;
+    }
+    return total + Math.max(0, count - 1) * desktopStatusGroup.spacing;
   }
 
   function inlineTrayCountForBudget() {
@@ -867,6 +889,8 @@ Scope {
               }
 
               NetworkControls {
+                id: desktopNetworkControls
+                compactLabels: root.desktopCompactNetwork
                 backend: root.backend
                 configPath: root.networkControlsPath
                 pollingEnabled: !root.portraitMode

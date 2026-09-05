@@ -45,6 +45,42 @@ TestCase {
     verify(compactSpace.workspaceGap < space.workspaceGap);
   }
 
+  function test_network_labels_are_last_resort_after_minimum_tray() {
+    const available = BarLayout.availableSideWidth(1280, 50, space.edgeInset, space.centerClearance);
+    compare(available, 579);
+    // Full status fits alone, but the single tray icon crosses the clearance.
+    verify(BarLayout.shouldCompactNetwork(available, 560, 20, space.groupGap));
+    verify(BarLayout.shouldCompactNetwork(available, 550, 34, space.groupGap));
+    // Keep labels when collapsing the tray is sufficient, including exact fit.
+    verify(!BarLayout.shouldCompactNetwork(available, 533, 34, space.groupGap));
+    verify(!BarLayout.shouldCompactNetwork(available, 579, 0, space.groupGap));
+    verify(BarLayout.shouldCompactNetwork(available, 580, 0, space.groupGap));
+  }
+
+  function test_compacted_right_side_clears_clock_for_each_tray_size() {
+    // Three long provider labels push the full status past the side budget.
+    // Removing their text restores room while retaining icons and lights.
+    for (const centerWidth of [50, 200, 240]) {
+      const available = BarLayout.availableSideWidth(1280, centerWidth,
+        space.edgeInset, space.centerClearance);
+      for (let count = 0; count <= 12; count++) {
+        const minimumTray = BarLayout.minimumTrayWidth(count, 20, 34);
+        verify(BarLayout.shouldCompactNetwork(available, 610, minimumTray, space.groupGap));
+        const compactStatus = 400;
+        const budget = Math.min(available - compactStatus - space.groupGap, minimumTray);
+        const inline = BarLayout.inlineTrayCount(count, budget, 20,
+          space.trayItemGap, space.trayTightGap, 34);
+        const tray = inline === count
+          ? BarLayout.rowWidth(count, 20, space.trayItemGap)
+          : BarLayout.rowWidth(inline, 20, space.trayTightGap)
+            + (inline > 0 ? space.trayTightGap : 0) + 34;
+        const rightWidth = compactStatus + (count > 0 ? space.groupGap + tray : 0);
+        verify(rightWidth <= available);
+        compare(inline, count === 1 ? 1 : 0);
+      }
+    }
+  }
+
   function test_tray_keeps_one_item_inline_and_uses_overflow_for_many_items() {
     compare(BarLayout.inlineTrayCount(1, 0, 20, space.trayItemGap, space.trayTightGap, 34), 1);
     compare(BarLayout.inlineTrayCount(4, 34, 20, space.trayItemGap, space.trayTightGap, 34), 0);

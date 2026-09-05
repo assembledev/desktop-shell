@@ -8,6 +8,7 @@ Item {
 
   property string backend
   property string configPath
+  property bool compactLabels: false
   property bool pollingEnabled: true
   property int targetHeight: 37
   required property int itemPadding
@@ -19,6 +20,13 @@ Item {
   signal statusRequested(string controlId)
   signal toggleRequested(string controlId)
 
+  // Measure the full labels independently of the displayed compact state.
+  readonly property real fullWidth: {
+    let total = Math.max(0, providers.count - 1) * network.itemGap;
+    for (let i = 0; i < providers.count; i++)
+      total += providers.itemAt(i)?.fullWidth || 0;
+    return total;
+  }
   readonly property int textOpticalYOffset: 1
 
   visible: controls.length > 0
@@ -313,12 +321,16 @@ Item {
     spacing: network.itemGap
 
     Repeater {
+      id: providers
       model: network.controls
 
       delegate: RowLayout {
         required property int index
         required property var modelData
 
+        readonly property real fullWidth: Math.ceil(18 + statusLabel.implicitWidth + 6
+          + network.contentGap * 2 + network.itemPadding * 2)
+          + (index < network.controls.length - 1 ? network.itemGap + 1 : 0)
         spacing: network.itemGap
 
         Item {
@@ -365,6 +377,8 @@ Item {
             }
 
             Text {
+              id: statusLabel
+              visible: !network.compactLabels
               anchors.verticalCenter: parent.verticalCenter
               anchors.verticalCenterOffset: network.textOpticalYOffset
               text: statusItem.failed
@@ -381,7 +395,7 @@ Item {
               height: 6
               radius: 3
               anchors.verticalCenter: parent.verticalCenter
-              color: statusItem.busy
+              color: statusItem.failed ? theme.danger : statusItem.busy
                 ? theme.warning
                 : (statusItem.active ? theme.success : (statusItem.login ? theme.warning : theme.textMuted))
             }

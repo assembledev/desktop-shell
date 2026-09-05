@@ -55,3 +55,8 @@ function inlineTrayCount(itemCount, widthBudget, iconWidth, expandedSpacing,
 
   return visibleCount;
 }
+
+// Include the irreducible tray footprint even when its budget has run out.
+function shouldCompactNetwork(availableWidth, fullStatusWidth, minimumTrayWidth, groupGap) {
+  return fullStatusWidth + (minimumTrayWidth > 0 ? minimumTrayWidth + groupGap : 0) > availableWidth;
+}
