@@ -35,7 +35,9 @@ Scope {
 
   SystemClock {
     id: clock
-    precision: SystemClock.Minutes
+    // Qt timers pause during suspend; seconds precision bounds the stale time
+    // after wake without a separate resume listener. Display remains HH:mm.
+    precision: SystemClock.Seconds
   }
 
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
