@@ -23,7 +23,9 @@ Quickshell. The entry point owns the long-lived shell surfaces:
 - control center, notification server, Wi-Fi, Bluetooth, and audio mixer;
 - clipboard history and wallpaper picker;
 - spatial window switcher with workspace previews;
-- lock preview, media notifications, and keybinding reference.
+- lock preview, media notifications, and keybinding reference;
+- a click-through [Glove80 layer overlay](keyboard-overlay.md), with an on-demand
+  read-only Bluetooth helper in `src/keyboard-overlay`.
 
 The lock screen has a standalone entry point at `src/lock.qml`; the login
 greeter has another at `src/greeter.qml`. Both adapt their authentication

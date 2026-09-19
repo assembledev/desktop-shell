@@ -6,6 +6,7 @@
 }:
 
 let
+  keyboardOverlay = import ./keyboard-overlay.nix { inherit pkgs source; };
   sources = import ./source-files.nix { inherit lib source; };
   defaultConfig = pkgs.writeText "desktop-shell-default-config.json" (
     builtins.toJSON (import ./default-config.nix)
@@ -90,6 +91,7 @@ let
       export DESKTOP_SHELL_QML=${lib.escapeShellArg "${qml}/share/desktop-shell/qml"}
       export DESKTOP_SHELL_DEFAULT_CONFIG=${lib.escapeShellArg "${configPayload}/share/desktop-shell/default-config.json"}
       export DESKTOP_SHELL_BROWSER_BRIDGE=${lib.escapeShellArg "${browserTabBridge.host}/bin/desktop-shell-browser-bridge"}
+      export DESKTOP_SHELL_KEYBOARD=${lib.escapeShellArg "${keyboardOverlay}/bin/desktop-shell-keyboard"}
       export DESKTOP_SHELL_NOTIFICATION_SOUND=${lib.escapeShellArg "${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo/message-new-instant.oga"}
       exec ${pkgs.bash}/bin/bash ${backend}/libexec/desktop-shell/desktop-shell.sh "$@"
     '';
@@ -103,6 +105,7 @@ pkgs.symlinkJoin {
   ];
   passthru = {
     inherit
+      keyboardOverlay
       backend
       browserTabBridge
       configPayload

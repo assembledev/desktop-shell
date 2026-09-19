@@ -65,6 +65,18 @@ desktop_shell_profile_wait_ready() {
   return 1
 }
 
+# Keyboard overlay has no configuration side effects and must toggle quickly.
+if [ "${1:-}" = keyboard-overlay ]; then
+  case "${2:-toggle}" in
+    open | close | toggle) desktop_shell_ipc_call keyboardOverlay "${2:-toggle}" ;;
+    *)
+      printf 'usage: desktop-shell keyboard-overlay [open|close|toggle]\n' >&2
+      exit 2
+      ;;
+  esac
+  exit
+fi
+
 # This is used by systemd as a startup readiness gate. Keep it independent of
 # config parsing so a malformed user config cannot mask the actual QML result.
 if [ "${1:-}" = wait-ready ]; then
@@ -295,6 +307,7 @@ Shell surfaces:
   alttab <next|prev|commit|cancel>
   direction <l|r|u|d>
   cheatsheet <open|close|toggle>
+  keyboard-overlay <open|close|toggle>
   pick
   lock [lock|status|focus]
   clipboard <open|close|toggle>
