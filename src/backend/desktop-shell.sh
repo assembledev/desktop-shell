@@ -131,14 +131,21 @@ if [ "${1:-}" = brightness ]; then
   exit
 fi
 
-# Clipboard list generation is latency-sensitive and self-contained. Keep it
-# ahead of config parsing and unrelated backend setup.
-if [ "${1:-}" = clipboard ] && [ "${2:-}" = list-json ] && [ "$#" -eq 2 ]; then
-  backend_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-  # shellcheck source=lib/clipboard.sh
-  source "$backend_dir/lib/clipboard.sh"
-  clipboard_list_json
-  exit
+# Clipboard reads and copies are latency-sensitive and self-contained. Keep
+# them ahead of config parsing and unrelated backend setup.
+if [ "${1:-}" = clipboard ]; then
+  case "${2:-}" in
+    list-json | copy)
+      backend_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+      # shellcheck source=lib/clipboard.sh
+      source "$backend_dir/lib/clipboard.sh"
+      case "$2" in
+        list-json) clipboard_list_json ;;
+        copy) clipboard_copy "${3:-}" ;;
+      esac
+      exit
+      ;;
+  esac
 fi
 
 # Surface commands are latency-sensitive and need neither config parsing nor

@@ -101,10 +101,10 @@ Scope {
   }
 
   function copyItem(item) {
-    if (!item || !item.record)
+    if (!item || !item.record || copyProc.running)
       return;
+    message = "";
     copyProc.exec([backend, "clipboard", "copy", item.record]);
-    closePicker();
   }
 
   function deleteItem(item) {
@@ -167,6 +167,12 @@ Scope {
 
   Process {
     id: copyProc
+    onExited: function(exitCode, exitStatus) {
+      if (exitCode === 0 && exitStatus === 0)
+        root.closePicker();
+      else
+        root.message = "Failed to copy clipboard entry";
+    }
   }
 
   Process {

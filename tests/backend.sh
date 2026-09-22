@@ -167,6 +167,33 @@ jq -e \
     }
   ' <<<"$clipboard_json" >/dev/null
 
+# Copying must not load shell configuration, and must wait for the writer.
+printf '%s\n' \
+  "#!$(command -v bash)" \
+  'test "${1:-}" = decode || exit 1' \
+  'cat' >"$test_bin/cliphist"
+printf '%s\n' \
+  "#!$(command -v bash)" \
+  'cat >"$DESKTOP_SHELL_TEST_COPY_OUTPUT"' \
+  'sleep 0.05' \
+  'touch "$DESKTOP_SHELL_TEST_COPY_DONE"' \
+  'exit "${DESKTOP_SHELL_TEST_COPY_STATUS:-0}"' >"$test_bin/wl-copy"
+chmod +x "$test_bin/cliphist" "$test_bin/wl-copy"
+export DESKTOP_SHELL_TEST_COPY_OUTPUT="$test_root/copied"
+export DESKTOP_SHELL_TEST_COPY_DONE="$test_root/copy-done"
+copy_record="$(printf '%s' $'101\tsample' | base64 -w0)"
+DESKTOP_SHELL_CONFIG="$invalid_config" \
+  DESKTOP_SHELL_DEFAULT_CONFIG="$invalid_config" \
+  PATH="$test_bin:$PATH" \
+  bash "$source_root/src/backend/desktop-shell.sh" clipboard copy "$copy_record"
+test "$(cat "$DESKTOP_SHELL_TEST_COPY_OUTPUT")" = $'101\tsample'
+test -f "$DESKTOP_SHELL_TEST_COPY_DONE"
+if DESKTOP_SHELL_TEST_COPY_STATUS=1 PATH="$test_bin:$PATH" \
+  bash "$source_root/src/backend/desktop-shell.sh" clipboard copy "$copy_record"; then
+  printf 'clipboard copy must propagate writer failure\n' >&2
+  exit 1
+fi
+
 profile_ipc_args="$test_root/profile-ipc-args"
 printf '#!%s\nif [ "${6:-}" = profileReady ]; then printf "true\\n"; else printf "%%s\\n" "$@" >"$DESKTOP_SHELL_TEST_PROFILE_IPC_ARGS"; fi\n' \
   "$(command -v bash)" >"$test_bin/quickshell"
