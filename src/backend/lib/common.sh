@@ -50,23 +50,6 @@ system_sys_root="${DESKTOP_SHELL_SYS_ROOT:-/sys}"
 system_proc_root="${DESKTOP_SHELL_PROC_ROOT:-/proc}"
 mkdir -p "$desktop_shell_state_dir" "$state_dir" "$preferences_state_dir" "$wallpaper_state_dir" "$display_state_dir" "$wallpaper_dir" "$clipboard_preview_dir"
 
-# Keep existing user state when upgrading from the former NixOS-local layout.
-legacy_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/control-center"
-legacy_wallpaper_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/wallpaper-picker"
-if [ ! -e "$state_dir/count" ] && [ -r "$legacy_state_dir/count" ]; then
-  cp "$legacy_state_dir/count" "$state_dir/count"
-fi
-for preference_name in dnd focus; do
-  preference_file="$preferences_state_dir/$preference_name"
-  for legacy_file in "$state_dir/$preference_name" "$legacy_state_dir/$preference_name"; do
-    if [ ! -e "$preference_file" ] && [ -r "$legacy_file" ]; then
-      cp "$legacy_file" "$preference_file"
-    fi
-  done
-done
-if [ ! -e "$current_wallpaper_file" ] && [ -r "$legacy_wallpaper_state_dir/current" ]; then
-  cp "$legacy_wallpaper_state_dir/current" "$current_wallpaper_file"
-fi
 [ -f "$state_dir/count" ] || printf '0\n' >"$state_dir/count"
 [ -f "$preferences_state_dir/dnd" ] || printf '0\n' >"$preferences_state_dir/dnd"
 [ -f "$preferences_state_dir/focus" ] || printf '0\n' >"$preferences_state_dir/focus"

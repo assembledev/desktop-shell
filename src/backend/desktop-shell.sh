@@ -281,6 +281,34 @@ if [ "${1:-}" = alttab ] && [ -n "${DESKTOP_SHELL_QML:-}" ] && command -v quicks
   esac
 fi
 
+# Periodic telemetry needs only its own state and, for metrics, the GPU policy.
+# Keep it independent of unrelated backend setup.
+case "${1:-}:${2:-}" in
+  metrics:* | bar:battery-json)
+    desktop_shell_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/desktop-shell"
+    state_dir="$desktop_shell_state_dir"
+    system_sys_root="${DESKTOP_SHELL_SYS_ROOT:-/sys}"
+    system_proc_root="${DESKTOP_SHELL_PROC_ROOT:-/proc}"
+    mkdir -p "$state_dir"
+    # shellcheck source=lib/metrics.sh
+    source "${BASH_SOURCE[0]%/*}/lib/metrics.sh"
+    if [ "$1" = metrics ]; then
+      config_file="${DESKTOP_SHELL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/desktop-shell/config.json}"
+      if [ ! -r "$config_file" ]; then
+        config_file="${DESKTOP_SHELL_DEFAULT_CONFIG:?DESKTOP_SHELL_DEFAULT_CONFIG is not set}"
+      fi
+      DESKTOP_SHELL_BAR_SHOW_VRAM="$(jq -er '
+        if type != "object" then error("configuration must be an object")
+        elif .bar.showVram == false then "0" else "1" end
+      ' "$config_file")" || exit 1
+      metrics_json
+    else
+      battery_json
+    fi
+    exit
+    ;;
+esac
+
 backend_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "$backend_dir/lib/common.sh"
@@ -292,8 +320,6 @@ source "$backend_dir/lib/clipboard.sh"
 source "$backend_dir/lib/network.sh"
 # shellcheck source=lib/bluetooth.sh
 source "$backend_dir/lib/bluetooth.sh"
-# shellcheck source=lib/metrics.sh
-source "$backend_dir/lib/metrics.sh"
 # shellcheck source=lib/session.sh
 source "$backend_dir/lib/session.sh"
 # shellcheck source=lib/display.sh
@@ -803,9 +829,6 @@ case "${1:-help}" in
       restore)
         focus_restore
         ;;
-      battery-json)
-        battery_json
-        ;;
       keyboard-json)
         keyboard_json
         ;;
@@ -845,9 +868,6 @@ case "${1:-help}" in
         fi
         ;;
     esac
-    ;;
-  metrics)
-    metrics_json
     ;;
   sound)
     if [ "${2:-}" = notification ]; then

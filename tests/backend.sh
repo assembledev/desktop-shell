@@ -17,9 +17,9 @@ export DESKTOP_SHELL_PROC_ROOT="$test_root/proc"
 export DESKTOP_SHELL_EXECUTABLE=desktop-shell
 export DESKTOP_SHELL_QML="$source_root/src"
 mkdir -p "$HOME" "$XDG_RUNTIME_DIR" "$DESKTOP_SHELL_SYS_ROOT/class/backlight" "$DESKTOP_SHELL_PROC_ROOT"
-mkdir -p "$XDG_STATE_HOME/desktop-shell"
-printf '1\n' >"$XDG_STATE_HOME/desktop-shell/dnd"
-printf '1\n' >"$XDG_STATE_HOME/desktop-shell/focus"
+mkdir -p "$XDG_STATE_HOME/desktop-shell/preferences"
+printf '1\n' >"$XDG_STATE_HOME/desktop-shell/preferences/dnd"
+printf '1\n' >"$XDG_STATE_HOME/desktop-shell/preferences/focus"
 
 provider_config="$test_root/provider-config.json"
 jq \

@@ -109,3 +109,34 @@ printf 'active\n' >"$system_sys_root/module/nvidia/drivers/pci:nvidia/test/power
 metrics_json >"$test_root/metrics.json"
 test -e "$TEST_GPU_CALLS"
 "$TEST_JQ" -e '.hasVram == true' "$test_root/metrics.json" >/dev/null
+
+# Exercise the real CLI: telemetry must not initialize unrelated shell state.
+cli_state="$test_root/cli-state"
+config_file="$test_root/cli-config.json"
+printf '%s\n' '{"bar":{"showVram":false,"workspaceIcons":false}}' >"$config_file"
+rm -f "$TEST_GPU_CALLS"
+DESKTOP_SHELL_CONFIG="$config_file" XDG_STATE_HOME="$cli_state" \
+  DESKTOP_SHELL_SYS_ROOT="$system_sys_root" DESKTOP_SHELL_PROC_ROOT="$system_proc_root" \
+  bash "$source_root/src/backend/desktop-shell.sh" metrics >"$test_root/cli-metrics.json"
+"$TEST_JQ" -e '.hasVram == false and .ram == 0.5' "$test_root/cli-metrics.json" >/dev/null
+test ! -e "$TEST_GPU_CALLS"
+test ! -e "$cli_state/desktop-shell/preferences"
+test ! -e "$cli_state/desktop-shell/clipboard-previews"
+test ! -e "$cli_state/desktop-shell/wallpaper"
+
+# Battery sampling has no configuration dependency, even when config is broken.
+printf '{broken' >"$config_file"
+DESKTOP_SHELL_CONFIG="$config_file" XDG_STATE_HOME="$cli_state" \
+  DESKTOP_SHELL_SYS_ROOT="$system_sys_root" DESKTOP_SHELL_PROC_ROOT="$system_proc_root" \
+  bash "$source_root/src/backend/desktop-shell.sh" bar battery-json >"$test_root/cli-battery.json"
+"$TEST_JQ" -e '.available == true and .status == "Full"' "$test_root/cli-battery.json" >/dev/null
+
+# Explicit false must disable workspace icon work; omission keeps the default.
+for policy in false true null; do
+  printf '{"bar":{"workspaceIcons":%s}}\n' "$policy" >"$config_file"
+  expected=1
+  [ "$policy" != false ] || expected=0
+  actual="$("$TEST_JQ" -j -f "$source_root/src/backend/lib/config-environment.jq" "$config_file" |
+    tr '\0' '\n' | awk '/^DESKTOP_SHELL_BAR_WORKSPACE_ICONS$/ { getline; print; exit }')"
+  test "$actual" = "$expected"
+done
