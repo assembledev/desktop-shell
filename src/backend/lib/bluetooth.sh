@@ -1,53 +1,22 @@
 #!/usr/bin/env bash
 
 bluetooth_status_json() {
-  controller_info="$(bluetoothctl show 2>/dev/null || true)"
-  controller="$(
-    printf '%s\n' "$controller_info" |
-      awk '/^Controller [[:xdigit:]]{2}(:[[:xdigit:]]{2}){5}/ { print $2; exit }'
-  )"
-
-  if [ -n "$controller" ]; then
-    available=true
-  else
-    available=false
-  fi
-
-  bluetooth_property() {
-    property="$1"
-    printf '%s\n' "$controller_info" |
-      awk -v property="$property" '
-        $1 == property ":" {
-          sub(/^[^:]+:[[:space:]]*/, "");
-          print;
-          exit;
+  { bluetoothctl show 2>/dev/null || true; } |
+    jq -Rs '
+      split("\n") as $lines
+      | ([$lines[] | capture("^Controller (?<address>[[:xdigit:]]{2}(:[[:xdigit:]]{2}){5})( |$)").address][0] // "") as $controller
+      | (reduce ($lines[] | capture("^\\s*(?<key>[^:]+):\\s*(?<value>.*)$")) as $field
+          ({}; if has($field.key) then . else .[$field.key] = $field.value end)) as $properties
+      | {
+          available: ($controller != ""),
+          enabled: ($properties.Powered == "yes"),
+          discoverable: ($properties.Discoverable == "yes"),
+          pairable: ($properties.Pairable == "yes"),
+          discovering: ($properties.Discovering == "yes"),
+          controller: $controller,
+          alias: ($properties.Alias // "")
         }
-      '
-  }
-
-  powered="$(bluetooth_property Powered)"
-  discoverable="$(bluetooth_property Discoverable)"
-  pairable="$(bluetooth_property Pairable)"
-  discovering="$(bluetooth_property Discovering)"
-  alias="$(bluetooth_property Alias)"
-
-  jq -n \
-    --argjson available "$available" \
-    --argjson enabled "$([ "$powered" = yes ] && printf true || printf false)" \
-    --argjson discoverable "$([ "$discoverable" = yes ] && printf true || printf false)" \
-    --argjson pairable "$([ "$pairable" = yes ] && printf true || printf false)" \
-    --argjson discovering "$([ "$discovering" = yes ] && printf true || printf false)" \
-    --arg controller "$controller" \
-    --arg alias "$alias" \
-    '{
-      available: $available,
-      enabled: $enabled,
-      discoverable: $discoverable,
-      pairable: $pairable,
-      discovering: $discovering,
-      controller: $controller,
-      alias: $alias
-    }'
+    '
 }
 
 bluetooth_devices_json() {

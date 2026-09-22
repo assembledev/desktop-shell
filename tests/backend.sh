@@ -63,6 +63,21 @@ write_preference focus 0
 test "$(cat "$XDG_STATE_HOME/desktop-shell/preferences/focus")" = 0
 
 network_control_command demo status | jq -e '.text == "Demo" and .active == true' >/dev/null
+
+# Provider commands are argv, including empty and multiline arguments.
+argv_config="$test_root/argv-config.json"
+jq '.bar.networkControls[0].statusCommand = ["printf", "<%s>", "first\nsecond", "", "last"]' \
+  "$provider_config" >"$argv_config"
+test "$(desktop_shell_config="$argv_config" network_control_command demo status)" = $'<first\nsecond><><last>'
+# Invalid commands must fail before invoking even a valid prefix.
+jq --arg path "$test_root/unexpected-command" \
+  '.bar.networkControls[0].statusCommand = ["touch", $path, null]' \
+  "$provider_config" >"$argv_config"
+if desktop_shell_config="$argv_config" network_control_command demo status 2>/dev/null; then
+  printf 'invalid provider argv must fail\n' >&2
+  exit 1
+fi
+test ! -e "$test_root/unexpected-command"
 network_control_command demo toggle
 
 brightness_capabilities_json | jq -e '.supported == false and .backend == ""' >/dev/null
@@ -366,6 +381,27 @@ test "$fast_brightness" = 50
 
 printf '#!%s\nexit 1\n' "$(command -v bash)" >"$test_bin/quickshell"
 chmod +x "$test_bin/quickshell"
+
+# Adapter polling parses one response, preserving aliases and absent adapters.
+bluetoothctl() {
+  test "$1" = show || return 1
+  printf '%s\n' 'Controller AA:BB:CC:DD:EE:FF Test [default]' \
+    $'\tPowered: yes' $'\tDiscoverable: no' $'\tPairable: yes' \
+    $'\tDiscovering: no' $'\tAlias: Desk: "Radio"' $'\tAlias: Ignore duplicate'
+}
+bluetooth_status_json | jq -e '. == {
+  available: true, enabled: true, discoverable: false, pairable: true,
+  discovering: false, controller: "AA:BB:CC:DD:EE:FF", alias: "Desk: \"Radio\""
+}' >/dev/null
+bluetoothctl() {
+  printf 'No default controller available\n'
+  return 1
+}
+bluetooth_status_json | jq -e '. == {
+  available: false, enabled: false, discoverable: false, pairable: false,
+  discovering: false, controller: "", alias: ""
+}' >/dev/null
+unset -f bluetoothctl
 
 # Parse each complete device response once, retaining aliases, missing values,
 # decimal/hex measurements, ordering, and discovery-list deduplication.
