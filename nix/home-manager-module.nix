@@ -629,7 +629,7 @@ in
           PartOf = [ serviceTarget ];
         };
         Service = {
-          ExecStart = "${pkgs.wl-clipboard}/bin/wl-paste --type text --watch ${pkgs.bash}/bin/bash -c '${pkgs.cliphist}/bin/cliphist store && ${command} clipboard refresh'";
+          ExecStart = "${pkgs.wl-clipboard}/bin/wl-paste --type text --watch ${command} clipboard store";
           Restart = "on-failure";
           RestartSec = 1;
         };
@@ -644,7 +644,7 @@ in
           PartOf = [ serviceTarget ];
         };
         Service = {
-          ExecStart = "${pkgs.wl-clipboard}/bin/wl-paste --type image --watch ${pkgs.bash}/bin/bash -c '${pkgs.cliphist}/bin/cliphist store && ${command} clipboard refresh'";
+          ExecStart = "${pkgs.wl-clipboard}/bin/wl-paste --type image --watch ${command} clipboard store";
           Restart = "on-failure";
           RestartSec = 1;
         };

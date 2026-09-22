@@ -210,6 +210,8 @@ jq -e \
       preview: "",
       kind: "text",
       dimensions: "",
+      size: "",
+      createdAt: 0,
       image: false
     } and
     .[1] == {
@@ -219,6 +221,8 @@ jq -e \
       preview: "",
       kind: "png",
       dimensions: "640x480",
+      size: "12 KiB",
+      createdAt: 0,
       image: true
     } and
     .[2] == {
@@ -228,9 +232,68 @@ jq -e \
       preview: "",
       kind: "text",
       dimensions: "",
+      size: "",
+      createdAt: 0,
       image: false
     }
   ' <<<"$clipboard_json" >/dev/null
+
+# Capture ages are recorded only for a successful new head, survive reads, and
+# disappear with their records. Old or reused IDs must never acquire false ages.
+# shellcheck source=../src/backend/lib/clipboard.sh
+source "$source_root/src/backend/lib/clipboard.sh"
+export DESKTOP_SHELL_TEST_CLIPBOARD_LIST="$clipboard_list"
+export DESKTOP_SHELL_TEST_CLIPBOARD_NEXT="$test_root/clipboard-next"
+printf '#!%s\n' "$(command -v bash)" >"$test_bin/cliphist"
+cat >>"$test_bin/cliphist" <<'CLIPHIST'
+case "$1" in
+  list) cat "$DESKTOP_SHELL_TEST_CLIPBOARD_LIST" ;;
+  store)
+    cat >/dev/null
+    [ "${DESKTOP_SHELL_TEST_STORE_FAIL:-0}" = 0 ] || exit 1
+    cp "$DESKTOP_SHELL_TEST_CLIPBOARD_NEXT" "$DESKTOP_SHELL_TEST_CLIPBOARD_LIST"
+    ;;
+  delete)
+    IFS=$'\t' read -r id rest
+    awk -F '\t' -v id="$id" '$1 != id' "$DESKTOP_SHELL_TEST_CLIPBOARD_LIST" >"$DESKTOP_SHELL_TEST_CLIPBOARD_NEXT"
+    cp "$DESKTOP_SHELL_TEST_CLIPBOARD_NEXT" "$DESKTOP_SHELL_TEST_CLIPBOARD_LIST"
+    ;;
+  wipe) : >"$DESKTOP_SHELL_TEST_CLIPBOARD_LIST" ;;
+esac
+CLIPHIST
+chmod +x "$test_bin/cliphist"
+printf '%s\n' $'103\thttps://example.com' >"$DESKTOP_SHELL_TEST_CLIPBOARD_NEXT"
+cat "$clipboard_list" >>"$DESKTOP_SHELL_TEST_CLIPBOARD_NEXT"
+printf sample | PATH="$test_bin:$PATH" \
+  DESKTOP_SHELL_CONFIG="$invalid_config" \
+  bash "$source_root/src/backend/desktop-shell.sh" clipboard store
+aged_json="$(PATH="$test_bin:$PATH" clipboard_list_json)"
+jq -e '.[0].createdAt > 0 and (.[1:] | all(.createdAt == 0))' <<<"$aged_json" >/dev/null
+ages_file="$(clipboard_age_file)"
+test "$(stat -c %a "$ages_file")" = 600
+saved_ages="$(cat "$ages_file")"
+# An ignored capture has the same head and must preserve its age.
+printf ignored | PATH="$test_bin:$PATH" clipboard_store
+test "$(cat "$ages_file")" = "$saved_ages"
+if printf failure | PATH="$test_bin:$PATH" DESKTOP_SHELL_TEST_STORE_FAIL=1 \
+  bash "$source_root/src/backend/desktop-shell.sh" clipboard store; then
+  printf 'failed store must propagate failure\n' >&2
+  exit 1
+fi
+test "$(cat "$ages_file")" = "$saved_ages"
+# Same ID with different content is not the timestamped record.
+printf '%s\n' $'103\treused ID' >"$clipboard_list"
+PATH="$test_bin:$PATH" clipboard_list_json | jq -e '.[0].createdAt == 0' >/dev/null
+printf '%s\n' $'104\tnew capture' >"$DESKTOP_SHELL_TEST_CLIPBOARD_NEXT"
+printf sample | PATH="$test_bin:$PATH" clipboard_store
+jq -e 'keys == ["104"]' "$ages_file" >/dev/null
+# Delete clears metadata; a successful wipe clears the file entirely.
+delete_record="$(printf '%s' $'104\tnew capture' | base64 -w0)"
+PATH="$test_bin:$PATH" clipboard_delete "$delete_record" 104 text
+jq -e 'length == 0' "$ages_file" >/dev/null
+printf sample | PATH="$test_bin:$PATH" clipboard_store
+PATH="$test_bin:$PATH" clipboard_wipe
+test ! -e "$ages_file"
 
 # Copying must not load shell configuration, and must wait for the writer.
 printf '%s\n' \

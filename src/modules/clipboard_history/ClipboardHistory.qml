@@ -29,6 +29,7 @@ Scope {
   property bool refreshPending: false
   property var entries: []
   property var previewPaths: ({})
+  property double ageNow: Date.now() / 1000
   property string message: ""
   property bool wipeArmed: false
 
@@ -37,6 +38,19 @@ Scope {
       return "";
     const encoded = encodeURI(path).replace(/#/g, "%23").replace(/\?/g, "%3F");
     return encoded[0] === "/" ? "file://" + encoded : encoded;
+  }
+
+  function recordAge(createdAt) {
+    if (!(createdAt > 0))
+      return "";
+    const seconds = Math.max(0, ageNow - createdAt);
+    if (seconds < 60)
+      return "now";
+    if (seconds < 3600)
+      return Math.floor(seconds / 60) + "m";
+    if (seconds < 86400)
+      return Math.floor(seconds / 3600) + "h";
+    return Math.floor(seconds / 86400) + "d";
   }
 
   function displayLabel(item) {
@@ -93,6 +107,7 @@ Scope {
 
   function openPicker() {
     inputIntent.claimKeyboard();
+    ageNow = Date.now() / 1000;
     open = true;
     message = "";
     if (search.text.length > 0)
@@ -146,6 +161,13 @@ Scope {
     wipeArmed = false;
     wipeConfirmTimer.stop();
     wipeProc.running = true;
+  }
+
+  Timer {
+    interval: 15000
+    repeat: true
+    running: root.open
+    onTriggered: root.ageNow = Date.now() / 1000
   }
 
   Timer {
@@ -476,13 +498,16 @@ Scope {
             required property string kind
             required property string dimensions
             required property bool image
+            required property string size
+            required property double createdAt
 
             readonly property bool selected: ListView.isCurrentItem
+            readonly property bool link: !image && /^https?:\/\/[^\s]+$/i.test(label.trim())
             readonly property string cleanLabel: root.displayLabel(item)
             readonly property string previewPath: root.previewPaths[entryId] || preview
 
             width: ListView.view.width
-            height: image ? 172 : 78
+            height: image ? 112 : 64
             radius: 10
             color: !selected && inputIntent.pointerActive && rowMouse.containsMouse
               ? theme.surfaceAccent
@@ -527,10 +552,10 @@ Scope {
               spacing: 12
 
               Rectangle {
-                Layout.preferredWidth: item.image ? 210 : 46
-                Layout.preferredHeight: item.image ? 132 : 46
+                Layout.preferredWidth: item.image ? 168 : 28
+                Layout.preferredHeight: item.image ? 92 : 28
                 radius: 7
-                color: theme.surfaceMuted
+                color: item.image ? theme.surfaceMuted : "transparent"
                 border.width: item.image ? 1 : 0
                 border.color: theme.border
                 clip: true
@@ -550,7 +575,7 @@ Scope {
                 Text {
                   visible: !item.image || item.previewPath.length === 0
                   anchors.centerIn: parent
-                  text: item.image ? "󰋩" : "󰅍"
+                  text: item.image ? "󰋩" : item.link ? "󰌷" : "󰈙"
                   color: item.image ? theme.info : theme.iconPrimary
                   font.family: theme.fontFamily
                   font.pixelSize: item.image ? 28 : 20
@@ -559,53 +584,55 @@ Scope {
 
               ColumnLayout {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.alignment: Qt.AlignVCenter
                 spacing: 5
-
-                RowLayout {
-                  visible: item.image
-                  Layout.fillWidth: true
-                  spacing: 8
-
-                  Text {
-                    Layout.fillWidth: true
-                    text: "Image"
-                    color: theme.textPrimary
-                    font.family: theme.fontFamily
-                    font.pixelSize: 15
-                    font.bold: item.selected
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
-                  }
-
-                  Text {
-                    text: item.dimensions
-                    color: theme.info
-                    font.family: theme.fontFamily
-                    font.pixelSize: 11
-                  }
-                }
 
                 Text {
                   Layout.fillWidth: true
-                  Layout.fillHeight: true
-                  text: item.image ? item.label : item.cleanLabel
+                  text: item.image ? "Image" : item.cleanLabel
                   textFormat: Text.PlainText
-                  color: item.image ? theme.textMuted : theme.textPrimary
+                  color: theme.textPrimary
                   font.family: theme.fontFamily
-                  font.pixelSize: item.image ? 11 : 13
-                  wrapMode: item.image ? Text.NoWrap : Text.Wrap
-                  elide: item.image ? Text.ElideRight : Text.ElideNone
-                  maximumLineCount: item.image ? 1 : 3
-                  verticalAlignment: Text.AlignVCenter
+                  font.pixelSize: item.image ? 15 : 13
+                  wrapMode: Text.Wrap
+                  elide: Text.ElideRight
+                  maximumLineCount: item.image ? 1 : 2
+                }
+
+                Text {
+                  visible: item.image
+                  Layout.fillWidth: true
+                  text: [item.kind.toUpperCase(), item.dimensions.replace("x", " × "), item.size].filter(Boolean).join(" · ")
+                  color: theme.textMuted
+                  font.family: theme.fontFamily
+                  font.pixelSize: 11
+                  elide: Text.ElideRight
                 }
               }
 
-              IconButton {
-                icon: "󰆴"
-                danger: true
-                visible: item.selected || (inputIntent.pointerActive && rowMouse.containsMouse)
-                onClicked: root.deleteItem(item)
+              Item {
+                Layout.preferredWidth: 40
+                Layout.fillHeight: true
+
+                Text {
+                  anchors.top: parent.top
+                  anchors.right: parent.right
+                  text: root.recordAge(item.createdAt)
+                  color: theme.textMuted
+                  font.family: theme.fontFamily
+                  font.pixelSize: 11
+                }
+
+                IconButton {
+                  anchors.right: parent.right
+                  anchors.bottom: parent.bottom
+                  width: 28
+                  height: 28
+                  icon: "󰆴"
+                  visible: item.selected || (inputIntent.pointerActive && rowMouse.containsMouse)
+                  tooltip: "Delete entry"
+                  onClicked: root.deleteItem(item)
+                }
               }
             }
 

@@ -135,13 +135,17 @@ fi
 # them ahead of config parsing and unrelated backend setup.
 if [ "${1:-}" = clipboard ]; then
   case "${2:-}" in
-    list-json | copy)
+    list-json | copy | store)
       backend_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
       # shellcheck source=lib/clipboard.sh
       source "$backend_dir/lib/clipboard.sh"
       case "$2" in
         list-json) clipboard_list_json ;;
         copy) clipboard_copy "${3:-}" ;;
+        store)
+          clipboard_store
+          clipboard_refresh
+          ;;
       esac
       exit
       ;;
@@ -622,8 +626,7 @@ case "${1:-help}" in
         clipboard_preview "${3:-}" "${4:-}" "${5:-}"
         ;;
       wipe)
-        cliphist wipe
-        find "$clipboard_preview_dir" -mindepth 1 -maxdepth 1 -delete
+        clipboard_wipe
         ;;
       *)
         exit 2

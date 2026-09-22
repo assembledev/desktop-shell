@@ -16,7 +16,7 @@ split("\n")
         [
           $entry.label
           | capture(
-              "^\\[\\[ binary data .+ (?<kind>png|jpg|jpeg|webp|bmp|gif) (?<dimensions>[0-9]+x[0-9]+) \\]\\]$"
+              "^\\[\\[ binary data (?<size>.+) (?<kind>png|jpg|jpeg|webp|bmp|gif) (?<dimensions>[0-9]+x[0-9]+) \\]\\]$"
             )
         ]
         | first // null
@@ -28,6 +28,16 @@ split("\n")
         preview: "",
         kind: ($image.kind // "text"),
         dimensions: ($image.dimensions // ""),
+        size: ($image.size // ""),
+        createdAt: 0,
         image: ($image != null)
       }
   )
+| map(. as $entry | .createdAt = (
+    if (($ages[0] // {})[$entry.entryId].record // "") == $entry.record then
+      (($ages[0] // {})[$entry.entryId].createdAt // 0)
+    else 0 end
+  ))
+| if $capturedAt > 0 and length > 0 and .[0].record != $previous then
+    .[0].createdAt = $capturedAt
+  else . end

@@ -122,9 +122,17 @@ browsers, or other applications it launched.
 Persistent user state is kept below one `XDG_STATE_HOME/desktop-shell/` tree.
 The atomically updated DND and focus settings live in its `preferences/`
 directory. The tree also contains launcher usage, bounded telemetry, clipboard
-previews, notification counts, the current wallpaper selection, and confirmed
-display profiles under `displays/`, keyed by monitor description or EDID
-identity.
+previews, clipboard capture times, notification counts, the current wallpaper
+selection, and confirmed display profiles under `displays/`, keyed by monitor
+description or EDID identity.
+
+Clipboard watchers call `desktop-shell clipboard store` to store content in
+cliphist and atomically retain capture times in `clipboard-ages.json`. This
+private file also retains record identifiers and previews to reject timestamps
+from reused IDs; it is pruned with history updates and cleared on wipe. Entries
+captured outside this command have unknown ages. The picker displays compact
+inline image previews, link icons, and relative capture ages, updating ages only
+while open. Selecting any entry copies it; links are not opened.
 
 Transient browser-tab data and IPC sockets live below
 `XDG_RUNTIME_DIR/desktop-shell/`. See [Browser tabs](browser-tabs.md) for the
