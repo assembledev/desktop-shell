@@ -367,6 +367,33 @@ test "$fast_brightness" = 50
 printf '#!%s\nexit 1\n' "$(command -v bash)" >"$test_bin/quickshell"
 chmod +x "$test_bin/quickshell"
 
+# Parse each complete device response once, retaining aliases, missing values,
+# decimal/hex measurements, ordering, and discovery-list deduplication.
+bluetoothctl() {
+  case "$1 ${2:-}" in
+    devices*)
+      printf '%s\n' 'Device AA:BB:CC:DD:EE:01 One' 'Device AA:BB:CC:DD:EE:02 Two' 'Device AA:BB:CC:DD:EE:03 Three' 'Device AA:BB:CC:DD:EE:04 Gone'
+      ;;
+    'info AA:BB:CC:DD:EE:01')
+      printf '%s\n' 'Device AA:BB:CC:DD:EE:01' $'\tAlias: Headset: "Office"' $'\tName: Ignored' $'\tIcon: audio-headset' $'\tPaired: yes' $'\tTrusted: yes' $'\tConnected: yes' $'\tRSSI: 0xffffffc4 (-60)' $'\tBattery Percentage: 0x4b (75)'
+      ;;
+    'info AA:BB:CC:DD:EE:02')
+      printf '%s\n' $'\tName: Keyboard' $'\tPaired: yes' $'\tRSSI: -110'
+      ;;
+    'info AA:BB:CC:DD:EE:03')
+      printf '%s\n' $'\tConnected: no' $'\tRSSI: -30' $'\tBattery Percentage: 90'
+      ;;
+    *) return 0 ;;
+  esac
+}
+bluetooth_devices_json | jq -e '
+  length == 3 and
+  .[0] == {address: "AA:BB:CC:DD:EE:01", name: "Headset: \"Office\"", icon: "audio-headset", paired: true, trusted: true, connected: true, rssi: -60, signal: 80, battery: 75} and
+  .[1].name == "Keyboard" and .[1].signal == 0 and .[1].battery == null and
+  .[2].name == "AA:BB:CC:DD:EE:03" and .[2].signal == 100 and .[2].battery == 90
+' >/dev/null
+unset -f bluetoothctl
+
 bluetoothctl_args="$test_root/bluetoothctl-args"
 printf '#!%s\nprintf \"%%s\\n\" \"$*\" >>\"$DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS\"\n' \
   "$(command -v bash)" >"$test_bin/bluetoothctl"

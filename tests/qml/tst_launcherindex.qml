@@ -82,4 +82,30 @@ TestCase {
     verify(state.index !== initial);
     compare(state.index.byApp["editor.desktop"].length, 0);
   }
+  function test_icon_identity_index_preserves_priority_and_ties() {
+    const apps = [
+      { id: "exec-first", execString: "env FLAG=1 /bin/editor %U" },
+      { id: "editor" },
+      { id: "startup-first", startupClass: "EDITOR" },
+      { id: "startup-second", startupClass: "other" },
+      { id: "constructor", execString: "/bin/special" }
+    ];
+    const index = Search.applicationIdentityIndex(apps);
+    compare(Search.applicationForWindow(index, {class: "editor"}).id, "startup-first");
+    compare(Search.applicationForWindow(index, {class: "other", initialClass: "editor"}).id, "startup-first");
+    compare(Search.applicationForWindow(index, {class: "constructor"}).id, "constructor");
+    compare(Search.applicationForWindow(index, {class: "unknown"}), null);
+    compare(Search.applicationForWindow(index, {class: "editor", hidden: true}), null);
+    compare(Search.applicationForWindow(Search.applicationIdentityIndex([]), {class: "editor"}), null);
+  }
+
+  function test_icon_lookups_do_not_reparse_exec() {
+    let reads = 0;
+    const app = { id: "test" };
+    Object.defineProperty(app, "execString", {get: function() { reads++; return "/bin/editor"; }});
+    const index = Search.applicationIdentityIndex([app]);
+    for (let i = 0; i < 100; i++)
+      compare(Search.applicationForWindow(index, {class: "editor"}), app);
+    compare(reads, 1);
+  }
 }

@@ -146,19 +146,36 @@ function manageableClients(clients) {
   });
 }
 
-function applicationForWindow(applications, win) {
-  let best = null;
-  let bestScore = -1;
-
-  for (const app of applications || []) {
-    const score = appWindowIdentityScore(app, win);
-    if (score > bestScore) {
-      best = app;
-      bestScore = score;
+// Compile application identities once; focus and title changes only need two
+// class lookups. Store original order to preserve equal-score tie breaking.
+function applicationIdentityIndex(applications) {
+  const index = Object.create(null);
+  for (let order = 0; order < (applications || []).length; order++) {
+    const app = applications[order];
+    const identity = appTechnicalIdentity(app);
+    for (const field of [{key: "startup", score: 600}, {key: "id", score: 580}, {key: "exec", score: 560}]) {
+      const key = identity[field.key];
+      if (!key)
+        continue;
+      const existing = index[key];
+      if (!existing || field.score > existing.score)
+        index[key] = { app: app, score: field.score, order: order };
     }
   }
+  return index;
+}
 
-  return best;
+function applicationForWindow(index, win) {
+  if (!win || win.hidden)
+    return null;
+  let best = null;
+  for (const cls of windowClasses(win)) {
+    const candidate = index[cls];
+    if (candidate && (!best || candidate.score > best.score
+        || (candidate.score === best.score && candidate.order < best.order)))
+      best = candidate;
+  }
+  return best ? best.app : null;
 }
 
 function fuzzySubsequenceScore(query, target) {

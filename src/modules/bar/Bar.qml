@@ -209,6 +209,8 @@ Scope {
     requested: root.powerMenuOpen
   }
 
+  readonly property var applicationIdentities: LauncherSearch.applicationIdentityIndex(desktopApplications)
+
   function parseJson(text, fallback) {
     const rawText = String(text || "").trim();
     if (!rawText)
@@ -267,7 +269,7 @@ Scope {
 
   function applicationForToplevel(toplevel) {
     const win = toplevelWindowData(toplevel);
-    const best = LauncherSearch.applicationForWindow(desktopApplications, win);
+    const best = LauncherSearch.applicationForWindow(applicationIdentities, win);
 
     if (best)
       return {

@@ -65,76 +65,28 @@ bluetooth_devices_json() {
       info="$(bluetoothctl info "$address" 2>/dev/null || true)"
       [ -n "$info" ] || continue
 
-      bluetooth_device_property() {
-        property="$1"
-        printf '%s\n' "$info" |
-          awk -v property="$property" '
-            $1 == property ":" {
-              sub(/^[^:]+:[[:space:]]*/, "");
-              print;
-              exit;
-            }
-          '
-      }
-
-      alias="$(bluetooth_device_property Alias)"
-      [ -n "$alias" ] || alias="$(bluetooth_device_property Name)"
-      [ -n "$alias" ] || alias="$address"
-      icon="$(bluetooth_device_property Icon)"
-      paired="$(bluetooth_device_property Paired)"
-      trusted="$(bluetooth_device_property Trusted)"
-      connected="$(bluetooth_device_property Connected)"
-      rssi="$(
-        printf '%s\n' "$info" |
-          awk '
-            /^[[:space:]]*RSSI:/ {
-              if (match($0, /\((-?[0-9]+)\)/, value)) {
-                print value[1];
-              } else if (match($0, /RSSI:[[:space:]]*(-?[0-9]+)/, value)) {
-                print value[1];
-              }
-              exit;
-            }
-          '
-      )"
-      battery="$(
-        printf '%s\n' "$info" |
-          awk '
-            /Battery Percentage:/ {
-              if (match($0, /\(([0-9]+)\)/, value)) {
-                print value[1];
-              } else if (match($0, /Battery Percentage:[[:space:]]*([0-9]+)/, value)) {
-                print value[1];
-              }
-              exit;
-            }
-          '
-      )"
-
-      printf '%s\0%s\0%s\0%s\0%s\0%s\0%s\0%s\0' \
-        "$address" \
-        "$alias" \
-        "$icon" \
-        "$paired" \
-        "$trusted" \
-        "$connected" \
-        "$rssi" \
-        "$battery"
+      printf '%s\0%s\0' "$address" "$info"
     done |
     jq -Rs '
+      def properties:
+        reduce (split("\n")[] | capture("^\\s*(?<key>[^:]+):\\s*(?<value>.*)$")) as $field
+          ({}; if has($field.key) then . else .[$field.key] = $field.value end);
+      def measurement:
+        ((capture("\\((?<number>-?[0-9]+)\\)") // capture("^(?<number>-?[0-9]+)")).number | tonumber) // null;
       split("\u0000")[:-1] as $items
-      | [range(0; $items | length; 8) as $i
-          | ($items[$i + 6] | try tonumber catch null) as $rssi
+      | [range(0; $items | length; 2) as $i
+          | ($items[$i + 1] | properties) as $device
+          | (($device.RSSI // "") | measurement) as $rssi
           | {
               address: $items[$i],
-              name: $items[$i + 1],
-              icon: $items[$i + 2],
-              paired: ($items[$i + 3] == "yes"),
-              trusted: ($items[$i + 4] == "yes"),
-              connected: ($items[$i + 5] == "yes"),
+              name: ([$device.Alias, $device.Name, $items[$i]] | map(select(. != null and . != "")) | first),
+              icon: ($device.Icon // ""),
+              paired: ($device.Paired == "yes"),
+              trusted: ($device.Trusted == "yes"),
+              connected: ($device.Connected == "yes"),
               rssi: $rssi,
               signal: (if $rssi == null then null else ([0, ([100, (($rssi + 100) * 2)] | min)] | max) end),
-              battery: ($items[$i + 7] | try tonumber catch null)
+              battery: (($device["Battery Percentage"] // "") | measurement)
             }]
       | sort_by((.connected | not), (.paired | not), (.name | ascii_downcase))
     '

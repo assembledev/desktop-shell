@@ -41,6 +41,8 @@ Scope {
   property bool nativeRefreshPending: false
   readonly property var desktopApplications: DesktopEntries.applications.values || []
 
+  readonly property var applicationIdentities: LauncherSearch.applicationIdentityIndex(desktopApplications)
+
   function addressOf(win) {
     return String(win?.address || "");
   }
@@ -144,7 +146,7 @@ Scope {
   }
 
   function applicationForWindow(win) {
-    return LauncherSearch.applicationForWindow(desktopApplications, win);
+    return LauncherSearch.applicationForWindow(applicationIdentities, win);
   }
 
   function iconSource(win) {

@@ -46,7 +46,6 @@ Scope {
 
   function openSheet() {
     open = true;
-    reloadHotkeys();
   }
 
   function closeSheet() {
@@ -58,17 +57,6 @@ Scope {
       closeSheet();
     else
       openSheet();
-  }
-
-  function reloadHotkeys() {
-    if (hotkeysPath.length === 0) {
-      entries = [];
-      message = "No hotkey source";
-      buildCategories();
-      return;
-    }
-
-    hotkeysFile.reload();
   }
 
   function loadHotkeys(raw) {
@@ -260,15 +248,18 @@ Scope {
     return String(key || "").split(" + ").map(displayKeyToken).join(" + ");
   }
 
-  Component.onCompleted: reloadHotkeys()
+  Component.onCompleted: {
+    if (hotkeysPath.length === 0)
+      message = "No hotkey source";
+  }
 
   FileView {
     id: hotkeysFile
     path: root.hotkeysPath
     preload: true
-    watchChanges: false
+    watchChanges: true
+    onFileChanged: reload()
     onLoaded: root.loadHotkeys(text())
-    onTextChanged: root.loadHotkeys(text())
     onLoadFailed: function() {
       root.entries = [];
       root.message = "Failed to read hotkeys";
