@@ -70,7 +70,6 @@ Item {
 
     controls = nextControls;
     statusById = nextStatus;
-    refreshNonce++;
   }
 
   function defaultStatus(control) {
@@ -145,7 +144,6 @@ Item {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: network.loadControls()
-    onTextChanged: network.loadControls()
     onLoadFailed: function() {
       network.controls = [];
       network.statusById = ({});
@@ -202,7 +200,6 @@ Item {
           toggleProcess.exec([network.backend, "network-control", "toggle", modelData.id]);
         }
 
-        onModelDataChanged: refresh()
         Component.onCompleted: refresh()
 
         Connections {

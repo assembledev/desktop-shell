@@ -51,6 +51,9 @@ come from authoritative `j/clients` snapshots over Hyprland's native request
 socket. Quickshell's persistent Hyprland model supplies change notifications
 and the active-toplevel signal, but it is not treated as a client registry
 because transient or removed toplevel objects may outlive compositor clients.
+Application/window identity is indexed when applications or client snapshots
+change; typing only filters and ranks the current index. The hidden launcher
+keeps incoming data current without rebuilding search results.
 Profile application takes its own authoritative snapshot, then serializes moves
 on `movewindowv2` events from the native event socket. Application dispatch and
 atomic launcher-history writes stay in QML; the latency-sensitive path does not

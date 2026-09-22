@@ -1752,7 +1752,6 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.dnd = text().trim() === "1"
-    onTextChanged: root.dnd = text().trim() === "1"
     onLoadFailed: function() { setText("0"); }
   }
 
@@ -1773,7 +1772,6 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.focusMode = text().trim() === "1"
-    onTextChanged: root.focusMode = text().trim() === "1"
     onLoadFailed: function() { setText("0"); }
   }
 

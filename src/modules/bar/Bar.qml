@@ -560,7 +560,6 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.updateNotificationStatus()
-    onTextChanged: root.updateNotificationStatus()
     onLoadFailed: function() { setText("0"); }
   }
 
@@ -571,7 +570,6 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.updateRecordingState()
-    onTextChanged: root.updateRecordingState()
     onLoadFailed: function() { root.recording = false; }
   }
 
@@ -582,7 +580,6 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.updateNotificationStatus()
-    onTextChanged: root.updateNotificationStatus()
     onLoadFailed: function() { setText("0"); }
   }
 

@@ -92,24 +92,32 @@ function executableName(value) {
   return normalize(tokens[index]).split("/").pop().replace(/\.desktop$/, "");
 }
 
-function appWindowTechnicalIdentityScore(app, win) {
-  if (!win)
-    return -1;
+function appTechnicalIdentity(app) {
+  return {
+    startup: normalize(app?.startupClass),
+    id: normalize(app?.id),
+    exec: executableName(app?.execString)
+  };
+}
 
-  const startup = normalize(app?.startupClass);
-  const id = normalize(app?.id);
-  const exec = executableName(app?.execString);
-  const classes = [normalize(win.class), normalize(win.initialClass)].filter(function(cls, index, values) {
+function windowClasses(win) {
+  return [normalize(win?.class), normalize(win?.initialClass)].filter(function(cls, index, values) {
     return cls.length > 0 && values.indexOf(cls) === index;
   });
+}
 
-  if (startup.length > 0 && classes.includes(startup))
+function technicalIdentityScore(identity, classes) {
+  if (identity.startup.length > 0 && classes.includes(identity.startup))
     return 600;
-  if (id.length > 0 && classes.includes(id))
+  if (identity.id.length > 0 && classes.includes(identity.id))
     return 580;
-  if (exec.length > 0 && classes.includes(exec))
+  if (identity.exec.length > 0 && classes.includes(identity.exec))
     return 560;
   return -1;
+}
+
+function appWindowTechnicalIdentityScore(app, win) {
+  return win ? technicalIdentityScore(appTechnicalIdentity(app), windowClasses(win)) : -1;
 }
 
 function appWindowManageableTechnicalIdentityScore(app, win) {
@@ -245,4 +253,56 @@ function tabMatchScore(query, tab) {
   // manufacturing matches while still making an explicit port searchable.
   best = Math.max(best, fieldScore(query, tab?.host, 5600, 5400, 5200, 5000, -1));
   return best;
+}
+
+// Identity depends on applications and clients, never on the typed query.
+function indexWindows(applications, clients) {
+  const candidates = Object.create(null);
+  const byApp = Object.create(null);
+  const preparedClients = (clients || []).map(function(win) {
+    return { window: win, classes: windowClasses(win) };
+  });
+
+  for (const app of applications || []) {
+    const identity = appTechnicalIdentity(app);
+    const matched = [];
+    byApp[desktopEntryFileId(app)] = matched;
+    for (const prepared of preparedClients) {
+      const win = prepared.window;
+      const identityScore = win && !win.hidden ? technicalIdentityScore(identity, prepared.classes) : -1;
+      if (identityScore < 0)
+        continue;
+
+      matched.push(win);
+      const address = String(win?.address || "");
+      const key = address.length > 0
+        ? address
+        : [win?.class, win?.title, win?.workspace?.id].join("\u0000");
+      const existing = candidates[key];
+      if (!existing || identityScore > existing.identityScore)
+        candidates[key] = { entry: app, window: win, identityScore: identityScore };
+    }
+  }
+
+  for (const win of clients || []) {
+    const address = String(win?.address || "");
+    const key = address.length > 0
+      ? address
+      : [win?.class, win?.title, win?.workspace?.id].join("\u0000");
+    if (candidates[key])
+      continue;
+
+    const windowClass = String(win?.class || win?.initialClass || "").trim();
+    candidates[key] = {
+      entry: {
+        id: "window-" + (windowClass || key),
+        name: windowClass || String(win?.title || "Unknown application"),
+        icon: "applications-other"
+      },
+      window: win,
+      identityScore: -1
+    };
+  }
+
+  return { byApp: byApp, focusCandidates: Object.keys(candidates).map(function(key) { return candidates[key]; }) };
 }

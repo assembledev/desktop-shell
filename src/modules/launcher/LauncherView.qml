@@ -48,6 +48,7 @@ Scope {
   property var windows: []
   property var activeWindow: ({})
   property var apps: []
+  readonly property var windowIndex: LauncherSearch.indexWindows(apps, windows)
   property var filtered: []
   property var usageHistory: ({})
   property var pendingHistoryRecords: ({})
@@ -324,15 +325,9 @@ Scope {
     return Number.isFinite(id) ? shellConfig.workspaceLabel(id) : "?";
   }
 
-  function appWindowIdentityScore(app, win) {
-    return LauncherSearch.appWindowIdentityScore(app, win);
-  }
-
-  function windowsForApp(app, candidates) {
-    const source = candidates === undefined ? windows : candidates;
-    return (source || []).filter(function(win) {
-      return appWindowIdentityScore(app, win) >= 0;
-    });
+  function windowsForApp(app) {
+    // Sorting query results must not mutate the shared identity index.
+    return (windowIndex.byApp[LauncherSearch.desktopEntryFileId(app)] || []).slice();
   }
 
   function profileReady(profileId) {
@@ -376,9 +371,8 @@ Scope {
     return recency + frequency;
   }
 
-  function decoratedEntry(app, query) {
+  function decoratedEntry(app, query, appScore) {
     const wins = orderedWindows(app, query);
-    const appScore = appMatchScore(query, app);
 
     return {
       kind: "app",
@@ -392,47 +386,8 @@ Scope {
   }
 
   function focusWindowEntries(query) {
-    const candidates = ({});
-
-    for (const app of apps) {
-      for (const win of windows || []) {
-        const identityScore = appWindowIdentityScore(app, win);
-        if (identityScore < 0)
-          continue;
-
-        const address = String(win?.address || "");
-        const key = address.length > 0
-          ? address
-          : [win?.class, win?.title, win?.workspace?.id].join("\u0000");
-        const existing = candidates[key];
-        if (!existing || identityScore > existing.identityScore)
-          candidates[key] = { entry: app, window: win, identityScore: identityScore };
-      }
-    }
-
-    for (const win of windows || []) {
-      const address = String(win?.address || "");
-      const key = address.length > 0
-        ? address
-        : [win?.class, win?.title, win?.workspace?.id].join("\u0000");
-      if (candidates[key])
-        continue;
-
-      const windowClass = String(win?.class || win?.initialClass || "").trim();
-      candidates[key] = {
-        entry: {
-          id: "window-" + (windowClass || key),
-          name: windowClass || String(win?.title || "Unknown application"),
-          icon: "applications-other"
-        },
-        window: win,
-        identityScore: -1
-      };
-    }
-
     const result = [];
-    for (const key of Object.keys(candidates)) {
-      const candidate = candidates[key];
+    for (const candidate of windowIndex.focusCandidates) {
       const appScore = appMatchScore(query, candidate.entry);
       const titleScore = windowMatchScore(query, candidate.window);
       const score = Math.max(appScore, titleScore);
@@ -563,6 +518,8 @@ Scope {
   }
 
   function applyFilter(preferredId, preferredWindowAddress, preferredTabKey) {
+    if (!open)
+      return;
     const focusSpec = focusSearchSpec();
     const query = mode === "focus" ? focusSpec.query : normalize(search.text.trim());
     const profileQuery = launchProfileQuery();
@@ -579,10 +536,10 @@ Scope {
       result = profileController.resultEntries(profileQuery);
     } else if (mode === "launch") {
       for (const app of apps) {
-        const item = decoratedEntry(app, query);
-        if (query.length > 0 && item.score < 0)
+        const score = appMatchScore(query, app);
+        if (query.length > 0 && score < 0)
           continue;
-        result.push(item);
+        result.push(decoratedEntry(app, query, score));
       }
     }
 
@@ -779,7 +736,6 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.loadBrowserTabs(text())
-    onTextChanged: root.loadBrowserTabs(text())
     onLoadFailed: root.clearBrowserTabs()
   }
 
