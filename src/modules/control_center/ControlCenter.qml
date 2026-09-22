@@ -91,8 +91,8 @@ Scope {
   property var displays: []
   property bool displayProfileAvailable: false
   property string displayPrimary: ""
+  property string displayInitialPrimary: ""
   property string displaySelected: ""
-  property var displayStartupLayout: []
   property var displayDraft: ({})
   property string displayOperation: ""
   property string displayError: ""
@@ -1077,6 +1077,13 @@ Scope {
     invalidateBluetoothForPage();
   }
 
+  readonly property bool displayDraftChanged: displayPrimary !== displayInitialPrimary || displays.some(function(output) {
+    const draft = displayDraft[output.name] || {};
+    return String(draft.mode) !== String(output.mode)
+      || Number(draft.scale) !== Number(output.scale)
+      || String(draft.position) !== String(output.position || "0x0");
+  })
+
   function displayOutput(name) {
     return displays.find(function(output) { return String(output?.name || "") === String(name || ""); }) || null;
   }
@@ -1187,32 +1194,12 @@ Scope {
     return "extend";
   }
 
-  function startupDisplayName(rule) {
-    const selector = String(rule?.output || "");
-    if (selector.length === 0)
-      return "Other displays";
-    return selector.startsWith("desc:") ? selector.slice(5) : selector;
-  }
-
-  function startupDisplayDetails(rule) {
-    const mode = String(rule?.mode || "preferred") === "preferred"
-      ? "Preferred mode"
-      : displayModeLabel(rule.mode);
-    const position = String(rule?.position || "auto") === "auto"
-      ? "automatic position"
-      : "position " + String(rule.position);
-    const scale = Math.round(Number(rule?.scale || 1) * 100) + "%";
-    const bitdepth = rule?.bitdepth ? " · " + Number(rule.bitdepth) + "-bit" : "";
-    return mode + " · " + scale + " · " + position + bitdepth;
-  }
-
   function adoptDisplaySnapshot(snapshot) {
     if (!snapshot || !Array.isArray(snapshot.outputs))
       return;
 
     displays = snapshot.outputs;
     displayProfileAvailable = Boolean(snapshot.profileAvailable);
-    displayStartupLayout = Array.isArray(snapshot.startupLayout) ? snapshot.startupLayout : [];
     const selected = displayOutput(displayPrimary);
     if (!selected || !selected.enabled) {
       const focused = displays.find(function(output) { return Boolean(output.focused && output.enabled); });
@@ -1222,6 +1209,7 @@ Scope {
     const selectedOutput = displayOutput(displaySelected);
     if (!selectedOutput || !selectedOutput.enabled)
       displaySelected = displayPrimary;
+    displayInitialPrimary = displayPrimary;
     rebuildDisplayDraft();
     displaysReady = true;
 
@@ -2969,22 +2957,13 @@ Scope {
             }
 
             DisplayArrangement {
+              draft: root.displayDraft
               Layout.fillWidth: true
               visible: root.displays.length > 0
               outputs: root.displays
               selectedName: root.displaySelected
               onSelected: function(name) { root.displaySelected = name; }
               onMoved: function(name, x, y) { root.moveDisplayDraft(name, x, y); }
-            }
-
-            Text {
-              Layout.fillWidth: true
-              visible: root.displays.filter(function(output) { return Boolean(output.enabled); }).length > 1
-              text: "Drag displays to place them left, right, above, or below. Edges snap together."
-              color: theme.textMuted
-              font.family: theme.fontFamily
-              font.pixelSize: 9
-              wrapMode: Text.Wrap
             }
 
             Section {
@@ -3057,100 +3036,29 @@ Scope {
                 }
               }
 
-              Text {
-                Layout.fillWidth: true
-                visible: root.displayCurrentPreset() === "duplicate"
-                text: "Duplicate uses the highest resolution shared by every connected display."
-                color: theme.textMuted
-                font.family: theme.fontFamily
-                font.pixelSize: 9
-                wrapMode: Text.Wrap
-              }
             }
 
-            Section {
-              title: "Selected display"
+            DisplayOutputInspector {
+              Layout.fillWidth: true
               visible: root.selectedDisplayOutput() !== null
-
-              DisplayOutputInspector {
-                Layout.fillWidth: true
-                output: root.selectedDisplayOutput()
-              }
-            }
-
-            Section {
-              title: "Startup layout"
-              visible: root.displayStartupLayout.length > 0
-
-              Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: startupLayoutContent.implicitHeight + 20
-                radius: 8
-                color: Qt.alpha(theme.surfaceAccent, 0.48)
-                border.color: Qt.alpha(theme.borderSubtle, 0.58)
-                border.width: 1
-
-                ColumnLayout {
-                  id: startupLayoutContent
-                  anchors.left: parent.left
-                  anchors.right: parent.right
-                  anchors.top: parent.top
-                  anchors.margins: 10
-                  spacing: 0
-
-                  Repeater {
-                    model: root.displayStartupLayout
-                    delegate: StartupDisplayRuleRow {
-                      required property var modelData
-                      required property int index
-                      Layout.fillWidth: true
-                      rule: modelData
-                      showDivider: index > 0
-                    }
-                  }
-
-                  RowLayout {
-                    Layout.fillWidth: true
-                    Layout.topMargin: 8
-                    spacing: 8
-
-                    Text {
-                      Layout.fillWidth: true
-                      text: root.displayProfileAvailable
-                        ? "A saved arrangement currently overrides this startup layout."
-                        : "This is the configured layout used when no saved arrangement matches."
-                      color: theme.textMuted
-                      font.family: theme.fontFamily
-                      font.pixelSize: 9
-                      wrapMode: Text.Wrap
-                    }
-
-                    PillButton {
-                      visible: root.displayProfileAvailable
-                      label: "Restore startup layout"
-                      onClicked: root.resetDisplayProfiles()
-                    }
-                  }
-                }
-              }
+              output: root.selectedDisplayOutput()
             }
 
             RowLayout {
               Layout.fillWidth: true
               spacing: 8
 
-              Text {
-                Layout.fillWidth: true
-                text: root.displayProfileAvailable ? "Saved for this display set" : "No saved arrangement for this display set"
-                color: root.displayProfileAvailable ? theme.success : theme.textMuted
-                font.family: theme.fontFamily
-                font.pixelSize: 9
+              PillButton {
+                visible: root.displayProfileAvailable
+                label: "Reset layout"
+                onClicked: root.resetDisplayProfiles()
               }
+              Item { Layout.fillWidth: true }
 
               PillButton {
-                label: "Test changes"
+                label: "Apply"
                 active: true
-                enabled: root.displays.length > 0
+                enabled: root.displays.length > 0 && root.displayDraftChanged
                 onClicked: root.applyDisplayPreset("custom")
               }
             }
@@ -3168,40 +3076,7 @@ Scope {
               cursorShape: Qt.ForbiddenCursor
             }
 
-            Rectangle {
-              anchors.horizontalCenter: parent.horizontalCenter
-              anchors.top: parent.top
-              anchors.topMargin: 16
-              implicitWidth: displayLockedRow.implicitWidth + 24
-              implicitHeight: 34
-              radius: 8
-              color: theme.surfaceGlassStrong
-              border.color: Qt.alpha(theme.warning, 0.5)
-              border.width: 1
 
-              RowLayout {
-                id: displayLockedRow
-                anchors.centerIn: parent
-                spacing: 7
-
-                Text {
-                  text: ""
-                  color: theme.warning
-                  font.family: theme.fontFamily
-                  font.pixelSize: 11
-                }
-
-                Text {
-                  text: root.displayPendingToken.length > 0
-                    ? "Confirm or revert to edit again"
-                    : "Applying display changes…"
-                  color: theme.textPrimary
-                  font.family: theme.fontFamily
-                  font.pixelSize: 10
-                  font.bold: true
-                }
-              }
-            }
           }
         }
       }
@@ -4590,237 +4465,6 @@ Scope {
     }
   }
 
-  component DisplayArrangement: Rectangle {
-    id: arrangement
-    required property var outputs
-    property string selectedName: ""
-    signal selected(string name)
-    signal moved(string name, real x, real y)
-
-    readonly property var activeOutputs: outputs.filter(function(output) { return Boolean(output.enabled); })
-    readonly property real canvasPadding: 18
-    readonly property var layoutBounds: calculateBounds()
-    readonly property real layoutScale: Math.max(0.001, Math.min(
-      (width - canvasPadding * 2) / Math.max(1, layoutBounds.maxX - layoutBounds.minX),
-      (height - canvasPadding * 2) / Math.max(1, layoutBounds.maxY - layoutBounds.minY)
-    ))
-
-    implicitHeight: activeOutputs.length > 1 ? 188 : 132
-    radius: 8
-    clip: true
-    color: Qt.alpha(theme.surfaceGlass, 0.52)
-    border.color: Qt.alpha(theme.borderSubtle, 0.66)
-    border.width: 1
-
-    function logicalSize(output) {
-      const mode = String(root.displayDraftValue(output?.name, "mode", output?.mode || ""));
-      const match = /^(\d+)x(\d+)@/.exec(mode);
-      const width = match ? Number(match[1]) : Math.max(1, Number(output?.width || 1920));
-      const height = match ? Number(match[2]) : Math.max(1, Number(output?.height || 1080));
-      const scale = Math.max(0.5, Number(root.displayDraftValue(output?.name, "scale", output?.scale || 1)));
-      return { width: width / scale, height: height / scale };
-    }
-
-    function calculateBounds() {
-      if (activeOutputs.length === 0)
-        return { minX: 0, minY: 0, maxX: 1, maxY: 1 };
-      let minX = Number.POSITIVE_INFINITY;
-      let minY = Number.POSITIVE_INFINITY;
-      let maxX = Number.NEGATIVE_INFINITY;
-      let maxY = Number.NEGATIVE_INFINITY;
-      for (let i = 0; i < activeOutputs.length; i++) {
-        const output = activeOutputs[i];
-        const position = root.displayDraftPosition(output);
-        const size = logicalSize(output);
-        minX = Math.min(minX, position.x);
-        minY = Math.min(minY, position.y);
-        maxX = Math.max(maxX, position.x + size.width);
-        maxY = Math.max(maxY, position.y + size.height);
-      }
-      return { minX: minX, minY: minY, maxX: maxX, maxY: maxY };
-    }
-
-    function snapPosition(name, x, y) {
-      const output = outputs.find(function(candidate) { return String(candidate.name) === String(name); });
-      if (!output)
-        return { x: x, y: y };
-      const size = logicalSize(output);
-      const threshold = Math.max(28, 11 / layoutScale);
-      let snappedX = x;
-      let snappedY = y;
-      let nearestX = threshold + 1;
-      let nearestY = threshold + 1;
-
-      for (let i = 0; i < activeOutputs.length; i++) {
-        const other = activeOutputs[i];
-        if (String(other.name) === String(name))
-          continue;
-        const otherPosition = root.displayDraftPosition(other);
-        const otherSize = logicalSize(other);
-        const xCandidates = [
-          otherPosition.x,
-          otherPosition.x + otherSize.width,
-          otherPosition.x - size.width,
-          otherPosition.x + otherSize.width - size.width
-        ];
-        const yCandidates = [
-          otherPosition.y,
-          otherPosition.y + otherSize.height,
-          otherPosition.y - size.height,
-          otherPosition.y + otherSize.height - size.height
-        ];
-        for (let j = 0; j < xCandidates.length; j++) {
-          const distance = Math.abs(x - xCandidates[j]);
-          if (distance < nearestX && distance <= threshold) {
-            nearestX = distance;
-            snappedX = xCandidates[j];
-          }
-        }
-        for (let j = 0; j < yCandidates.length; j++) {
-          const distance = Math.abs(y - yCandidates[j]);
-          if (distance < nearestY && distance <= threshold) {
-            nearestY = distance;
-            snappedY = yCandidates[j];
-          }
-        }
-      }
-      return { x: snappedX, y: snappedY };
-    }
-
-    Repeater {
-      model: arrangement.activeOutputs
-
-      delegate: Rectangle {
-        id: displayTile
-        required property var modelData
-        required property int index
-        readonly property var output: modelData
-        readonly property var logicalSize: arrangement.logicalSize(output)
-        readonly property var logicalPosition: root.displayDraftPosition(output)
-        readonly property int overlapIndex: {
-          let count = 0;
-          for (let i = 0; i < index; i++) {
-            const previous = arrangement.activeOutputs[i];
-            const previousPosition = root.displayDraftPosition(previous);
-            if (previousPosition.x === logicalPosition.x && previousPosition.y === logicalPosition.y)
-              count++;
-          }
-          return count;
-        }
-        readonly property real overlapOffset: overlapIndex * 11
-        readonly property real baseX: arrangement.canvasPadding
-          + (logicalPosition.x - arrangement.layoutBounds.minX) * arrangement.layoutScale
-          + overlapOffset
-        readonly property real baseY: arrangement.canvasPadding
-          + (logicalPosition.y - arrangement.layoutBounds.minY) * arrangement.layoutScale
-          + overlapOffset
-        property bool dragging: false
-        property real dragX: baseX
-        property real dragY: baseY
-
-        x: dragging ? dragX : baseX
-        y: dragging ? dragY : baseY
-        width: Math.max(86, logicalSize.width * arrangement.layoutScale)
-        height: Math.max(52, logicalSize.height * arrangement.layoutScale)
-        radius: 6
-        color: arrangement.selectedName === String(output.name)
-          ? Qt.alpha(theme.info, 0.22)
-          : Qt.alpha(theme.surfaceRaised, 0.92)
-        border.color: arrangement.selectedName === String(output.name)
-          ? theme.info
-          : Qt.alpha(theme.borderSubtle, 0.88)
-        border.width: arrangement.selectedName === String(output.name) ? 2 : 1
-        z: dragging ? 4 : (arrangement.selectedName === String(output.name) ? 2 : 1 + overlapIndex)
-
-        Behavior on x {
-          enabled: !displayTile.dragging
-          MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
-        }
-        Behavior on y {
-          enabled: !displayTile.dragging
-          MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
-        }
-
-        ColumnLayout {
-          anchors.centerIn: parent
-          width: Math.max(1, parent.width - 16)
-          spacing: 2
-
-          Text {
-            Layout.fillWidth: true
-            text: root.displayName(displayTile.output)
-              + (root.displayPrimary === String(displayTile.output.name) ? "  ★" : "")
-            color: theme.textPrimary
-            font.family: theme.fontFamily
-            font.pixelSize: 10
-            font.bold: true
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: String(displayTile.output.name)
-            color: arrangement.selectedName === String(displayTile.output.name) ? theme.info : theme.textMuted
-            font.family: theme.fontFamily
-            font.pixelSize: 8
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-          }
-        }
-
-        MouseArea {
-          id: displayTileMouse
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
-          property real pointerStartX: 0
-          property real pointerStartY: 0
-          property real tileStartX: 0
-          property real tileStartY: 0
-
-          onPressed: function(mouse) {
-            arrangement.selected(String(displayTile.output.name));
-            const pointer = mapToItem(arrangement, mouse.x, mouse.y);
-            pointerStartX = pointer.x;
-            pointerStartY = pointer.y;
-            tileStartX = displayTile.x;
-            tileStartY = displayTile.y;
-            displayTile.dragX = displayTile.x;
-            displayTile.dragY = displayTile.y;
-            displayTile.dragging = true;
-          }
-
-          onPositionChanged: function(mouse) {
-            if (!pressed)
-              return;
-            const pointer = mapToItem(arrangement, mouse.x, mouse.y);
-            displayTile.dragX = Math.max(-displayTile.width / 2, Math.min(
-              arrangement.width - displayTile.width / 2,
-              tileStartX + pointer.x - pointerStartX
-            ));
-            displayTile.dragY = Math.max(-displayTile.height / 2, Math.min(
-              arrangement.height - displayTile.height / 2,
-              tileStartY + pointer.y - pointerStartY
-            ));
-          }
-
-          onReleased: {
-            const x = arrangement.layoutBounds.minX
-              + (displayTile.dragX - arrangement.canvasPadding - displayTile.overlapOffset) / arrangement.layoutScale;
-            const y = arrangement.layoutBounds.minY
-              + (displayTile.dragY - arrangement.canvasPadding - displayTile.overlapOffset) / arrangement.layoutScale;
-            const snapped = arrangement.snapPosition(String(displayTile.output.name), x, y);
-            arrangement.moved(String(displayTile.output.name), snapped.x, snapped.y);
-            displayTile.dragging = false;
-          }
-
-          onCanceled: displayTile.dragging = false
-        }
-      }
-    }
-  }
-
   component DisplayOutputInspector: Item {
     id: displayInspector
     required property var output
@@ -4829,7 +4473,6 @@ Scope {
       : ["preferred"]
     readonly property string selectedMode: String(root.displayDraftValue(output?.name, "mode", output?.mode || "preferred"))
     readonly property real selectedScale: Number(root.displayDraftValue(output?.name, "scale", output?.scale || 1))
-    readonly property var selectedPosition: root.displayDraftPosition(output)
 
     implicitHeight: displayInspectorContent.implicitHeight
 
@@ -4869,7 +4512,6 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: String(displayInspector.output?.name || "")
-              + " · position " + displayInspector.selectedPosition.x + "×" + displayInspector.selectedPosition.y
             color: theme.textSecondary
             font.family: theme.fontFamily
             font.pixelSize: 9
@@ -4878,7 +4520,7 @@ Scope {
         }
 
         Text {
-          visible: root.displayPrimary === String(displayInspector.output?.name || "")
+          visible: root.displays.length > 1 && root.displayPrimary === String(displayInspector.output?.name || "")
           text: "Primary"
           color: theme.info
           font.family: theme.fontFamily
@@ -4887,6 +4529,7 @@ Scope {
         }
 
         IconButton {
+          visible: root.displays.length > 1
           icon: root.displayPrimary === String(displayInspector.output?.name || "") ? "" : ""
           tooltip: root.displayPrimary === String(displayInspector.output?.name || "")
             ? ""
@@ -5043,50 +4686,6 @@ Scope {
           horizontalAlignment: Text.AlignRight
           Layout.preferredWidth: 38
         }
-      }
-    }
-  }
-
-  component StartupDisplayRuleRow: Item {
-    id: startupRuleRow
-    required property var rule
-    property bool showDivider: false
-
-    implicitHeight: 50
-
-    Rectangle {
-      visible: startupRuleRow.showDivider
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: parent.top
-      height: 1
-      color: theme.borderSubtle
-      opacity: 0.64
-    }
-
-    ColumnLayout {
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: 2
-
-      Text {
-        Layout.fillWidth: true
-        text: root.startupDisplayName(startupRuleRow.rule)
-        color: theme.textPrimary
-        font.family: theme.fontFamily
-        font.pixelSize: 10
-        font.bold: true
-        elide: Text.ElideRight
-      }
-
-      Text {
-        Layout.fillWidth: true
-        text: root.startupDisplayDetails(startupRuleRow.rule)
-        color: theme.textSecondary
-        font.family: theme.fontFamily
-        font.pixelSize: 9
-        elide: Text.ElideRight
       }
     }
   }

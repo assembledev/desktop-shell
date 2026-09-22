@@ -47,13 +47,16 @@ The first invocation starts the user service when necessary. `wifi-page` and
 `bluetooth-page` open the control center directly on the corresponding page;
 `display-page` opens the connected-output and layout controls.
 
-The display page provides a draggable output arrangement together with Extend,
-Duplicate, Internal only, and External only presets and per-output mode and
-scale controls. Testing a change starts a 20-second confirmation deadline
+The display page provides a centered, draggable output arrangement. Dragging
+chooses exact top/center/bottom placements beside another display, or
+left/center/right placements above or below it. The shared edges stay touching;
+placements that overlap another display are skipped.
+Geometry uses scaled, rotated dimensions. Overlapping layouts
+are rejected before application. Extend, Duplicate, Internal only, and External
+only presets are available alongside per-output mode and scale controls. Testing a change starts a 20-second confirmation deadline
 backed by a transient systemd user timer and visibly locks further editing. A
 confirmed layout is saved for the same set of physical displays and restored
-when that set reconnects. The page shows the configured startup rules and
-**Restore startup layout** removes the saved profile for the connected display
+when that set reconnects. **Reset layout** removes the saved profile for the connected display
 set before reloading Hyprland's declarative monitor rules.
 
 ### Launcher

@@ -457,6 +457,7 @@ jq -n '
       width: 3440,
       height: 1440,
       refreshRate: 240,
+      transform: 1,
       x: 1440,
       y: 0,
       scale: 1.25,
@@ -475,7 +476,7 @@ jq -e '
   .externalCount == 1 and
   .outputs[0].identity == "description:Laptop Panel" and
   .outputs[1].identity == "edid:Acer|X34|ABC" and
-  .outputs[1].mode == "3440x1440@240.00"
+  .outputs[1].mode == "3440x1440@240.00" and .outputs[1].transform == 1
 ' <<<"$display_snapshot" >/dev/null
 
 PATH="$test_bin:$PATH" display_status_json | jq -e '
@@ -509,11 +510,11 @@ fi
 
 arranged_layout="$(
   display_layout_from_request "$display_snapshot" \
-    '{"preset":"custom","primary":"DP-5","changes":{"eDP-1":{"position":"1720x0"},"DP-5":{"position":"0x180"}}}'
+    '{"preset":"custom","primary":"DP-5","changes":{"eDP-1":{"position":"2752x0"},"DP-5":{"position":"0x180"}}}'
 )"
 jq -e '
   .primary == "DP-5" and
-  ([.outputs[] | select(.name == "eDP-1")][0].position == "1720x0") and
+  ([.outputs[] | select(.name == "eDP-1")][0].position == "2752x0") and
   ([.outputs[] | select(.name == "DP-5")][0].position == "0x180")
 ' <<<"$arranged_layout" >/dev/null
 
@@ -521,6 +522,27 @@ if display_layout_from_request "$display_snapshot" \
   '{"preset":"custom","changes":{"eDP-1":{"position":"somewhere"}}}' >/dev/null 2>&1; then
   exit 1
 fi
+
+# Rotated external output is 1152 x 2752 logical pixels. Each alignment must
+# reach the backend as a distinct exact position while keeping a shared edge.
+for aligned_y in 0 926 1852; do
+  request="$(jq -nc --arg position "1152x$aligned_y" '{preset:"custom", changes:{"eDP-1":{position:$position},"DP-5":{position:"0x0"}}}')"
+  display_layout_from_request "$display_snapshot" "$request" |
+    jq -e --arg position "1152x$aligned_y" '.outputs[0].position == $position and .outputs[1].transform == 1' >/dev/null
+done
+if display_layout_from_request "$display_snapshot" \
+  '{"preset":"custom","changes":{"eDP-1":{"position":"0x0"},"DP-5":{"position":"0x0"}}}' >/dev/null 2>&1; then
+  printf 'overlapping extended displays must be rejected\n' >&2
+  exit 1
+fi
+display_layout_from_request "$display_snapshot" \
+  '{"preset":"custom","changes":{"eDP-1":{"position":"-1440x0"},"DP-5":{"position":"0x0"}}}' |
+  jq -e '.outputs[0].position == "-1440x0"' >/dev/null
+
+# Profiles from before rotation was recorded inherit the current output transform.
+legacy_profile="$(display_profile_from_layout "$arranged_layout" | jq 'del(.outputs[].transform)')"
+display_layout_from_profile "$display_snapshot" "$legacy_profile" |
+  jq -e '.outputs[1].transform == 1' >/dev/null
 
 systemd_run_args="$test_root/systemd-run-args"
 printf '#!%s\nprintf "%%s\\n" "$@" >"$DESKTOP_SHELL_TEST_SYSTEMD_RUN_ARGS"\n' \
@@ -537,17 +559,19 @@ test -n "$display_token"
 test -r "$display_pending_file"
 grep -F 'hl.monitor({ output = "DP-5"' "$hyprctl_eval" >/dev/null
 grep -F 'mirror = "eDP-1"' "$hyprctl_eval" >/dev/null
+grep -F 'transform = 1' "$hyprctl_eval" >/dev/null
 grep -F -- '--on-active=20s' "$systemd_run_args" >/dev/null
 
 PATH="$test_bin:$PATH" display_keep "$display_token"
 test ! -e "$display_pending_file"
-jq -e '.profiles | length == 1' "$display_profiles_file" >/dev/null
+jq -e '(.profiles | length == 1) and .profiles[0].outputs[1].transform == 1' "$display_profiles_file" >/dev/null
 
 jq 'map(if .name == "DP-5" then .name = "DP-6" else . end)' "$monitors_json" >"$monitors_json.next"
 mv "$monitors_json.next" "$monitors_json"
 PATH="$test_bin:$PATH" display_restore_profile
 grep -F 'hl.monitor({ output = "DP-6"' "$hyprctl_eval" >/dev/null
 grep -F 'mirror = "eDP-1"' "$hyprctl_eval" >/dev/null
+grep -F 'transform = 1' "$hyprctl_eval" >/dev/null
 
 apply_result="$(
   PATH="$test_bin:$PATH" display_apply_request '{"preset":"external","primary":"DP-6"}'
@@ -555,6 +579,7 @@ apply_result="$(
 display_token="$(jq -r '.token' <<<"$apply_result")"
 PATH="$test_bin:$PATH" display_rollback "$display_token"
 test ! -e "$display_pending_file"
+grep -F 'transform = 1' "$hyprctl_eval" >/dev/null
 
 apply_result="$(
   PATH="$test_bin:$PATH" display_apply_request '{"preset":"external","primary":"DP-6"}'

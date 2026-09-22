@@ -55,6 +55,7 @@ display_snapshot_json() {
             width: (.width // 0),
             height: (.height // 0),
             refreshRate: (.refreshRate // 0),
+            transform: (.transform // 0),
             x: (.x // 0),
             y: (.y // 0),
             position: ((.x // 0) | tostring) + "x" + ((.y // 0) | tostring),
@@ -228,17 +229,33 @@ display_layout_from_request() {
     | if any(.[]; .enabled and (
         (.position | type) != "string" or
         (.position as $position |
-          (($position | test("^[0-9]+x[0-9]+$") | not) and
+          (($position | test("^-?[0-9]+x-?[0-9]+$") | not) and
            (["auto", "auto-left", "auto-right", "auto-up", "auto-down"] | index($position)) == null))
       )) then fail("invalid display position") else . end
     | if any(.[]; . as $output | $output.enabled and $output.mode != "preferred" and
         (($output.availableModes | length) > 0) and
         (($output.availableModes | index($output.mode)) == null))
       then fail("invalid display mode") else . end
+    | . as $layout
+    | def rectangle:
+        (.position | capture("^(?<x>-?[0-9]+)x(?<y>-?[0-9]+)$")) as $at
+        | ((.mode | capture("^(?<w>[0-9]+)x(?<h>[0-9]+)")) // {w: .width, h: .height}) as $mode
+        | (($mode.w | tonumber) / .scale) as $w
+        | (($mode.h | tonumber) / .scale) as $h
+        | {name, x: ($at.x | tonumber), y: ($at.y | tonumber),
+           w: (if (.transform // 0) % 2 == 1 then $h else $w end),
+           h: (if (.transform // 0) % 2 == 1 then $w else $h end)};
+      [ .[] | select(.enabled and (.mirror // "") == "") | rectangle ] as $rects
+    | [range(0; $rects | length) as $i | range($i + 1; $rects | length) as $j
+        | $rects[$i] as $a | $rects[$j] as $b
+        | select($a.x < $b.x + $b.w and $b.x < $a.x + $a.w and
+                 $a.y < $b.y + $b.h and $b.y < $a.y + $a.h)
+        | $a.name + " overlaps " + $b.name] as $overlaps
+    | if ($overlaps | length) > 0 then fail($overlaps[0]) else $layout end
     | {
         topology: $snapshot.topology,
         primary: $primary,
-        outputs: map({name, identity, enabled, mode, position, scale, mirror})
+        outputs: map({name, identity, enabled, mode, position, scale, transform, mirror})
       }
   '
 }
@@ -249,22 +266,17 @@ display_lua_string() {
 
 display_apply_layout() {
   local layout="$1"
-  local lua=""
-  local output name enabled mode position scale mirror primary
+  local lua primary
 
-  while IFS= read -r output; do
-    name="$(jq -r '.name' <<<"$output")"
-    enabled="$(jq -r '.enabled' <<<"$output")"
-    mirror="$(jq -r '.mirror' <<<"$output")"
-    if [ "$enabled" = true ]; then
-      mode="$(jq -r '.mode' <<<"$output")"
-      position="$(jq -r '.position' <<<"$output")"
-      scale="$(jq -r '.scale' <<<"$output")"
-      lua="$lua hl.monitor({ output = $(display_lua_string "$name"), disabled = false, mode = $(display_lua_string "$mode"), position = $(display_lua_string "$position"), scale = $scale, mirror = $(display_lua_string "$mirror") });"
+  lua="$(jq -r '
+    [.outputs[] | if .enabled then
+      "hl.monitor({ output = " + (.name | @json) + ", disabled = false, mode = " + (.mode | @json) +
+      ", position = " + (.position | @json) + ", scale = " + (.scale | tostring) +
+      ", transform = " + ((.transform // 0) | tostring) + ", mirror = " + (.mirror | @json) + " });"
     else
-      lua="$lua hl.monitor({ output = $(display_lua_string "$name"), disabled = true, mirror = "" });"
-    fi
-  done < <(jq -c '.outputs[]' <<<"$layout")
+      "hl.monitor({ output = " + (.name | @json) + ", disabled = true, mirror = \"\" });"
+    end] | join(" ")
+  ' <<<"$layout")" || return
 
   ensure_hypr_env
   hyprctl eval "$lua" || return
@@ -292,6 +304,7 @@ display_profile_from_layout() {
               mode,
               position,
               scale,
+              transform: (.transform // 0),
               mirrorIdentity: ([ $layout.outputs[] | select(.name == $output.mirror) | .identity ][0] // "")
             }
         ]
@@ -320,6 +333,7 @@ display_layout_from_profile() {
               mode: $saved.mode,
               position: $saved.position,
               scale: $saved.scale,
+              transform: ($saved.transform // .transform // 0),
               mirror: name_for($saved.mirrorIdentity)
             }
         ]
@@ -372,7 +386,7 @@ display_apply_request() (
   fi
 
   snapshot="$(display_snapshot_json)" || return
-  before="$(jq -ce '{topology, primary: ([.outputs[] | select(.focused) | .name][0] // [.outputs[] | select(.enabled) | .name][0] // ""), outputs: [.outputs[] | {name, identity, enabled, mode, position, scale, mirror}]}' <<<"$snapshot")"
+  before="$(jq -ce '{topology, primary: ([.outputs[] | select(.focused) | .name][0] // [.outputs[] | select(.enabled) | .name][0] // ""), outputs: [.outputs[] | {name, identity, enabled, mode, position, scale, transform, mirror}]}' <<<"$snapshot")"
   layout="$(display_layout_from_request "$snapshot" "$request")" || return
   token="$$-$(date +%s%N)"
   unit="desktop-shell-display-rollback-$token"
@@ -426,7 +440,7 @@ display_keep() (
           | . as $requested
           | ($snapshot.outputs[] | select(.identity == $requested.identity)) as $actual
           | $requested + {
-              position: (if $requested.position == "auto-right" then $actual.position else $requested.position end)
+              position: (if ($requested.position | startswith("auto")) then $actual.position else $requested.position end)
             }
         ]
       }
