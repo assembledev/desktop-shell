@@ -87,6 +87,59 @@ export DESKTOP_SHELL_TEST_HYPRCTL_ARGS="$hyprctl_args"
 export DESKTOP_SHELL_TEST_HYPRCTL_EVAL="$hyprctl_eval"
 export DESKTOP_SHELL_TEST_MONITORS_JSON="$monitors_json"
 
+# Every regular backend command must parse the shared config only once.
+export DESKTOP_SHELL_TEST_REAL_JQ="$(command -v jq)"
+export DESKTOP_SHELL_TEST_JQ_CALLS="$test_root/jq-calls"
+printf '%s\n' \
+  "#!$(command -v bash)" \
+  'printf "call\n" >>"$DESKTOP_SHELL_TEST_JQ_CALLS"' \
+  'exec "$DESKTOP_SHELL_TEST_REAL_JQ" "$@"' >"$test_bin/jq"
+chmod +x "$test_bin/jq"
+PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" help >/dev/null
+jq_calls="$(wc -l <"$DESKTOP_SHELL_TEST_JQ_CALLS")"
+if [ "$jq_calls" -ne 1 ]; then
+  printf 'shared backend setup invoked jq %s times; expected one\n' "$jq_calls" >&2
+  exit 1
+fi
+rm "$test_bin/jq"
+
+# Config strings remain literal, including whitespace and shell syntax.
+config_fixture="$test_root/config-fixture.json"
+export DESKTOP_SHELL_TEST_LITERAL=$'quotes " \' `false` $(false) \\ tabs\tand\nnewlines\n'
+jq --arg literal "$DESKTOP_SHELL_TEST_LITERAL" \
+  '.output = $literal | .browserTabs.displayName = $literal |
+   .integrations.recordingStateFile = "capture/state"' \
+  "$provider_config" >"$config_fixture"
+DESKTOP_SHELL_CONFIG="$config_fixture" bash -eu -s -- "$source_root" <<'EOF'
+source "$1/src/backend/lib/common.sh"
+test "$DESKTOP_SHELL_OUTPUT" = "$DESKTOP_SHELL_TEST_LITERAL"
+test "$DESKTOP_SHELL_BROWSER_NAME" = "$DESKTOP_SHELL_TEST_LITERAL"
+test "$DESKTOP_SHELL_RECORDING_STATE" = "$XDG_RUNTIME_DIR/capture/state"
+bash -eu -c 'test "$DESKTOP_SHELL_OUTPUT" = "$DESKTOP_SHELL_TEST_LITERAL"'
+EOF
+
+printf '{}\n' >"$config_fixture"
+DESKTOP_SHELL_CONFIG="$config_fixture" bash -eu -s -- "$source_root" <<'EOF'
+source "$1/src/backend/lib/common.sh"
+test "$DESKTOP_SHELL_WORKSPACES_JSON" = "[]"
+test "$DESKTOP_SHELL_KEYBOARD_LABELS_JSON" = '["EN"]'
+test "$DESKTOP_SHELL_THEME_JSON" = "{}"
+test "$DESKTOP_SHELL_BAR_COMPACT" = 0
+test "$DESKTOP_SHELL_BAR_SHOW_VRAM" = 1
+test "$DESKTOP_SHELL_OUTPUT" = ""
+test "$wallpaper_dir" = "$HOME/Wallpapers"
+test "$default_wallpaper" = "$HOME/Wallpapers/wallpaper.jpg"
+EOF
+
+for invalid_json in '{' '[]' 'null' '' '{"output":"a\u0000b"}'; do
+  printf '%s' "$invalid_json" >"$config_fixture"
+  if DESKTOP_SHELL_CONFIG="$config_fixture" \
+    bash "$source_root/src/backend/desktop-shell.sh" help >/dev/null 2>&1; then
+    printf 'backend must reject invalid configuration\n' >&2
+    exit 1
+  fi
+done
+
 fast_ipc_args="$test_root/fast-ipc-args"
 invalid_config="$test_root/invalid-config.json"
 printf '{\n' >"$invalid_config"

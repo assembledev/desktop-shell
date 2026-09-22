@@ -145,7 +145,11 @@ and rebuilt when necessary.
 Nix options are evaluated before launch. Home Manager serializes the theme and
 structured values such as workspaces, bar controls, and keybinding metadata to
 one JSON file. The command backend validates that file and exposes resolved
-values to QML through environment variables.
+values to QML through environment variables. Shared backend initialization
+resolves those values in one `jq` invocation using `lib/config-environment.jq`.
+It passes values as NUL-delimited data rather than evaluating shell code.
+Keep new configuration fields in that shared projection instead of adding a
+parser process per field to every command.
 
 Runtime observations stay runtime-owned. Window lists, devices, PipeWire
 nodes, network state, and output geometry are discovered from their source
