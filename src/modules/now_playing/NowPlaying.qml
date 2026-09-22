@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
@@ -190,6 +191,8 @@ Scope {
             id: artworkImage
             anchors.fill: parent
             source: root.artwork
+            sourceSize.width: Math.max(1, Math.ceil(width * Screen.devicePixelRatio))
+            sourceSize.height: Math.max(1, Math.ceil(height * Screen.devicePixelRatio))
             asynchronous: true
             cache: true
             fillMode: Image.PreserveAspectCrop

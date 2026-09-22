@@ -77,7 +77,7 @@ Scope {
   }
 
   function previewCurrent() {
-    if (!ready || filteredModel.count === 0)
+    if (!open || closing || !ready || filteredModel.count === 0)
       return;
 
     var item = currentItem();
@@ -183,6 +183,8 @@ Scope {
     id: previewDebounce
     interval: 120
     onTriggered: {
+      if (!shell.open || shell.closing)
+        return;
       if (previewProc.running) {
         restart();
         return;
@@ -195,7 +197,7 @@ Scope {
   Process {
     id: previewProc
     onExited: {
-      if (shell.pendingPreviewPath !== shell.previewStartedPath)
+      if (shell.open && !shell.closing && shell.pendingPreviewPath !== shell.previewStartedPath)
         previewDebounce.restart();
     }
   }

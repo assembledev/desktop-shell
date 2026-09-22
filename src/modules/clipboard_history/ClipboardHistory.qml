@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
@@ -27,6 +28,7 @@ Scope {
   property bool hydrated: false
   property bool refreshPending: false
   property var entries: []
+  property var previewPaths: ({})
   property string message: ""
   property bool wipeArmed: false
 
@@ -43,7 +45,26 @@ Scope {
     return String(item.label || "").replace(/\s+/g, " ").trim();
   }
 
+  function rememberPreview(entryId, path) {
+    if (path.length > 0) {
+      const next = Object.assign({}, previewPaths);
+      next[entryId] = path;
+      previewPaths = next;
+    }
+  }
+
+  function prunePreviews() {
+    const next = ({});
+    for (const item of entries) {
+      if (previewPaths[item.entryId])
+        next[item.entryId] = previewPaths[item.entryId];
+    }
+    previewPaths = next;
+  }
+
   function applyFilter() {
+    if (!open)
+      return;
     const query = search.text.toLowerCase().trim();
     filteredModel.clear();
 
@@ -74,7 +95,10 @@ Scope {
     inputIntent.claimKeyboard();
     open = true;
     message = "";
-    search.text = "";
+    if (search.text.length > 0)
+      search.text = "";
+    else
+      applyFilter();
     if (!hydrated) {
       loading = true;
       if (!listProc.running)
@@ -153,6 +177,7 @@ Scope {
           console.error("clipboard-history: JSON parse failed: " + error);
         }
         root.loading = false;
+        root.prunePreviews();
         root.applyFilter();
       }
     }
@@ -183,7 +208,11 @@ Scope {
   Process {
     id: wipeProc
     command: [root.backend, "clipboard", "wipe"]
-    onExited: root.refresh(false)
+    onExited: function(exitCode) {
+      if (exitCode === 0)
+        root.previewPaths = ({});
+      root.refresh(false);
+    }
   }
 
   Component.onCompleted: root.refresh(false)
@@ -450,7 +479,7 @@ Scope {
 
             readonly property bool selected: ListView.isCurrentItem
             readonly property string cleanLabel: root.displayLabel(item)
-            property string previewPath: preview
+            readonly property string previewPath: root.previewPaths[entryId] || preview
 
             width: ListView.view.width
             height: image ? 172 : 78
@@ -480,7 +509,7 @@ Scope {
             }
 
             Component.onCompleted: {
-              if (item.image)
+              if (item.image && item.previewPath.length === 0)
                 previewProc.running = true;
             }
 
@@ -488,7 +517,7 @@ Scope {
               id: previewProc
               command: [root.backend, "clipboard", "preview", item.record, item.entryId, item.kind]
               stdout: StdioCollector {
-                onStreamFinished: item.previewPath = text.trim()
+                onStreamFinished: root.rememberPreview(item.entryId, text.trim())
               }
             }
 
@@ -511,6 +540,8 @@ Scope {
                   anchors.fill: parent
                   anchors.margins: 1
                   source: root.imageUrl(item.previewPath)
+                  sourceSize.width: Math.max(1, Math.ceil(width * Screen.devicePixelRatio))
+                  sourceSize.height: Math.max(1, Math.ceil(height * Screen.devicePixelRatio))
                   asynchronous: true
                   fillMode: Image.PreserveAspectFit
                   smooth: true
