@@ -210,7 +210,8 @@ brightness_capabilities_json() {
     writable=false
     [ -w "/dev/i2c-$bus" ] && writable=true
     jq -nc --arg backend ddc --argjson writable "$writable" \
-      '{supported: true, backend: $backend, writable: $writable}'
+      --arg valuePath "$brightness_value_file" \
+      '{supported: true, backend: $backend, writable: $writable, valuePath: $valuePath}'
     return 0
   fi
 
@@ -232,8 +233,12 @@ brightness_publish() {
 
 brightness_get() {
   values="$(brightness_target_values)" || return 1
-  IFS=$'\t' read -r _ _ current max <<<"$values"
-  brightness_percent "$current" "$max"
+  IFS=$'\t' read -r backend _ current max <<<"$values"
+  percent="$(brightness_percent "$current" "$max")"
+  if [ "$backend" = ddc ]; then
+    brightness_publish "$percent"
+  fi
+  printf '%s\n' "$percent"
 }
 
 brightness_set_raw() {

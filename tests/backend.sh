@@ -74,6 +74,17 @@ printf '100\n' >"$backlight/max_brightness"
 brightness_capabilities_json | jq -e '.supported == true and .backend == "backlight" and .writable == true' >/dev/null
 test "$(brightness_get)" = 50
 
+# DDC publishes its initial read before the UI starts watching the cache file.
+(
+  brightness_device_dir() { return 1; }
+  brightness_ddc_target_bus() { printf '999\n'; }
+  brightness_target_values() { printf 'ddc\t999\t40\t100\n'; }
+  brightness_capabilities_json | jq -e --arg path "$brightness_value_file" \
+    '.backend == "ddc" and .valuePath == $path' >/dev/null
+  test "$(brightness_get)" = 40
+  test "$(cat "$brightness_value_file")" = 40
+)
+
 test_bin="$test_root/bin"
 hyprctl_args="$test_root/hyprctl-args"
 hyprctl_eval="$test_root/hyprctl-eval"
@@ -108,13 +119,14 @@ config_fixture="$test_root/config-fixture.json"
 export DESKTOP_SHELL_TEST_LITERAL=$'quotes " \' `false` $(false) \\ tabs\tand\nnewlines\n'
 jq --arg literal "$DESKTOP_SHELL_TEST_LITERAL" \
   '.output = $literal | .browserTabs.displayName = $literal |
-   .integrations.recordingStateFile = "capture/state"' \
+   .integrations.recordingStateFile = "capture/state" | .bar.showVram = false' \
   "$provider_config" >"$config_fixture"
 DESKTOP_SHELL_CONFIG="$config_fixture" bash -eu -s -- "$source_root" <<'EOF'
 source "$1/src/backend/lib/common.sh"
 test "$DESKTOP_SHELL_OUTPUT" = "$DESKTOP_SHELL_TEST_LITERAL"
 test "$DESKTOP_SHELL_BROWSER_NAME" = "$DESKTOP_SHELL_TEST_LITERAL"
 test "$DESKTOP_SHELL_RECORDING_STATE" = "$XDG_RUNTIME_DIR/capture/state"
+test "$DESKTOP_SHELL_BAR_SHOW_VRAM" = 0
 bash -eu -c 'test "$DESKTOP_SHELL_OUTPUT" = "$DESKTOP_SHELL_TEST_LITERAL"'
 EOF
 
@@ -470,3 +482,6 @@ PATH="$test_bin:$PATH" display_reset
 jq -e '.profiles == [{"topology":"another-display-set","primaryIdentity":"","outputs":[]}]' \
   "$display_profiles_file" >/dev/null
 grep -Fx reload "$hyprctl_eval" >/dev/null
+
+# Exercise telemetry arithmetic and ensure polling does not query sleeping GPUs.
+bash "$source_root/tests/telemetry.sh" "$source_root"

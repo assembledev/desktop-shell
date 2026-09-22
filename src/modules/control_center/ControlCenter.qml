@@ -82,6 +82,7 @@ Scope {
   readonly property int backendQueryTimeout: 6
   property real brightness: 0
   property string brightnessBackend: "backlight"
+  property string brightnessValuePath: ""
   property bool brightnessSupported: false
   property bool brightnessWritable: false
   property int pendingBrightnessPercent: 0
@@ -119,8 +120,6 @@ Scope {
   property var expandedNotificationGroups: ({})
   property double notificationTimelineNow: Date.now()
   property var notificationPopupById: ({})
-  property var metrics: ({ cpu: 0, ram: 0, ramText: "--", vram: 0, vramText: "--", hasVram: false })
-  property var power: ({ supported: false, profile: "", choices: [] })
   property bool focusMode: false
   property bool focusBarOpen: false
   property bool outputExpanded: false
@@ -417,14 +416,6 @@ Scope {
     if (value >= 30)
       return "▂▄__";
     return "▂___";
-  }
-
-  function powerIcon(profile) {
-    if (profile === "performance")
-      return "";
-    if (profile === "quiet" || profile === "low-power" || profile === "power-saver")
-      return "";
-    return "";
   }
 
   function notificationActions(actions) {
@@ -1322,8 +1313,6 @@ Scope {
     refreshBluetoothForPage();
     if (brightnessSupported)
       brightnessProc.running = true;
-    metricsProc.running = true;
-    powerProc.running = true;
   }
 
   function refreshBluetooth(includeDevices) {
@@ -1390,6 +1379,17 @@ Scope {
     refreshBluetooth();
   }
 
+  function updateBrightness(value) {
+    const raw = String(value).trim();
+    if (raw.length === 0 || !isFinite(Number(raw)))
+      return;
+    const nextValue = clamp(Number(raw) / 100, 0, 1);
+    if (brightnessReady && Math.abs(nextValue - brightness) > 0.005)
+      showOsd("brightness", nextValue);
+    brightness = nextValue;
+    brightnessReady = true;
+  }
+
   function setBrightness(value) {
     if (!brightnessSupported || !brightnessWritable)
       return;
@@ -1402,14 +1402,6 @@ Scope {
     }
     brightness = percent / 100;
     showOsd("brightness", brightness);
-  }
-
-  function setPowerProfile(profile) {
-    if (!profile)
-      return;
-    setPowerProc.exec([backend, "power", "set", profile]);
-    power.profile = profile;
-    powerProc.running = true;
   }
 
   function connectWifi(network, password) {
@@ -1649,7 +1641,7 @@ Scope {
           && now - root.lastBluetoothPollAt > root.bluetoothStaleAfter)
         root.handleBluetoothGap();
       root.lastBluetoothPollAt = now;
-      root.refreshAll();
+      root.refreshBluetoothForPage();
     }
   }
 
@@ -2090,14 +2082,17 @@ Scope {
     id: brightnessProc
     command: [backend, "brightness", "get"]
     stdout: StdioCollector {
-      onStreamFinished: {
-        const nextValue = clamp(Number(text.trim()) / 100, 0, 1);
-        if (brightnessReady && Math.abs(nextValue - brightness) > 0.005)
-          showOsd("brightness", nextValue);
-        brightness = nextValue;
-        brightnessReady = true;
-      }
+      onStreamFinished: root.updateBrightness(text)
     }
+  }
+
+  FileView {
+    id: brightnessValueFile
+    path: root.brightnessBackend === "ddc" && root.brightnessReady ? root.brightnessValuePath : ""
+    preload: path.length > 0
+    watchChanges: path.length > 0
+    onFileChanged: reload()
+    onLoaded: root.updateBrightness(text())
   }
 
   Process {
@@ -2113,11 +2108,13 @@ Scope {
         });
         root.brightnessSupported = Boolean(capabilities.supported);
         root.brightnessWritable = Boolean(capabilities.writable);
+        root.brightnessValuePath = String(capabilities.valuePath || "");
         if (capabilities.backend === "backlight" || capabilities.backend === "ddc")
           root.brightnessBackend = capabilities.backend;
         if (root.brightnessSupported) {
           brightnessProc.running = true;
-          brightnessWatchProc.running = true;
+          if (root.brightnessBackend === "backlight")
+            brightnessWatchProc.running = true;
         }
       }
     }
@@ -2128,19 +2125,10 @@ Scope {
     command: [backend, "brightness", "watch"]
     stdout: SplitParser {
       splitMarker: "\n"
-      onRead: function(data) {
-        const raw = String(data).trim();
-        if (raw.length === 0)
-          return;
-        const nextValue = clamp(Number(raw) / 100, 0, 1);
-        if (brightnessReady && Math.abs(nextValue - brightness) > 0.005)
-          showOsd("brightness", nextValue);
-        brightness = nextValue;
-        brightnessReady = true;
-      }
+      onRead: function(data) { root.updateBrightness(data); }
     }
     onExited: function(exitCode) {
-      if (root.brightnessSupported && exitCode !== 3)
+      if (root.brightnessSupported && root.brightnessBackend === "backlight" && exitCode !== 3)
         brightnessWatchRestartTimer.restart();
     }
   }
@@ -2149,7 +2137,7 @@ Scope {
     id: brightnessWatchRestartTimer
     interval: 1000
     onTriggered: {
-      if (root.brightnessSupported)
+      if (root.brightnessSupported && root.brightnessBackend === "backlight")
         brightnessWatchProc.running = true;
     }
   }
@@ -2173,27 +2161,6 @@ Scope {
         String(pendingBrightnessPercent)
       ]);
     }
-  }
-
-  Process {
-    id: metricsProc
-    command: [backend, "metrics"]
-    stdout: StdioCollector {
-      onStreamFinished: metrics = parseJson(text, metrics)
-    }
-  }
-
-  Process {
-    id: powerProc
-    command: [backend, "power", "status-json"]
-    stdout: StdioCollector {
-      onStreamFinished: power = parseJson(text, power)
-    }
-  }
-
-  Process {
-    id: setPowerProc
-    onExited: powerProc.running = true
   }
 
   Process {
@@ -2756,59 +2723,6 @@ Scope {
                 accent: theme.utility
                 onChanged: function(value) { root.setBrightness(value); }
               }
-            }
-          }
-        }
-
-        Section {
-          title: "Power profile"
-          accent: theme.utility
-          visible: false
-          RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-            Repeater {
-              model: root.power.choices || []
-              delegate: PillButton {
-                required property string modelData
-                Layout.fillWidth: true
-                icon: root.powerIcon(modelData)
-                label: modelData
-                active: root.power.profile === modelData
-                onClicked: root.setPowerProfile(modelData)
-              }
-            }
-          }
-        }
-
-        Section {
-          title: "Device load"
-          accent: theme.resource
-          visible: false
-          RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
-            MiniGauge {
-              Layout.fillWidth: true
-              label: "CPU"
-              value: root.metrics.cpu || 0
-              textValue: Math.round((root.metrics.cpu || 0) * 100) + "%"
-              accent: theme.info
-            }
-            MiniGauge {
-              Layout.fillWidth: true
-              label: "RAM"
-              value: root.metrics.ram || 0
-              textValue: root.metrics.ramText || "--"
-              accent: theme.resource
-            }
-            MiniGauge {
-              Layout.fillWidth: true
-              visible: root.metrics.hasVram
-              label: "VRAM"
-              value: root.metrics.vram || 0
-              textValue: root.metrics.vramText || "--"
-              accent: theme.special
             }
           }
         }
@@ -5456,46 +5370,6 @@ Scope {
             node.audio.muted = false;
           }
         }
-      }
-    }
-  }
-
-  component MiniGauge: Rectangle {
-    id: gauge
-    property string label
-    property string textValue
-    property real value: 0
-    property color accent: theme.accent
-    implicitHeight: 78
-    radius: 8
-    color: theme.surfaceRaised
-    border.color: theme.borderMuted
-    border.width: 1
-    ColumnLayout {
-      anchors.fill: parent
-      anchors.margins: 10
-      spacing: 7
-      RowLayout {
-        Layout.fillWidth: true
-        Text {
-          Layout.fillWidth: true
-          text: gauge.label
-          color: theme.textPrimary
-          font.family: theme.fontFamily
-          font.pixelSize: 12
-          font.bold: true
-        }
-        Text {
-          text: gauge.textValue
-          color: theme.textSecondary
-          font.family: theme.fontFamily
-          font.pixelSize: 11
-        }
-      }
-      Bar {
-        Layout.fillWidth: true
-        value: gauge.value
-        accent: gauge.accent
       }
     }
   }

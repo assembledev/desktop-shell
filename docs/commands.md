@@ -134,6 +134,11 @@ $ desktop-shell brightness up
 $ desktop-shell brightness down
 ```
 
+For DDC/CI, `capabilities-json` includes `valuePath`, the atomically updated
+brightness cache. `get` initializes it; brightness writes update it. The UI
+watches this file for changes instead of polling it. Kernel backlights use
+udev change events.
+
 `idle-dim` and `idle-restore` are intended for an idle daemon. Restore returns
 to the exact value captured by the preceding dim operation.
 

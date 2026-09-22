@@ -264,6 +264,7 @@
                   bash
                   coreutils
                   findutils
+                  gawk
                   jq
                   util-linux
                 ];

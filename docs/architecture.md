@@ -140,6 +140,18 @@ Search queries are not recorded. Launcher history stores desktop-entry IDs,
 counts, and timestamps only. Invalid or absent state is treated as empty state
 and rebuilt when necessary.
 
+## Telemetry
+
+The bar samples resource and battery telemetry every 30 seconds. Control Center
+uses Bluetooth polling while open and a brightness change watcher; it does not
+sample resource or power-profile data for hidden content.
+
+Resource sampling reads CPU and memory counters once per request. VRAM queries
+are skipped when `bar.showVram` is disabled or an NVIDIA device reports runtime
+suspension. Battery sampling computes its persisted history and UI result in one
+JSON pass, preserving the rolling-hour window and excluding suspend gaps from
+discharge averages.
+
 ## Configuration flow
 
 Nix options are evaluated before launch. Home Manager serializes the theme and
