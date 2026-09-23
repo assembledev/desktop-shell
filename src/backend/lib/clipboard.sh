@@ -29,15 +29,21 @@ clipboard_age_lock() {
 
 clipboard_store() (
   set -euo pipefail
+  # Receive before locking: browsers may serve MIME requests serially. Holding
+  # the lock while reading text can block the image reader and its browser writer.
+  umask 077
+  capture="$(mktemp "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/desktop-shell-clipboard.XXXXXX")"
+  age_tmp=""
+  trap 'rm -f -- "$capture"; [ -z "$age_tmp" ] || rm -f -- "$age_tmp"' EXIT
+  cat >"$capture"
   clipboard_age_lock
   before="$(cliphist list 2>/dev/null)" || before=""
   before="${before%%$'\n'*}"
   before="$(printf '%s' "$before" | base64 -w0)"
   printf -v captured_at '%(%s)T' -1
-  cliphist store
+  cliphist store <"$capture"
   after="$(cliphist list 2>/dev/null)" || exit 0
   age_tmp="$(mktemp "$ages.XXXXXX")"
-  trap 'rm -f -- "$age_tmp"' EXIT
   printf '%s\n' "$after" | clipboard_parse_list "$captured_at" "$before" |
     jq 'map(select(.createdAt > 0) | {key: .entryId, value: {record, createdAt}}) | from_entries' >"$age_tmp"
   mv -f -- "$age_tmp" "$ages"

@@ -296,6 +296,23 @@ if printf failure | PATH="$test_bin:$PATH" DESKTOP_SHELL_TEST_STORE_FAIL=1 \
   exit 1
 fi
 test "$(cat "$ages_file")" = "$saved_ages"
+# Both MIME receivers must drain their pipes even while history is locked.
+# A browser can send a large image before servicing its text representation.
+mkfifo "$test_root/image-pipe" "$test_root/text-pipe"
+PATH="$test_bin:$PATH" timeout 5 bash -euo pipefail -c '
+  source "$1/src/backend/lib/clipboard.sh"
+  exec 8>"$(clipboard_age_file).lock"
+  flock 8
+  clipboard_store 8>&- <"$2/text-pipe" &
+  text_pid=$!
+  clipboard_store 8>&- <"$2/image-pipe" &
+  image_pid=$!
+  head -c 1048576 /dev/zero >"$2/image-pipe"
+  printf text >"$2/text-pipe"
+  flock -u 8
+  wait "$text_pid" "$image_pid"
+' bash "$source_root" "$test_root"
+
 # Same ID with different content is not the timestamped record.
 printf '%s\n' $'103\treused ID' >"$clipboard_list"
 PATH="$test_bin:$PATH" clipboard_list_json | jq -e '.[0].createdAt == 0' >/dev/null

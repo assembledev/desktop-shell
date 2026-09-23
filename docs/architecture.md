@@ -130,7 +130,10 @@ Clipboard watchers call `desktop-shell clipboard store` to store content in
 cliphist and atomically retain capture times in `clipboard-ages.json`. This
 private file also retains record identifiers and previews to reject timestamps
 from reused IDs; it is pruned with history updates and cleared on wipe. Entries
-captured outside this command have unknown ages. The picker displays compact
+captured outside this command have unknown ages. Watchers receive clipboard
+data before acquiring the history lock so concurrent MIME transfers cannot
+block one another. Private capture files are removed when the command exits.
+The picker displays compact
 inline image previews, link icons, and relative capture ages, updating ages only
 while open. Selecting any entry copies it; links are not opened.
 
