@@ -12,9 +12,9 @@ Scope {
     id: theme
   }
 
+  // The standalone process owns polling lifetime; start before lock surfaces appear.
   BatteryState {
     id: batteryState
-    active: sessionLock.locked
   }
 
   KeyboardState { id: keyboardState }
