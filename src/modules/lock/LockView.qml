@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import QtQuick.Window
 import "../common"
 import "../bar"
@@ -35,13 +34,7 @@ Item {
   property real fieldShake: 0
 
   readonly property color bg: theme.bgSolid
-  readonly property color surface: theme.surfaceGlass
-  readonly property color surfaceStrong: theme.surfaceGlassStrong
-  readonly property color outline: failed ? theme.danger : theme.borderSubtle
-  readonly property color textPrimary: theme.textPrimary
-  readonly property color textMuted: theme.textMuted
-  readonly property color accent: theme.accent
-  readonly property int fieldWidth: Math.min(580, Math.max(320, width - 64))
+  readonly property int fieldWidth: Math.max(0, Math.min(420, width - 48))
 
   signal appendText(string text)
   signal backspace(bool word)
@@ -57,7 +50,7 @@ Item {
   onFailedChanged: {
     if (!failed)
       return;
-    fieldShake = 12;
+    fieldShake = 6;
     fieldReturn.restart();
   }
 
@@ -96,9 +89,9 @@ Item {
       anchors.fill: parent
       gradient: Gradient {
         orientation: Gradient.Vertical
-        GradientStop { position: 0.0; color: Qt.alpha(theme.bgSolid, 0.76) }
-        GradientStop { position: 0.42; color: Qt.alpha(theme.bgSolid, 0.48) }
-        GradientStop { position: 1.0; color: Qt.alpha(theme.bgSolid, 0.88) }
+        GradientStop { position: 0.0; color: Qt.alpha(theme.bgSolid, 0.86) }
+        GradientStop { position: 0.42; color: Qt.alpha(theme.bgSolid, 0.84) }
+        GradientStop { position: 1.0; color: Qt.alpha(theme.bgSolid, 0.92) }
       }
     }
 
@@ -143,396 +136,215 @@ Item {
     Row {
       anchors.top: parent.top
       anchors.right: parent.right
-      anchors.margins: 26
-      spacing: 10
-      opacity: Math.max(0, Math.min(1, root.entranceProgress * 1.35))
-      transform: Translate {
-        y: (1 - root.entranceProgress) * -14
-      }
+      anchors.margins: 32
+      spacing: 18
+      opacity: root.entranceProgress
 
-      StatusChip {
-        compact: true
-        icon: ""
+      Text {
         text: root.keyboardText
-        accent: theme.utility
+        color: theme.textSecondary
+        font.family: theme.fontFamily
+        font.pixelSize: 13
+        height: 24
+        verticalAlignment: Text.AlignVCenter
       }
 
-      StatusChip {
+      Rectangle {
         visible: root.batteryVisible
-        icon: root.batteryIcon
-        text: root.batteryText
-        accent: root.batterySeverity === "critical" ? theme.danger
-          : root.batterySeverity === "low" ? theme.warning : theme.success
-        textColor: root.batterySeverity === "normal" ? root.textPrimary : accent
+        width: 1
+        height: 12
+        anchors.verticalCenter: parent.verticalCenter
+        color: theme.border
+      }
+
+      Row {
+        visible: root.batteryVisible
+        spacing: statusSpacing.contentGap
+        height: 24
+
+        Text {
+          text: root.batteryIcon
+          color: root.batterySeverity === "critical" ? theme.danger
+            : root.batterySeverity === "low" ? theme.warning : theme.resource
+          font.family: theme.fontFamily
+          font.pixelSize: 15
+          height: parent.height
+          verticalAlignment: Text.AlignVCenter
+        }
+
+        Text {
+          text: root.batteryText
+          color: root.batterySeverity === "critical" ? theme.danger : theme.textSecondary
+          font.family: theme.fontFamily
+          font.pixelSize: 13
+          height: parent.height
+          verticalAlignment: Text.AlignVCenter
+        }
       }
     }
 
     Column {
-      id: center
-
       width: root.fieldWidth
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.verticalCenter: parent.verticalCenter
+      anchors.centerIn: parent
       anchors.verticalCenterOffset: -12
-      spacing: 14
-      opacity: Math.max(0, Math.min(1, (root.entranceProgress - 0.12) / 0.88))
-      scale: 0.965 + root.entranceProgress * 0.035
-      transform: Translate {
-        x: root.fieldShake
-        y: (1 - root.entranceProgress) * 26
+      spacing: 12
+      opacity: root.entranceProgress
+      transform: Translate { y: (1 - root.entranceProgress) * 10 }
+
+      Text {
+        width: parent.width
+        text: root.clockText
+        color: theme.textPrimary
+        font.family: theme.fontFamily
+        font.pixelSize: Math.max(56, Math.min(96, root.width * 0.075))
+        font.weight: Font.Normal
+        horizontalAlignment: Text.AlignHCenter
       }
 
-      Item {
+      Text {
         width: parent.width
-        height: 258
+        text: root.dateText
+        color: theme.textSecondary
+        font.family: theme.fontFamily
+        font.pixelSize: 16
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
+      }
 
-        Column {
-          anchors.centerIn: parent
-          width: parent.width
-          spacing: 8
+      Item { width: 1; height: 24 }
 
-          Text {
-            width: parent.width
-            text: root.clockText
-            color: root.textPrimary
-            font.family: theme.fontFamily
-            font.pixelSize: Math.max(64, Math.min(116, root.width * 0.082))
-            font.bold: true
-            horizontalAlignment: Text.AlignHCenter
-          }
-
-          Text {
-            width: parent.width
-            text: root.dateText
-            color: theme.textSecondary
-            font.family: theme.fontFamily
-            font.pixelSize: Math.max(15, Math.min(22, root.width * 0.014))
-            font.bold: true
-            horizontalAlignment: Text.AlignHCenter
-            elide: Text.ElideRight
-          }
-
-          Rectangle {
-            width: 104
-            height: 30
-            radius: 15
-            anchors.horizontalCenter: parent.horizontalCenter
-            color: Qt.alpha(theme.surfaceGlassStrong, 0.64)
-            border.color: Qt.alpha(theme.accent, 0.46)
-            border.width: 1
-
-            Row {
-              anchors.centerIn: parent
-              height: parent.height
-              spacing: 7
-
-              Text {
-                height: parent.height
-                text: ""
-                color: root.accent
-                font.family: theme.fontFamily
-                font.pixelSize: 12
-                font.bold: true
-                verticalAlignment: Text.AlignVCenter
-              }
-
-              Text {
-                height: parent.height
-                text: root.userText
-                color: theme.textSecondary
-                font.family: theme.fontFamily
-                font.pixelSize: 13
-                font.bold: true
-                verticalAlignment: Text.AlignVCenter
-              }
-            }
-          }
-        }
+      Text {
+        width: parent.width
+        text: root.userText
+        color: theme.textMuted
+        font.family: theme.fontFamily
+        font.pixelSize: 13
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
       }
 
       Rectangle {
         id: passwordField
-
         width: parent.width
-        height: 70
-        radius: height / 2
-        anchors.horizontalCenter: parent.horizontalCenter
-        color: Qt.alpha(root.surfaceStrong, 0.94)
-        border.color: root.failed ? root.outline : Qt.alpha(theme.accent, 0.42)
-        border.width: root.failed ? 2 : 1
-
-        layer.enabled: true
-        layer.effect: MultiEffect {
-          shadowEnabled: true
-          shadowColor: Qt.alpha(theme.bgSolid, 0.7)
-          shadowBlur: 0.6
-          shadowVerticalOffset: 8
-        }
+        height: 56
+        radius: 10
+        color: Qt.alpha(theme.bgRaised, 0.94)
+        border.color: root.failed ? theme.danger : Qt.alpha(theme.accent, 0.45)
+        border.width: 1
+        transform: Translate { x: root.fieldShake }
 
         Behavior on border.color {
           MotionColorAnimation { role: MotionNumberAnimation.Feedback }
         }
-        Behavior on border.width {
-          MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-        }
 
         MouseArea {
           anchors.fill: parent
-          acceptedButtons: Qt.LeftButton
           cursorShape: Qt.IBeamCursor
           onClicked: root.forceInputFocus()
         }
 
-        Row {
-          anchors.fill: parent
-          anchors.leftMargin: 16
+        Text {
+          id: lockIcon
+          anchors.left: parent.left
+          anchors.leftMargin: 18
+          anchors.verticalCenter: parent.verticalCenter
+          text: ""
+          color: root.failed ? theme.danger : theme.accent
+          font.family: theme.fontFamily
+          font.pixelSize: 16
+
+          SequentialAnimation on opacity {
+            running: root.authRunning
+            loops: Animation.Infinite
+            NumberAnimation { from: 1; to: 0.4; duration: 500 }
+            NumberAnimation { from: 0.4; to: 1; duration: 500 }
+            onRunningChanged: if (!running) lockIcon.opacity = 1
+          }
+        }
+
+        Item {
+          anchors.left: lockIcon.right
+          anchors.leftMargin: 14
+          anchors.right: submitButton.left
           anchors.rightMargin: 12
-          spacing: 12
+          height: parent.height
+          clip: true
 
-          Rectangle {
-            width: 52
-            height: 52
-            radius: height / 2
+          Text {
             anchors.verticalCenter: parent.verticalCenter
-            color: Qt.alpha(root.accent, 0.18)
-
-            LockGlyph {
-              anchors.centerIn: parent
-              active: root.authRunning
-              color: root.accent
-            }
+            width: parent.width
+            text: root.authRunning ? "Checking…" : "Password"
+            visible: root.passwordLength === 0 || root.authRunning
+            color: theme.textMuted
+            font.family: theme.fontFamily
+            font.pixelSize: 15
+            elide: Text.ElideRight
           }
 
-          Item {
-            id: inputArea
-
-            width: parent.width - 52 - submitButton.width - 24
-            height: parent.height
+          Row {
             anchors.verticalCenter: parent.verticalCenter
-            clip: true
+            spacing: 6
+            visible: root.passwordLength > 0 && !root.authRunning
 
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              anchors.left: parent.left
-              anchors.right: parent.right
-              text: {
-                if (root.authRunning)
-                  return "Checking...";
-                if (root.message.length > 0)
-                  return root.message;
-                return "Enter password";
+            Repeater {
+              model: Math.min(root.passwordLength, 24)
+              Rectangle {
+                width: 5
+                height: 5
+                radius: 2.5
+                color: theme.textPrimary
               }
-              color: root.failed ? theme.danger : (root.authRunning ? theme.warning : root.textMuted)
-              font.family: theme.fontFamily
-              font.pixelSize: 16
-              font.bold: true
-              elide: Text.ElideRight
-              opacity: root.passwordLength === 0 || root.authRunning || root.message.length > 0 ? 1 : 0
-
-              Behavior on opacity {
-                MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-              }
-            }
-
-            Row {
-              anchors.verticalCenter: parent.verticalCenter
-              anchors.left: parent.left
-              spacing: 7
-              visible: root.passwordLength > 0 && !root.authRunning && root.message.length === 0
-
-              Repeater {
-                model: 32
-
-                Rectangle {
-                  width: 9
-                  height: 9
-                  radius: 3
-                  color: root.textPrimary
-                  opacity: 0.88
-                  visible: index < root.passwordLength
-                  scale: visible ? 1 : 0.35
-
-                  Behavior on scale {
-                    MotionNumberAnimation { role: MotionNumberAnimation.Expressive }
-                  }
-                }
-              }
-
-              Text {
-                visible: root.passwordLength > 32
-                text: "+"
-                color: root.textPrimary
-                font.family: theme.fontFamily
-                font.pixelSize: 16
-                font.bold: true
-              }
-            }
-          }
-
-          Rectangle {
-            id: submitButton
-
-            width: 54
-            height: 54
-            radius: height / 2
-            anchors.verticalCenter: parent.verticalCenter
-            color: root.passwordLength > 0 && !root.authRunning ? root.accent : theme.surfaceMuted
-            scale: submitMouse.pressed ? 0.88 : (submitMouse.containsMouse && submitMouse.enabled ? 1.04 : 1)
-
-            Behavior on color {
-              MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-            }
-            Behavior on scale {
-              MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
             }
 
             Text {
-              anchors.centerIn: parent
-              text: ""
-              color: root.passwordLength > 0 && !root.authRunning ? root.bg : root.textMuted
+              visible: root.passwordLength > 24
+              text: "+"
+              color: theme.textPrimary
               font.family: theme.fontFamily
-              font.pixelSize: 20
-              font.bold: true
+              font.pixelSize: 12
+              anchors.verticalCenter: parent.verticalCenter
             }
+          }
+        }
 
-            MouseArea {
-              id: submitMouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              enabled: root.passwordLength > 0 && !root.authRunning
-              onClicked: root.submit()
-            }
+        Rectangle {
+          id: submitButton
+          anchors.right: parent.right
+          anchors.rightMargin: 10
+          anchors.verticalCenter: parent.verticalCenter
+          width: 36
+          height: 36
+          radius: 6
+          color: submitMouse.containsMouse && submitMouse.enabled ? theme.surfaceHover : "transparent"
+
+          Text {
+            anchors.centerIn: parent
+            text: ""
+            color: submitMouse.enabled ? theme.accent : theme.textMuted
+            font.family: theme.fontFamily
+            font.pixelSize: 16
+          }
+
+          MouseArea {
+            id: submitMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            enabled: root.passwordLength > 0 && !root.authRunning
+            onClicked: root.submit()
           }
         }
       }
 
       Text {
         width: parent.width
-        height: 22
-        text: root.failed && root.message.length === 0 ? "Wrong password" : ""
-        color: theme.danger
+        height: 40
+        text: root.authRunning ? "" : (root.message || (root.failed ? "Wrong password" : ""))
+        color: root.failed ? theme.danger : theme.textMuted
         font.family: theme.fontFamily
         font.pixelSize: 13
-        font.bold: true
         horizontalAlignment: Text.AlignHCenter
-        opacity: text.length > 0 ? 1 : 0
-
-        Behavior on opacity {
-          MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-        }
-      }
-    }
-  }
-
-  component StatusChip: Rectangle {
-    id: chip
-
-    property string icon
-    property string text
-    property color accent
-    property color textColor: root.textPrimary
-    property bool compact: false
-
-    implicitWidth: Math.max(compact ? 52 : 0, chipRow.implicitWidth + 22)
-    implicitHeight: 38
-    radius: implicitHeight / 2
-    color: root.surface
-    border.color: theme.borderSubtle
-    border.width: 1
-
-    Row {
-      id: chipRow
-
-      anchors.centerIn: parent
-      spacing: statusSpacing.contentGap
-
-      Text {
-        visible: chip.icon.length > 0
-        height: chip.implicitHeight
-        text: chip.icon
-        color: chip.accent
-        font.family: theme.fontFamily
-        font.pixelSize: 15
-        font.bold: true
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-      }
-
-      Text {
-        height: chip.implicitHeight
-        text: chip.text
-        color: chip.textColor
-        font.family: theme.fontFamily
-        font.pixelSize: 13
-        font.bold: true
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-      }
-    }
-  }
-
-  component LockGlyph: Item {
-    id: glyph
-
-    property bool active: false
-    property color color: root.accent
-
-    width: 24
-    height: 26
-
-    Item {
-      anchors.fill: parent
-      opacity: glyph.active ? 0 : 1
-
-      Rectangle {
-        width: 14
-        height: 13
-        radius: 7
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        color: "transparent"
-        border.color: glyph.color
-        border.width: 3
-      }
-
-      Rectangle {
-        width: 19
-        height: 16
-        radius: 4
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        color: glyph.color
-      }
-
-      Rectangle {
-        width: 3
-        height: 6
-        radius: 2
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 4
-        color: root.bg
-        opacity: 0.75
-      }
-    }
-
-    Rectangle {
-      width: 20
-      height: 20
-      radius: 10
-      anchors.centerIn: parent
-      visible: glyph.active
-      color: "transparent"
-      border.color: glyph.color
-      border.width: 3
-      opacity: 0.95
-
-      SequentialAnimation on opacity {
-        running: glyph.active
-        loops: Animation.Infinite
-        NumberAnimation { from: 0.38; to: 1; duration: 420; easing.type: Easing.InOutQuad }
-        NumberAnimation { from: 1; to: 0.38; duration: 420; easing.type: Easing.InOutQuad }
+        wrapMode: Text.Wrap
       }
     }
   }
