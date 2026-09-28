@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Confirmation budget for the lock command, not a password-entry timeout.
+lock_confirmation_timeout_seconds=10
+
 keyboard_json() {
   ensure_hypr_env
   hyprctl devices -j 2>/dev/null |
@@ -8,9 +11,9 @@ keyboard_json() {
         | {
             name: ($kb.name // ""),
             layout: ($kb.layout // ""),
-            index: ($kb.active_layout_index // 0)
+            index: ($kb.active_layout_index // -1)
           }
-      ' 2>/dev/null || jq -nc '{layout: "", active: "Unknown"}'
+      ' 2>/dev/null || jq -nc '{name: "", layout: "", index: -1}'
 }
 
 keyboard_set_layout() {
@@ -95,9 +98,10 @@ focus_restore() {
 }
 
 lock_ipc() {
-  method="$1"
+  local method="$1"
   ensure_hypr_env
-  quickshell ipc --path "${DESKTOP_SHELL_QML}"/lock.qml call screenLock "$method"
+  timeout "${2:-$lock_confirmation_timeout_seconds}s" \
+    quickshell ipc --path "${DESKTOP_SHELL_QML}"/lock.qml call screenLock "$method"
 }
 
 lock_env() {
@@ -146,6 +150,22 @@ lock_start() {
     "$desktop_shell_executable" lock-run >/dev/null
 }
 
+lock_wait_secure() {
+  local deadline=$((SECONDS + lock_confirmation_timeout_seconds)) remaining
+  # A stalled request may consume the remaining budget, but cannot extend it.
+  while
+    remaining=$((deadline - SECONDS))
+    ((remaining > 0))
+  do
+    if [ "$(lock_ipc status "$remaining" 2>/dev/null || true)" = true ]; then
+      return 0
+    fi
+    sleep 0.1
+  done
+  printf 'desktop-shell: session lock not confirmed by compositor\n' >&2
+  return 1
+}
+
 lock_screen() {
   method="${1:-lock}"
   case "$method" in
@@ -170,7 +190,8 @@ lock_screen() {
       if [ "$state" = true ]; then
         lock_ipc focus >/dev/null 2>&1 || true
       else
-        lock_start
+        lock_start || return 1
+        lock_wait_secure
       fi
       ;;
   esac

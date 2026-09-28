@@ -63,13 +63,24 @@ Scope {
   readonly property string clockTimeText: Qt.formatDateTime(clock.date, "HH:mm")
   readonly property string clockDateText: Qt.formatDateTime(clock.date, "ddd, MMM d")
   property var metrics: ({ ramText: "--", hasVram: false, vramText: "--" })
-  property var battery: ({ available: false, capacity: 0, status: "", power: "" })
-  property var keyboard: ({ layout: "", index: 0 })
+  readonly property var battery: batteryState.data
+
+  BatteryState {
+    id: batteryState
+    onAvailableChanged: {
+      if (!available) {
+        root.batterySegmentHovered = false;
+        root.batteryPanelHovered = false;
+        root.batteryAnalysisOpen = false;
+      }
+    }
+  }
+
+  KeyboardState { id: keyboardState }
   property var notificationStatus: ({ text: "", class: "normal", tooltip: "Control center" })
   property bool notificationUnread: false
   property bool dnd: false
   property bool powerMenuOpen: false
-  property bool batteryPollingEnabled: true
   property bool batterySegmentHovered: false
   property bool batteryPanelHovered: false
   property bool batteryAnalysisPinned: false
@@ -382,22 +393,13 @@ Scope {
     return String(title || "");
   }
 
-  function batteryIcon() {
-    if (battery.status === "Charging" || battery.status === "Full")
-      return battery.status === "Full" ? "󰁹" : "󰂄";
-    const level = Math.max(0, Math.min(9, Math.floor(Number(battery.capacity || 0) / 10)));
-    return ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"][level];
+  function batteryColor() {
+    return batteryState.severity === "critical" ? theme.danger
+      : batteryState.severity === "low" ? theme.warning : theme.success;
   }
 
-  function batteryColor() {
-    if (battery.status === "Charging" || battery.status === "Full")
-      return theme.success;
-    const capacity = Number(battery.capacity || 0);
-    if (capacity <= 15)
-      return theme.danger;
-    if (capacity <= 30)
-      return theme.warning;
-    return theme.success;
+  function batteryTextColor() {
+    return batteryState.severity === "normal" ? theme.textPrimary : batteryColor();
   }
 
   function batteryAnalysis() {
@@ -436,9 +438,6 @@ Scope {
       trayMenuPopup.closeMenu();
   }
 
-  function keyboardLabel() {
-    return shellConfig.keyboardLayoutLabel(keyboard.index);
-  }
 
   function updateNotificationStatus() {
     const nextDnd = dndFile.text().trim() === "1";
@@ -483,21 +482,12 @@ Scope {
       : padRecordingUnit(minutes) + ":" + padRecordingUnit(seconds);
   }
 
-  function refreshAll() {
-    metricsProc.running = true;
-    if (batteryPollingEnabled)
-      batteryProc.running = true;
-    keyboardProc.running = true;
-  }
-
   function refreshTelemetry() {
     metricsProc.running = true;
-    if (batteryPollingEnabled)
-      batteryProc.running = true;
   }
 
   Component.onCompleted: {
-    refreshAll();
+    refreshTelemetry();
     updateNotificationStatus();
   }
 
@@ -524,13 +514,6 @@ Scope {
     running: true
     repeat: true
     onTriggered: root.refreshTelemetry()
-  }
-
-  Timer {
-    interval: 300000
-    running: true
-    repeat: true
-    onTriggered: keyboardProc.running = true
   }
 
   Timer {
@@ -601,40 +584,13 @@ Scope {
     }
   }
 
-  Process {
-    id: batteryProc
-    command: [backend, "bar", "battery-json"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        const nextBattery = root.parseJson(text, root.battery);
-        root.battery = nextBattery;
-        if (!nextBattery.available) {
-          root.batteryPollingEnabled = false;
-          root.batterySegmentHovered = false;
-          root.batteryPanelHovered = false;
-          root.batteryAnalysisOpen = false;
-        }
-      }
-    }
-  }
-
-  Process {
-    id: keyboardProc
-    command: [backend, "bar", "keyboard-json"]
-    stdout: StdioCollector {
-      onStreamFinished: root.keyboard = root.parseJson(text, root.keyboard)
-    }
-  }
-
   Connections {
     target: Hyprland
     function onRawEvent(event) {
       if (root.workspaceIcons && event.name === "openwindow")
         Qt.callLater(function() { root.workspaceIconRevision++; });
 
-      if (event.name === "activelayout")
-        keyboardProc.running = true;
-      else if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup") {
+      if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup") {
         root.powerMenuOpen = false;
         trayMenuPopup.closeMenu();
       }
@@ -921,10 +877,10 @@ Scope {
                 Layout.preferredHeight: root.barHeight
 
                 sourceComponent: BarSegment {
-                  icon: root.batteryIcon()
-                  label: Math.round(root.battery.capacity || 0) + "%"
+                  icon: batteryState.icon
+                  label: batteryState.label
                   iconColor: root.batteryColor()
-                  textColor: Number(root.battery.capacity || 0) <= 15 && root.battery.status !== "Charging" ? theme.danger : (Number(root.battery.capacity || 0) <= 30 && root.battery.status !== "Charging" ? theme.warning : theme.textPrimary)
+                  textColor: root.batteryTextColor()
                   onHoveredChanged: {
                     root.batterySegmentHovered = hovered;
                     root.updateBatteryAnalysisOpen();
@@ -939,7 +895,7 @@ Scope {
 
               BarSegment {
                 icon: ""
-                label: root.keyboardLabel()
+                label: keyboardState.label
                 iconColor: theme.utility
               }
 
@@ -1092,7 +1048,7 @@ Scope {
             BarSegment {
               visible: !root.portraitNarrow
               icon: ""
-              label: root.keyboardLabel()
+              label: keyboardState.label
               iconColor: theme.utility
               targetHeight: root.portraitPrimaryHeight
             }
@@ -1227,12 +1183,10 @@ Scope {
 
               BarSegment {
                 visible: root.battery.available
-                icon: root.batteryIcon()
-                label: Math.round(root.battery.capacity || 0) + "%"
+                icon: batteryState.icon
+                label: batteryState.label
                 iconColor: root.batteryColor()
-                textColor: Number(root.battery.capacity || 0) <= 15 && root.battery.status !== "Charging"
-                  ? theme.danger
-                  : (Number(root.battery.capacity || 0) <= 30 && root.battery.status !== "Charging" ? theme.warning : theme.textPrimary)
+                textColor: root.batteryTextColor()
                 clickable: true
                 targetHeight: root.portraitSecondaryHeight
                 onHoveredChanged: {

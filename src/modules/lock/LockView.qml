@@ -17,6 +17,8 @@ Item {
   property string keyboardText: "--"
   property bool batteryVisible: false
   property string batteryText: ""
+  property string batteryIcon: ""
+  property string batterySeverity: "normal"
   property int passwordLength: 0
   property string message: ""
   property bool failed: false
@@ -149,9 +151,11 @@ Item {
 
       StatusChip {
         visible: root.batteryVisible
-        icon: ""
+        icon: root.batteryIcon
         text: root.batteryText
-        accent: theme.success
+        accent: root.batterySeverity === "critical" ? theme.danger
+          : root.batterySeverity === "low" ? theme.warning : theme.success
+        textColor: root.batterySeverity === "normal" ? root.textPrimary : accent
       }
     }
 
@@ -419,9 +423,10 @@ Item {
     property string icon
     property string text
     property color accent
+    property color textColor: root.textPrimary
     property bool compact: false
 
-    implicitWidth: compact ? 52 : chipRow.implicitWidth + 22
+    implicitWidth: Math.max(compact ? 52 : 0, chipRow.implicitWidth + 22)
     implicitHeight: 38
     radius: implicitHeight / 2
     color: root.surface
@@ -448,10 +453,9 @@ Item {
       }
 
       Text {
-        width: chip.compact ? chip.implicitWidth : implicitWidth
         height: chip.implicitHeight
         text: chip.text
-        color: root.textPrimary
+        color: chip.textColor
         font.family: theme.fontFamily
         font.pixelSize: 13
         font.bold: true

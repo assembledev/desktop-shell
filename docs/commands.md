@@ -106,8 +106,8 @@ otherwise asks Hyprland to focus in that direction.
 | --- | --- |
 | `desktop-shell cheatsheet toggle` | Toggle the keybinding reference |
 | `desktop-shell pick` | Open the wallpaper picker |
-| `desktop-shell lock` | Start or refocus the lock screen |
-| `desktop-shell lock status` | Print `true` or `false` |
+| `desktop-shell lock` | Start or refocus the lock screen; wait for compositor confirmation, failing if unconfirmed within 10 seconds after startup |
+| `desktop-shell lock status` | Print `true` only when the compositor has confirmed the session lock, otherwise `false` |
 | `desktop-shell clipboard open` | Open clipboard history |
 | `desktop-shell clipboard close` | Close clipboard history |
 | `desktop-shell clipboard toggle` | Toggle clipboard history |

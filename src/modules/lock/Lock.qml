@@ -1,6 +1,5 @@
 import QtQuick
 import Quickshell
-import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Pam
 import Quickshell.Wayland
@@ -13,9 +12,12 @@ Scope {
     id: theme
   }
 
-  ShellConfig {
-    id: shellConfig
+  BatteryState {
+    id: batteryState
+    active: sessionLock.locked
   }
+
+  KeyboardState { id: keyboardState }
 
   SystemClock {
     id: clock
@@ -37,19 +39,7 @@ Scope {
   property int restoreKeyboardIndex: Number(Quickshell.env("DESKTOP_LOCK_RESTORE_INDEX") || 0)
   readonly property string clockText: Qt.formatDateTime(clock.date, "HH:mm")
   readonly property string dateText: Qt.formatDateTime(clock.date, "dddd, MMMM dd")
-  property var battery: ({ available: false, capacity: 0, status: "", power: "" })
-  property var keyboard: ({ name: "", layout: "", index: 0 })
-
   signal refocus()
-
-  function parseJson(text, fallback) {
-    try {
-      return JSON.parse(text);
-    } catch (error) {
-      console.error("lock: JSON parse failed: " + error);
-      return fallback;
-    }
-  }
 
   function resetInput() {
     password = "";
@@ -57,21 +47,10 @@ Scope {
     failed = false;
   }
 
-  function keyboardLabel() {
-    return shellConfig.keyboardLayoutLabel(keyboard.index);
-  }
-
   function setLockKeyboardLayout(index) {
     const name = String(restoreKeyboardName || "");
     if (name.length > 0)
       lockKeyboardProc.exec([root.backend, "lock-keyboard", "set", name, String(index)]);
-  }
-
-  function batteryText() {
-    if (!battery.available)
-      return "";
-    const prefix = battery.status === "Charging" || battery.status === "Full" ? "󰂄 " : "󰁹 ";
-    return prefix + String(Math.round(Number(battery.capacity || 0))) + "%";
   }
 
   function appendPassword(text) {
@@ -111,11 +90,10 @@ Scope {
     }
     resetInput();
     sessionLock.locked = true;
-    refreshProc.running = true;
   }
 
   function status() {
-    return sessionLock.locked;
+    return sessionLock.secure;
   }
 
   function focus() {
@@ -130,16 +108,8 @@ Scope {
   }
 
   Component.onCompleted: {
-    refreshProc.running = true;
     if (standalone)
       Qt.callLater(lock);
-  }
-
-  Timer {
-    interval: 30000
-    running: sessionLock.locked
-    repeat: true
-    onTriggered: refreshProc.running = true
   }
 
   Timer {
@@ -168,40 +138,8 @@ Scope {
   }
 
   Process {
-    id: refreshProc
-    command: [root.backend, "bar", "battery-json"]
-    stdout: StdioCollector {
-      onStreamFinished: root.battery = root.parseJson(text, root.battery)
-    }
-    onExited: keyboardProc.running = true
-  }
-
-  Process {
-    id: keyboardProc
-    command: [root.backend, "bar", "keyboard-json"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        try {
-          root.keyboard = JSON.parse(text);
-        } catch (error) {
-          root.keyboard = ({ name: "", layout: "", index: 0 });
-        }
-      }
-    }
-  }
-
-  Process {
     id: lockKeyboardProc
-    onExited: keyboardProc.running = true
-  }
-
-  Connections {
-    target: Hyprland
-    function onRawEvent(event) {
-      if (event.name === "activelayout") {
-        keyboardProc.running = true;
-      }
-    }
+    onExited: keyboardState.refresh()
   }
 
   PamContext {
@@ -252,8 +190,7 @@ Scope {
     onLockStateChanged: {
       if (locked) {
         root.resetInput();
-        refreshProc.running = true;
-        keyboardProc.running = true;
+        keyboardState.refresh();
         root.refocus();
       } else {
         root.resetInput();
@@ -292,9 +229,11 @@ Scope {
         clockText: root.clockText
         dateText: root.dateText
         userText: Quickshell.env("USER") || Quickshell.env("LOGNAME")
-        keyboardText: root.keyboardLabel()
-        batteryVisible: root.battery.available
-        batteryText: root.batteryText()
+        keyboardText: keyboardState.label
+        batteryVisible: batteryState.available
+        batteryText: batteryState.label
+        batteryIcon: batteryState.icon
+        batterySeverity: batteryState.severity
         passwordLength: root.password.length
         message: root.message
         failed: root.failed

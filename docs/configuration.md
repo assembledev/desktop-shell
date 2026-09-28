@@ -292,7 +292,8 @@ programs.desktop-shell.lock.keyboardLayoutIndex = 0;
 ```
 
 The lock requires the PAM service from `nixosModules.default`; see
-[Installation](installation.md).
+[Installation](installation.md). Lock triggers, authentication policy, and recovery
+requirements are described in [Session-lock security](lock-security.md).
 
 ## Integrations
 

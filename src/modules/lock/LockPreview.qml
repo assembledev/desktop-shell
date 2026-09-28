@@ -87,7 +87,8 @@ Scope {
       userText: Quickshell.env("USER") || Quickshell.env("LOGNAME")
       keyboardText: shellConfig.keyboardLayoutLabel(0)
       batteryVisible: true
-      batteryText: "󰂄 44%"
+      batteryText: "44%"
+      batteryIcon: "󰂄"
       passwordLength: 0
       message: ""
       failed: false

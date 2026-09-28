@@ -31,6 +31,7 @@ The lock screen has a standalone entry point at `src/lock.qml`; the login
 greeter has another at `src/greeter.qml`. Both adapt their authentication
 mechanism to the same pure `LockView.qml` presentation. Keeping the entry
 points separate gives the PAM lock and greetd greeter narrow lifetimes.
+See [Session-lock security](lock-security.md) for guarantees and host prerequisites.
 
 ## Ownership boundaries
 
@@ -156,7 +157,11 @@ and rebuilt when necessary.
 
 ## Telemetry
 
-The bar samples resource and battery telemetry every 30 seconds. Control Center
+The bar samples resource telemetry every 30 seconds. Shared `BatteryState` and
+`KeyboardState` components own sampling and layout-event handling for the bar
+and standalone lock process. Battery sampling runs every 30 seconds and retries
+after absent-device samples; keyboard refreshes coalesce events arriving during
+an in-flight query. Battery icon and warning thresholds have one shared owner. Control Center
 uses Bluetooth polling while open and a brightness change watcher; it does not
 sample resource or power-profile data for hidden content.
 
