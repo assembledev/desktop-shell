@@ -89,6 +89,7 @@ Scope {
       batteryVisible: true
       batteryText: "44%"
       batteryIcon: "󰂄"
+      compactStatus: Quickshell.env("DESKTOP_SHELL_BAR_COMPACT") === "1"
       passwordLength: 0
       message: ""
       failed: false

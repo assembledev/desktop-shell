@@ -234,6 +234,7 @@ Scope {
         batteryText: batteryState.label
         batteryIcon: batteryState.icon
         batterySeverity: batteryState.severity
+        compactStatus: Quickshell.env("DESKTOP_SHELL_BAR_COMPACT") === "1"
         passwordLength: root.password.length
         message: root.message
         failed: root.failed

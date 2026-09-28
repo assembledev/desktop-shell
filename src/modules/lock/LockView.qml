@@ -2,12 +2,19 @@ import QtQuick
 import QtQuick.Effects
 import QtQuick.Window
 import "../common"
+import "../bar"
 
 Item {
   id: root
 
   Theme {
     id: theme
+  }
+
+  BarSpacing {
+    id: statusSpacing
+    compact: root.compactStatus
+    portrait: root.width < root.height
   }
 
   property string wallpaperPath: ""
@@ -19,6 +26,7 @@ Item {
   property string batteryText: ""
   property string batteryIcon: ""
   property string batterySeverity: "normal"
+  property bool compactStatus: false
   property int passwordLength: 0
   property string message: ""
   property bool failed: false
@@ -437,11 +445,10 @@ Item {
       id: chipRow
 
       anchors.centerIn: parent
-      spacing: 8
+      spacing: statusSpacing.contentGap
 
       Text {
         visible: chip.icon.length > 0
-        width: visible ? 16 : 0
         height: chip.implicitHeight
         text: chip.icon
         color: chip.accent
