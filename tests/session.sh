@@ -17,10 +17,8 @@ keyboard_json | jq -e '.name == "" and .layout == "" and .index == -1' >/dev/nul
 
 # Exercise the real IPC wrapper against an unresponsive client.
 mkdir -p "$test_root/bin"
-cat >"$test_root/bin/quickshell" <<'EOF'
-#!/usr/bin/env bash
-exec sleep 5
-EOF
+# Runtime-generated scripts are not processed by Nix's patchShebangs hook.
+printf '#!%s\nexec sleep 5\n' "$(command -v bash)" >"$test_root/bin/quickshell"
 chmod +x "$test_root/bin/quickshell"
 if (
   export PATH="$test_root/bin:$PATH"
