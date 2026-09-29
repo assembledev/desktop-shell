@@ -48,7 +48,10 @@ let
     export DESKTOP_SHELL_GREETER_WALLPAPER=${lib.escapeShellArg greeterCfg.wallpaperPath}
     export DESKTOP_SHELL_THEME_JSON=${lib.escapeShellArg (builtins.toJSON greeterCfg.theme)}
 
-    exec ${pkgs.dbus}/bin/dbus-run-session \
+    # greetd connects child output directly to the VT. Capture the graphical
+    # greeter's logs before Cage starts so they cannot surface on its exit.
+    exec ${pkgs.systemd}/bin/systemd-cat --identifier=desktop-shell-greeter \
+      ${pkgs.dbus}/bin/dbus-run-session \
       ${lib.getExe pkgs.cage} -s -d -m ${lib.escapeShellArg greeterCfg.outputMode} -- \
       ${lib.getExe pkgs.quickshell} \
         --log-rules '*.info=false' \

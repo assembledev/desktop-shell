@@ -104,6 +104,10 @@ greeter uses a fixed US keyboard layout and English locale. Its cursor uses
 `uwsm start -e -D Hyprland hyprland.desktop`; both Quickshell and Cage then
 exit. Routine Quickshell and UWSM startup messages are suppressed through their
 supported logging controls; warnings and errors remain available. The
+greeter process tree logs to the journal under `desktop-shell-greeter`, including
+Cage and its wlroots backend. Read it with
+`journalctl -b -t desktop-shell-greeter`. This keeps graphical greeter logs off
+the login VT; it does not eliminate the compositor handoff to Hyprland. The
 `greeter.outputMode = "last"` setting selects only Cage's final discovered
 output, while `"extend"` spans all outputs. The wallpaper path must already be
 readable by the `greeter` user; the module does not grant it access to a user's
