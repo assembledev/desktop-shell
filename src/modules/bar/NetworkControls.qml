@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
 import Quickshell.Io
 import "../common"
 
@@ -371,6 +372,8 @@ Item {
               anchors.verticalCenter: parent.verticalCenter
               source: modelData.icon || ""
               fillMode: Image.PreserveAspectFit
+              sourceSize.width: Math.max(1, Math.ceil(width * Screen.devicePixelRatio))
+              sourceSize.height: Math.max(1, Math.ceil(height * Screen.devicePixelRatio))
             }
 
             Text {
