@@ -47,8 +47,9 @@ their own dispatch vocabulary. The adapter targets Hyprland's Lua dispatcher
 API. Supporting another compositor would require a complete integration with
 equivalent focus, workspace, layer-shell, and screencopy behavior.
 
-Launcher membership, open-window counts, focus results, and profile summaries
-come from authoritative `j/clients` snapshots over Hyprland's native request
+Launcher membership, open-window counts, focus results, profile summaries, and
+window-switcher geometry refreshes come from authoritative `j/clients`
+snapshots over Hyprland's native request
 socket. Quickshell's persistent Hyprland model supplies change notifications
 and the active-toplevel signal, but it is not treated as a client registry
 because transient or removed toplevel objects may outlive compositor clients.

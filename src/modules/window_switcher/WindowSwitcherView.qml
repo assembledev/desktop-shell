@@ -17,6 +17,11 @@ Scope {
 
   ShellConfig { id: shellConfig }
   HyprlandAdapter { id: hyprland }
+  HyprlandClientSnapshot {
+    id: clientSnapshot
+    onSucceeded: function(clients) { root.acceptClientSnapshot(clients); }
+    onFailed: function(reason) { root.rejectClientSnapshot(reason); }
+  }
   MotionTransition {
     id: surfaceTransition
     requested: root.open
@@ -38,7 +43,7 @@ Scope {
   property var monitors: []
   property var activeWindow: ({})
   property var focusOrder: []
-  property bool nativeRefreshPending: false
+  property bool stateRefreshQueued: false
   readonly property var desktopApplications: DesktopEntries.applications.values || []
 
   readonly property var applicationIdentities: LauncherSearch.applicationIdentityIndex(desktopApplications)
@@ -415,26 +420,34 @@ Scope {
     replaceFocusOrder([focused].concat(focusOrder.filter(function(item) { return item !== focused; })));
   }
 
-  function finishStateRefresh() {
-    if (!nativeRefreshPending)
-      return;
-
-    nativeRefreshPending = false;
-    stateSettleTimer.stop();
+  function acceptClientSnapshot(clients) {
     const selection = selectedAddress;
-    snapshotState();
+    windows = LauncherSearch.manageableClients(clients);
+    monitors = (Hyprland.monitors.values || []).map(monitorData);
+    const current = Hyprland.activeToplevel;
+    activeWindow = windowByAddress(HyprlandWindow.normalizedAddress(current?.address))
+      || (current ? windowDataForToplevel(current) : {});
+    normalizeFocusOrder();
     if (sessionActive && windowByAddress(selection))
       selectedAddress = selection;
+    finishClientSnapshot();
+  }
+
+  function rejectClientSnapshot(reason) {
+    console.error("window-switcher: authoritative client snapshot failed: " + reason);
+    finishClientSnapshot();
+  }
+
+  function finishClientSnapshot() {
+    const queued = stateRefreshQueued;
+    stateRefreshQueued = false;
+    if (queued && open)
+      Qt.callLater(function() { refreshState(); });
   }
 
   function refreshState() {
-    nativeRefreshPending = true;
-    if ((Hyprland.toplevels.values || []).length === 0) {
-      finishStateRefresh();
-      return;
-    }
-    Hyprland.refreshToplevels();
-    stateSettleTimer.restart();
+    if (!clientSnapshot.request())
+      stateRefreshQueued = true;
   }
 
   function advance(action) {
@@ -558,29 +571,6 @@ Scope {
         return;
       root.open = true;
       root.refreshState();
-    }
-  }
-
-  Timer {
-    id: stateSettleTimer
-    // Quickshell exposes refreshToplevels() but no completion signal when the
-    // returned client objects are unchanged. Allow one frame for the native
-    // IPC response; changed objects restart this settle window below.
-    interval: 12
-    onTriggered: root.finishStateRefresh()
-  }
-
-  Instantiator {
-    model: Hyprland.toplevels
-
-    Connections {
-      required property var modelData
-      target: modelData
-
-      function onLastIpcObjectChanged() {
-        if (root.nativeRefreshPending)
-          stateSettleTimer.restart();
-      }
     }
   }
 
