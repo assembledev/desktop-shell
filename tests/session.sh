@@ -31,6 +31,20 @@ else
   test "$?" = 124
 fi
 
+# The initial status request shares the confirmation budget with lock startup.
+lock_start() { touch "$test_root/started"; }
+if (
+  export PATH="$test_root/bin:$PATH"
+  export DESKTOP_SHELL_QML="$source_root/src"
+  lock_confirmation_timeout_seconds=1
+  lock_screen lock 2>"$test_root/error"
+); then
+  printf 'unresponsive lock command returned success\n' >&2
+  exit 1
+fi
+test ! -e "$test_root/started"
+grep -F 'not confirmed' "$test_root/error" >/dev/null
+
 # Test the command's acknowledgement contract without touching a compositor.
 lock_start() { touch "$test_root/started"; }
 sleep() { SECONDS=$((SECONDS + 1)); }

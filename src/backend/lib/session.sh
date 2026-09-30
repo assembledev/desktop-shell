@@ -151,7 +151,7 @@ lock_start() {
 }
 
 lock_wait_secure() {
-  local deadline=$((SECONDS + lock_confirmation_timeout_seconds)) remaining
+  local deadline="${1:?confirmation deadline is required}" remaining
   # A stalled request may consume the remaining budget, but cannot extend it.
   while
     remaining=$((deadline - SECONDS))
@@ -167,6 +167,7 @@ lock_wait_secure() {
 }
 
 lock_screen() {
+  local deadline remaining
   method="${1:-lock}"
   case "$method" in
     lock | status | focus) ;;
@@ -186,12 +187,18 @@ lock_screen() {
       lock_ipc focus >/dev/null 2>&1 || true
       ;;
     lock)
-      state="$(lock_ipc status 2>/dev/null || true)"
+      deadline=$((SECONDS + lock_confirmation_timeout_seconds))
+      state="$(lock_ipc status "$lock_confirmation_timeout_seconds" 2>/dev/null || true)"
       if [ "$state" = true ]; then
-        lock_ipc focus >/dev/null 2>&1 || true
+        remaining=$((deadline - SECONDS))
+        if ((remaining > 0)); then
+          lock_ipc focus "$remaining" >/dev/null 2>&1 || true
+        fi
       else
-        lock_start || return 1
-        lock_wait_secure
+        if ((SECONDS < deadline)); then
+          lock_start || return 1
+        fi
+        lock_wait_secure "$deadline"
       fi
       ;;
   esac
