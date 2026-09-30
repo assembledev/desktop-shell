@@ -134,7 +134,8 @@ config_fixture="$test_root/config-fixture.json"
 export DESKTOP_SHELL_TEST_LITERAL=$'quotes " \' `false` $(false) \\ tabs\tand\nnewlines\n'
 jq --arg literal "$DESKTOP_SHELL_TEST_LITERAL" \
   '.output = $literal | .browserTabs.displayName = $literal |
-   .integrations.recordingStateFile = "capture/state" | .bar.showVram = false' \
+   .integrations.recordingStateFile = "capture/state" | .bar.showVram = false |
+   .workspaces.scrolling = 5 | .lock.keyboardLayoutIndex = 0' \
   "$provider_config" >"$config_fixture"
 DESKTOP_SHELL_CONFIG="$config_fixture" bash -eu -s -- "$source_root" <<'EOF'
 source "$1/src/backend/lib/common.sh"
@@ -142,6 +143,8 @@ test "$DESKTOP_SHELL_OUTPUT" = "$DESKTOP_SHELL_TEST_LITERAL"
 test "$DESKTOP_SHELL_BROWSER_NAME" = "$DESKTOP_SHELL_TEST_LITERAL"
 test "$DESKTOP_SHELL_RECORDING_STATE" = "$XDG_RUNTIME_DIR/capture/state"
 test "$DESKTOP_SHELL_BAR_SHOW_VRAM" = 0
+test "$DESKTOP_SHELL_SCROLLING_WORKSPACE" = 5
+test "$DESKTOP_SHELL_LOCK_KEYBOARD_INDEX" = 0
 bash -eu -c 'test "$DESKTOP_SHELL_OUTPUT" = "$DESKTOP_SHELL_TEST_LITERAL"'
 EOF
 
@@ -154,6 +157,8 @@ test "$DESKTOP_SHELL_THEME_JSON" = "{}"
 test "$DESKTOP_SHELL_BAR_COMPACT" = 0
 test "$DESKTOP_SHELL_BAR_SHOW_VRAM" = 1
 test "$DESKTOP_SHELL_OUTPUT" = ""
+test "$DESKTOP_SHELL_SCROLLING_WORKSPACE" = ""
+test "$DESKTOP_SHELL_LOCK_KEYBOARD_INDEX" = ""
 test "$wallpaper_dir" = "$HOME/Wallpapers"
 test "$default_wallpaper" = "$HOME/Wallpapers/wallpaper.jpg"
 EOF
