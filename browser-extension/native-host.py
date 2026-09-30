@@ -255,6 +255,7 @@ class BrowserTabBridge:
             self.write_snapshot()
             server_thread = threading.Thread(target=self.serve_clients, daemon=True)
             server_thread.start()
+            self.write_native({"type": "ready"})
 
             while not self.stop_event.is_set():
                 message = read_native_message()

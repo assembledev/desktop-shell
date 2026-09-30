@@ -119,21 +119,25 @@ function scheduleReconnect() {
 }
 
 function connectNativeHost() {
-  if (nativePort)
+  if (nativePort || reconnectTimer !== null)
     return;
 
   try {
     const port = browser.runtime.connectNative(NATIVE_HOST);
     nativePort = port;
-    reconnectDelayMs = 1000;
 
     port.onMessage.addListener(message => {
-      if (message?.type === "activate")
+      if (nativePort !== port)
+        return;
+      if (message?.type === "ready")
+        reconnectDelayMs = 1000;
+      else if (message?.type === "activate")
         activateTab(message);
     });
     port.onDisconnect.addListener(() => {
-      if (nativePort === port)
-        nativePort = null;
+      if (nativePort !== port)
+        return;
+      nativePort = null;
       scheduleReconnect();
     });
     schedulePublish();

@@ -223,6 +223,7 @@
               {
                 nativeBuildInputs = [
                   pkgs.python3
+                  pkgs.nodejs
                   pkgs.unzip
                   pkgs.web-ext
                 ];
@@ -238,6 +239,7 @@
                   --boring
                 python3 -c \
                   'source = open("${self}/browser-extension/native-host.py", encoding="utf-8").read(); compile(source, "native-host.py", "exec")'
+                node ${self}/tests/browser-tab-bridge.js ${self}
                 unzip -tqq ${browserTabBridge.unsignedExtension}
                 touch "$out"
               '';

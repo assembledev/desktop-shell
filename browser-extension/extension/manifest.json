@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Desktop Shell Tabs",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Expose open Firefox-compatible browser tabs to the local Desktop Shell launcher.",
   "permissions": [
     "nativeMessaging",
