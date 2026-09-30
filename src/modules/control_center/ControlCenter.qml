@@ -2213,6 +2213,8 @@ Scope {
         root.notificationPopupsCloseRequested();
       else if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup")
         root.open = false;
+      else if (event.name === "custom" && event.data === "desktop-shell:control-center:toggle")
+        root.toggleOpen();
     }
   }
 

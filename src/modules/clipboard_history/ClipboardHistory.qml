@@ -5,6 +5,7 @@ import QtQuick.Window
 import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Wayland
 import "../common"
@@ -182,6 +183,14 @@ Scope {
     function close(): void { root.closePicker(); }
     function toggle(): void { root.togglePicker(); }
     function refresh(): void { root.refresh(false); }
+  }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "custom" && event.data === "desktop-shell:clipboard-history:open")
+        root.openPicker();
+    }
   }
 
   Process {

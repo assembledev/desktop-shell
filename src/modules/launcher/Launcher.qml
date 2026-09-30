@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Io
 
 Scope {
@@ -50,6 +51,14 @@ Scope {
     function toggle(): void { root.enqueue("toggleLauncher"); }
     function profileReady(profile: string): bool { return root.profileReady(profile); }
     function applyProfile(profile: string): void { root.enqueue("applyProfile", profile); }
+  }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "custom" && event.data === "desktop-shell:launcher:toggle")
+        root.enqueue("toggleLauncher");
+    }
   }
 
   Loader {

@@ -43,6 +43,10 @@ hl.bind("ALT + ALT_R", hl.dsp.exec_cmd("desktop-shell alttab commit"), {
 
 ## Hyprland Lua example
 
+For the launcher, clipboard history, and control center, native events avoid
+starting a command process for each shortcut. These bindings require the shell
+service to be running; the CLI commands above can also start it when needed.
+
 This fragment is intentionally limited to Desktop Shell actions. Keep
 application, workspace, monitor, and layout policy in the surrounding Hyprland
 configuration.
@@ -52,9 +56,9 @@ local function shell(command)
   return hl.dsp.exec_cmd("desktop-shell " .. command)
 end
 
-hl.bind("ALT + SPACE", shell("launcher toggle"))
-hl.bind("SUPER + N", shell("toggle"))
-hl.bind("SUPER + V", shell("clipboard open"))
+hl.bind("ALT + SPACE", hl.dsp.event("desktop-shell:launcher:toggle"))
+hl.bind("SUPER + N", hl.dsp.event("desktop-shell:control-center:toggle"))
+hl.bind("SUPER + V", hl.dsp.event("desktop-shell:clipboard-history:open"))
 hl.bind("SUPER + W", shell("pick"))
 hl.bind("SUPER + slash", shell("cheatsheet toggle"))
 hl.bind("SUPER + L", shell("lock"))
