@@ -89,6 +89,28 @@ printf '100\n' >"$backlight/max_brightness"
 brightness_capabilities_json | jq -e '.supported == true and .backend == "backlight" and .writable == true' >/dev/null
 test "$(brightness_get)" = 50
 
+# Cached DDC targets follow focus without rescanning an unchanged output.
+(
+  function [() {
+    if [[ "$#" = 3 && "$1" = -c && "$2" = /dev/i2c-* ]]; then
+      return 0
+    fi
+    command [ "$@"
+  }
+  brightness_ddc_detect_records() {
+    printf 'scan\n' >>"$test_root/ddc-scans"
+    printf '7\tcard0-DP-1\n9\tcard0-DP-2\n'
+  }
+  brightness_focused_output() { printf '%s\n' "$focused_output"; }
+  focused_output=DP-1
+  test "$(brightness_ddc_target_bus)" = 7
+  focused_output=DP-2
+  test "$(brightness_ddc_target_bus)" = 9
+  test "$(brightness_ddc_target_bus)" = 9
+  test "$(wc -l <"$test_root/ddc-scans")" -eq 2
+  rm -f "$brightness_target_cache"
+)
+
 # DDC publishes its initial read before the UI starts watching the cache file.
 (
   brightness_device_dir() { return 1; }

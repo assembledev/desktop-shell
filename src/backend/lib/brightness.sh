@@ -91,9 +91,11 @@ brightness_ddc_detect_records() {
 }
 
 brightness_ddc_target_bus() {
+  local focused cached_output
+  focused="$(brightness_focused_output || true)"
   if [ -r "$brightness_target_cache" ]; then
-    IFS=$'\t' read -r cached_bus _ <"$brightness_target_cache" || true
-    if [ -n "${cached_bus:-}" ] && [ -c "/dev/i2c-$cached_bus" ]; then
+    IFS=$'\t' read -r cached_bus _ cached_output <"$brightness_target_cache" || true
+    if [ -n "${cached_bus:-}" ] && [ -c "/dev/i2c-$cached_bus" ] && [ "${cached_output:-}" = "$focused" ]; then
       printf '%s\n' "$cached_bus"
       return 0
     fi
@@ -110,7 +112,6 @@ brightness_ddc_target_bus() {
   if [ "$count" -eq 1 ]; then
     selected="$(printf '%s\n' "$records" | awk 'NF { print; exit }')"
   else
-    focused="$(brightness_focused_output || true)"
     selected="$(
       printf '%s\n' "$records" |
         awk -F '\t' -v output="$focused" '
@@ -128,7 +129,7 @@ brightness_ddc_target_bus() {
     '' | *[!0-9]*) return 1 ;;
   esac
   target_tmp="$brightness_target_cache.$$"
-  printf '%s\t%s\n' "$bus" "$connector" >"$target_tmp"
+  printf '%s\t%s\t%s\n' "$bus" "$connector" "$focused" >"$target_tmp"
   mv -f "$target_tmp" "$brightness_target_cache"
   printf '%s\n' "$bus"
 }
