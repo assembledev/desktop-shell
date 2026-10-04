@@ -13,7 +13,7 @@ Audience: desktop user adjusting devices and reviewing real notification history
 
 THESIS: Implement the user-selected Unified option A: stable quick controls above independently scrolling history; detailed audio lives behind Sound.
 
-OWN-WORLD: Use the shared Graphite Aurora palette and semantic theme roles. Use UI sans typography consistently across all shell text while retaining the glyph font for icons. Extend the shared kit with glass task groups, authored vector symbols and native keyboard-capable controls. Keep theme overrides authoritative.
+OWN-WORLD: Use the shared Graphite Aurora palette and semantic theme roles. Use the shared UI font role consistently across all shell text while retaining the glyph font for icons. Extend the shared kit with glass task groups, authored vector symbols and native keyboard-capable controls. Keep theme overrides authoritative.
 
 STORY: See current state immediately, adjust a level, enter a device page for details, then return to complete retained history. Real errors and pending actions stay visible.
 

@@ -32,23 +32,23 @@ colors:
   borderMuted: "#343b55"
 typography:
   headline:
-    fontFamily: "sans-serif"
+    fontFamily: "Fira Sans"
     fontSize: "20px"
     fontWeight: 700
   title:
-    fontFamily: "sans-serif"
+    fontFamily: "Fira Sans"
     fontSize: "14px"
     fontWeight: 700
   label:
-    fontFamily: "sans-serif"
+    fontFamily: "Fira Sans"
     fontSize: "12px"
     fontWeight: 700
   body:
-    fontFamily: "sans-serif"
+    fontFamily: "Fira Sans"
     fontSize: "12px"
     fontWeight: 400
   caption:
-    fontFamily: "sans-serif"
+    fontFamily: "Fira Sans"
     fontSize: "10px"
     fontWeight: 400
   legacy-icon:
@@ -188,7 +188,7 @@ states. A grayscale view should preserve the information hierarchy.
 ## Typography
 
 `Theme.uiFontFamily` is the UI text role across every shell surface. Its default
-is the fontconfig alias `sans-serif`; named overrides apply to labels, content,
+is `Fira Sans`; named overrides apply to labels, content,
 metadata and inputs together. `Theme.fontFamily` remains the family for existing
 Nerd Font icons. New control symbols use authored vectors through `ShellSymbol`
 and do not depend on font metrics.

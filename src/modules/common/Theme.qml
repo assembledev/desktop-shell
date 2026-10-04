@@ -44,7 +44,7 @@ QtObject {
       surfaceAccent: "#38151725",
       surfaceToast: "#d8191c2b",
       borderSubtle: "#70424a68",
-      uiFontFamily: "sans-serif",
+      uiFontFamily: "Fira Sans",
       fontFamily: "FiraCode Nerd Font"
     };
 
