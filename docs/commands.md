@@ -41,11 +41,17 @@ $ desktop-shell close
 $ desktop-shell wifi-page
 $ desktop-shell bluetooth-page
 $ desktop-shell display-page
+$ desktop-shell audio-page
 ```
 
 The first invocation starts the user service when necessary. `wifi-page` and
 `bluetooth-page` open the control center directly on the corresponding page;
-`display-page` opens the connected-output and layout controls.
+`display-page` opens the connected-output and layout controls; `audio-page`
+opens output/input devices and application audio streams.
+
+The control center is attached beneath the bar. Quick controls stay above an
+independently scrolling notification history. Sound opens the detailed audio
+page. Lock and power actions belong to the separate power menu.
 
 The display page provides a centered, draggable output arrangement. Dragging
 chooses exact top/center/bottom placements beside another display, or

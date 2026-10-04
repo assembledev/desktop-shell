@@ -12,6 +12,7 @@ PanelWindow {
   required property bool presented
   required property string surfaceNamespace
   property bool keyboardReady: false
+  property bool keyboardRequested: false
 
   // This is an ordinary layer surface, not a pointer-grabbing popup. Its
   // geometry starts below the bar, so mapping and unmapping it never changes
@@ -23,9 +24,9 @@ PanelWindow {
 
   WlrLayershell.namespace: root.surfaceNamespace
   WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.keyboardFocus: root.requested && root.keyboardReady
-    ? WlrKeyboardFocus.OnDemand
-    : WlrKeyboardFocus.None
+  WlrLayershell.keyboardFocus: !root.requested ? WlrKeyboardFocus.None
+    : root.keyboardRequested ? WlrKeyboardFocus.Exclusive
+    : root.keyboardReady ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
   anchors {
     top: true
@@ -42,6 +43,7 @@ PanelWindow {
   // maps, even if the cursor is outside that surface. Map keyboard-inert so a
   // stationary bar trigger keeps its pointer focus. Once the pointer actually
   // enters this surface, regular on-demand keyboard focus is safe to enable.
+  // A caller opened by a keyboard command can explicitly acquire focus.
   HoverHandler {
     onHoveredChanged: {
       if (hovered)
@@ -50,12 +52,16 @@ PanelWindow {
   }
 
   onRequestedChanged: {
-    if (!root.requested)
+    if (!root.requested) {
       root.keyboardReady = false;
+      root.keyboardRequested = false;
+    }
   }
 
   onPresentedChanged: {
-    if (!root.presented)
+    if (!root.presented) {
       root.keyboardReady = false;
+      root.keyboardRequested = false;
+    }
   }
 }

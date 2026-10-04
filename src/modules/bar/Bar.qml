@@ -14,6 +14,7 @@ import "BarLayout.js" as BarLayout
 
 Scope {
   id: root
+  signal controlCenterToggleRequested
 
   Theme {
     id: theme
@@ -49,20 +50,21 @@ Scope {
   property bool showVram: Quickshell.env("DESKTOP_SHELL_BAR_SHOW_VRAM") !== "0"
   property bool workspaceIcons: Quickshell.env("DESKTOP_SHELL_BAR_WORKSPACE_ICONS") !== "0"
   property bool barOpen: true
-  readonly property bool portraitMode: Number(barWindow.screen?.width || 0) > 0
-    && Number(barWindow.screen?.width || 0) < Number(barWindow.screen?.height || 0)
+  readonly property bool portraitMode: Number(barWindow.screen?.width || 0) > 0 && Number(barWindow.screen?.width || 0) < Number(barWindow.screen?.height || 0)
   readonly property bool portraitNarrow: portraitMode && Number(barWindow.screen?.width || 0) < 700
   readonly property int desktopBarHeight: 37
   readonly property int portraitPrimaryHeight: 48
   readonly property int portraitSecondaryHeight: 40
-  readonly property int barHeight: portraitMode
-    ? portraitPrimaryHeight + portraitSecondaryHeight
-    : desktopBarHeight
+  readonly property int barHeight: portraitMode ? portraitPrimaryHeight + portraitSecondaryHeight : desktopBarHeight
 
   readonly property string clockText: Qt.formatDateTime(clock.date, "ddd, MMM dd HH:mm")
   readonly property string clockTimeText: Qt.formatDateTime(clock.date, "HH:mm")
   readonly property string clockDateText: Qt.formatDateTime(clock.date, "ddd, MMM d")
-  property var metrics: ({ ramText: "--", hasVram: false, vramText: "--" })
+  property var metrics: ({
+      ramText: "--",
+      hasVram: false,
+      vramText: "--"
+    })
   readonly property var battery: batteryState.data
 
   BatteryState {
@@ -76,8 +78,14 @@ Scope {
     }
   }
 
-  KeyboardState { id: keyboardState }
-  property var notificationStatus: ({ text: "", class: "normal", tooltip: "Control center" })
+  KeyboardState {
+    id: keyboardState
+  }
+  property var notificationStatus: ({
+      text: "",
+      class: "normal",
+      tooltip: "Control center"
+    })
   property bool notificationUnread: false
   property bool dnd: false
   property bool powerMenuOpen: false
@@ -94,23 +102,18 @@ Scope {
   property bool trayShelfOpen: false
   property int trayOpenMenus: 0
   readonly property string activeTitle: currentWorkspaceTitle()
-  readonly property var desktopApplications: workspaceIcons
-    ? (DesktopEntries.applications.values || [])
-    : []
+  readonly property var desktopApplications: workspaceIcons ? (DesktopEntries.applications.values || []) : []
   property int workspaceIconRevision: 0
   property var sink: Pipewire.defaultAudioSink
   // Inspect every source, including non-default and virtual microphones. Sink
   // monitor capture is output recording and must not light the microphone badge.
-  readonly property var microphoneLinks: Pipewire.linkGroups.values.filter(link =>
-    Boolean(link.source?.audio && !link.source.isStream && !link.source.isSink))
-  readonly property var activeMicrophoneLinks: microphoneLinks.filter(link =>
-    link.state === PwLinkState.Active)
+  readonly property var microphoneLinks: Pipewire.linkGroups.values.filter(link => Boolean(link.source?.audio && !link.source.isStream && !link.source.isSink))
+  readonly property var activeMicrophoneLinks: microphoneLinks.filter(link => link.state === PwLinkState.Active)
   readonly property string microphoneTooltip: {
     const names = [];
     for (const link of activeMicrophoneLinks) {
       const node = link.target;
-      const name = String(node?.properties?.["application.name"]
-        || node?.description || node?.name || "Unknown app");
+      const name = String(node?.properties?.["application.name"] || node?.description || node?.name || "Unknown app");
       if (names.indexOf(name) < 0)
         names.push(name);
     }
@@ -131,62 +134,21 @@ Scope {
   readonly property var trayItems: prioritizedTrayItems()
   readonly property int trayItemCount: trayItems.length
   readonly property int desktopWorkspaceCount: shellConfig.workspaces.length
-  readonly property real desktopPreferredWorkspaceWidth: workspaceIcons
-    ? BarLayout.workspaceRowWidth(
-        desktopWorkspaceCount,
-        desktopWorkspaceCompactWidth,
-        desktopWorkspaceExpandedWidth,
-        desktopWorkspaceGap,
-        true)
-    : 0
-  readonly property real desktopMinimumTrayWidth: BarLayout.minimumTrayWidth(
-    trayItemCount, trayIconSize, trayOverflowButtonWidth)
+  readonly property real desktopPreferredWorkspaceWidth: workspaceIcons ? BarLayout.workspaceRowWidth(desktopWorkspaceCount, desktopWorkspaceCompactWidth, desktopWorkspaceExpandedWidth, desktopWorkspaceGap, true) : 0
+  readonly property real desktopMinimumTrayWidth: BarLayout.minimumTrayWidth(trayItemCount, trayIconSize, trayOverflowButtonWidth)
   // Read preferred child sizes, never allocated widths: the compact decision
   // must not depend on the geometry it changes.
-  readonly property real desktopFullStatusWidth: fullStatusGroupWidth()
-    + barSpacing.groupGap + desktopActionGroup.implicitWidth
-  readonly property bool desktopCompactNetwork: !portraitMode
-    && BarLayout.shouldCompactNetwork(desktopSideAvailableWidth,
-      desktopFullStatusWidth, desktopMinimumTrayWidth, barSpacing.groupGap)
-  readonly property real desktopMinimumRightWidth: desktopFullStatusWidth
-    + (desktopMinimumTrayWidth > 0 ? desktopMinimumTrayWidth + barSpacing.groupGap : 0)
+  readonly property real desktopFullStatusWidth: fullStatusGroupWidth() + barSpacing.groupGap + desktopActionGroup.implicitWidth
+  readonly property bool desktopCompactNetwork: !portraitMode && BarLayout.shouldCompactNetwork(desktopSideAvailableWidth, desktopFullStatusWidth, desktopMinimumTrayWidth, barSpacing.groupGap)
+  readonly property real desktopMinimumRightWidth: desktopFullStatusWidth + (desktopMinimumTrayWidth > 0 ? desktopMinimumTrayWidth + barSpacing.groupGap : 0)
   readonly property real desktopFullClockWidth: Number(fullClockMeasure.implicitWidth || 0)
-  readonly property bool desktopCompactClock: !portraitMode && !recording
-    && BarLayout.shouldUseCompactClock(
-      Number(barWindow.width || 0),
-      desktopFullClockWidth,
-      desktopPreferredWorkspaceWidth,
-      desktopMinimumRightWidth,
-      desktopEdgeInset,
-      desktopCenterClearance)
+  readonly property bool desktopCompactClock: !portraitMode && !recording && BarLayout.shouldUseCompactClock(Number(barWindow.width || 0), desktopFullClockWidth, desktopPreferredWorkspaceWidth, desktopMinimumRightWidth, desktopEdgeInset, desktopCenterClearance)
   readonly property string desktopClockText: desktopCompactClock ? clockTimeText : clockText
-  readonly property real desktopSideAvailableWidth: BarLayout.availableSideWidth(
-    Number(barWindow.width || 0),
-    Number(clockTarget.width || 0),
-    desktopEdgeInset,
-    desktopCenterClearance)
-  readonly property bool desktopExpandActiveWorkspace: workspaceIcons
-    && BarLayout.shouldExpandActiveWorkspace(
-      desktopSideAvailableWidth,
-      desktopWorkspaceCount,
-      desktopWorkspaceCompactWidth,
-      desktopWorkspaceExpandedWidth,
-      desktopWorkspaceGap)
-  readonly property real desktopTrayWidthBudget: Number(barWindow.width || 0) / 2
-    - Number(clockTarget.width || 0) / 2
-    - desktopCenterClearance
-    - desktopEdgeInset
-    - Number(rightStatusRow.implicitWidth || 0)
-    - barSpacing.groupGap
-  readonly property real portraitTrayWidthBudget: Number(barWindow.width || 0)
-    - portraitTitleReserve
-    - Number(portraitFixedStatusRow.implicitWidth || 0)
-    - barSpacing.groupGap
-    - barSpacing.portraitEdgeInset * 2
-    - barSpacing.itemGap
-  readonly property real trayWidthBudget: Math.max(0, portraitMode
-    ? portraitTrayWidthBudget
-    : (desktopCompactNetwork ? Math.min(desktopTrayWidthBudget, desktopMinimumTrayWidth) : desktopTrayWidthBudget))
+  readonly property real desktopSideAvailableWidth: BarLayout.availableSideWidth(Number(barWindow.width || 0), Number(clockTarget.width || 0), desktopEdgeInset, desktopCenterClearance)
+  readonly property bool desktopExpandActiveWorkspace: workspaceIcons && BarLayout.shouldExpandActiveWorkspace(desktopSideAvailableWidth, desktopWorkspaceCount, desktopWorkspaceCompactWidth, desktopWorkspaceExpandedWidth, desktopWorkspaceGap)
+  readonly property real desktopTrayWidthBudget: Number(barWindow.width || 0) / 2 - Number(clockTarget.width || 0) / 2 - desktopCenterClearance - desktopEdgeInset - Number(rightStatusRow.implicitWidth || 0) - barSpacing.groupGap
+  readonly property real portraitTrayWidthBudget: Number(barWindow.width || 0) - portraitTitleReserve - Number(portraitFixedStatusRow.implicitWidth || 0) - barSpacing.groupGap - barSpacing.portraitEdgeInset * 2 - barSpacing.itemGap
+  readonly property real trayWidthBudget: Math.max(0, portraitMode ? portraitTrayWidthBudget : (desktopCompactNetwork ? Math.min(desktopTrayWidthBudget, desktopMinimumTrayWidth) : desktopTrayWidthBudget))
   readonly property int trayInlineCount: inlineTrayCountForBudget()
   readonly property var trayInlineItems: trayItems.slice(0, trayInlineCount)
   readonly property var trayOverflowItems: trayItems.slice(trayInlineCount)
@@ -196,9 +158,7 @@ Scope {
   readonly property int trayShelfSpacing: portraitMode ? 8 : 12
   readonly property int trayShelfWidth: trayShelfColumns * trayIconSize + Math.max(0, trayShelfColumns - 1) * trayShelfSpacing + 20
   readonly property int trayShelfHeight: trayShelfRows * trayIconSize + Math.max(0, trayShelfRows - 1) * trayShelfSpacing + 20
-  readonly property real trayShelfRightMargin: portraitMode
-    ? barSpacing.portraitEdgeInset + Number(portraitFixedStatusRow.implicitWidth || 0) + barSpacing.groupGap
-    : barSpacing.edgeInset + Number(rightStatusRow.implicitWidth || 0) + barSpacing.groupGap
+  readonly property real trayShelfRightMargin: portraitMode ? barSpacing.portraitEdgeInset + Number(portraitFixedStatusRow.implicitWidth || 0) + barSpacing.groupGap : barSpacing.edgeInset + Number(rightStatusRow.implicitWidth || 0) + barSpacing.groupGap
 
   MotionTransition {
     id: barTransition
@@ -244,7 +204,7 @@ Scope {
   }
 
   function workspaceToplevels(id) {
-    return Hyprland.toplevels.values.filter(function(toplevel) {
+    return Hyprland.toplevels.values.filter(function (toplevel) {
       return root.toplevelWorkspaceId(toplevel) === id;
     });
   }
@@ -259,7 +219,9 @@ Scope {
 
   function workspacePrimaryToplevel(id) {
     const windows = workspaceToplevels(id);
-    return windows.find(function(toplevel) { return toplevel.activated; }) || windows[0] || null;
+    return windows.find(function (toplevel) {
+      return toplevel.activated;
+    }) || windows[0] || null;
   }
 
   function toplevelFocusHistoryId(toplevel) {
@@ -295,7 +257,7 @@ Scope {
   }
 
   function workspaceApplications(id) {
-    const windows = workspaceToplevels(id).slice().sort(function(a, b) {
+    const windows = workspaceToplevels(id).slice().sort(function (a, b) {
       if (Boolean(a?.activated) !== Boolean(b?.activated))
         return a?.activated ? -1 : 1;
       return toplevelFocusHistoryId(a) - toplevelFocusHistoryId(b);
@@ -345,9 +307,7 @@ Scope {
     for (const child of desktopStatusGroup.children) {
       if (!child.visible)
         continue;
-      const preferred = child === desktopNetworkControls
-        ? desktopNetworkControls.fullWidth
-        : (child.Layout.preferredWidth >= 0 ? child.Layout.preferredWidth : child.implicitWidth);
+      const preferred = child === desktopNetworkControls ? desktopNetworkControls.fullWidth : (child.Layout.preferredWidth >= 0 ? child.Layout.preferredWidth : child.implicitWidth);
       total += Math.ceil(preferred);
       count++;
     }
@@ -355,13 +315,7 @@ Scope {
   }
 
   function inlineTrayCountForBudget() {
-    return BarLayout.inlineTrayCount(
-      trayItemCount,
-      trayWidthBudget,
-      trayIconSize,
-      trayExpandedSpacing,
-      trayCompactSpacing,
-      trayOverflowButtonWidth);
+    return BarLayout.inlineTrayCount(trayItemCount, trayWidthBudget, trayIconSize, trayExpandedSpacing, trayCompactSpacing, trayOverflowButtonWidth);
   }
 
   function updateTrayShelfOpen() {
@@ -394,8 +348,7 @@ Scope {
   }
 
   function batteryColor() {
-    return batteryState.severity === "critical" ? theme.danger
-      : batteryState.severity === "low" ? theme.warning : theme.success;
+    return batteryState.severity === "critical" ? theme.danger : batteryState.severity === "low" ? theme.warning : theme.success;
   }
 
   function batteryTextColor() {
@@ -438,7 +391,6 @@ Scope {
       trayMenuPopup.closeMenu();
   }
 
-
   function updateNotificationStatus() {
     const nextDnd = dndFile.text().trim() === "1";
     const count = Number(countFile.text().trim() || "0");
@@ -446,13 +398,29 @@ Scope {
     notificationUnread = count > 0;
 
     if (dnd && notificationUnread) {
-      notificationStatus = { text: "", class: "dnd-unread", tooltip: "Control center" };
+      notificationStatus = {
+        text: "",
+        class: "dnd-unread",
+        tooltip: "Control center"
+      };
     } else if (dnd) {
-      notificationStatus = { text: "", class: "dnd", tooltip: "Control center" };
+      notificationStatus = {
+        text: "",
+        class: "dnd",
+        tooltip: "Control center"
+      };
     } else if (notificationUnread) {
-      notificationStatus = { text: "", class: "unread", tooltip: "Control center" };
+      notificationStatus = {
+        text: "",
+        class: "unread",
+        tooltip: "Control center"
+      };
     } else {
-      notificationStatus = { text: "", class: "normal", tooltip: "Control center" };
+      notificationStatus = {
+        text: "",
+        class: "normal",
+        tooltip: "Control center"
+      };
     }
   }
 
@@ -477,9 +445,7 @@ Scope {
     const hours = Math.floor(elapsed / 3600);
     const minutes = Math.floor((elapsed % 3600) / 60);
     const seconds = elapsed % 60;
-    recordingElapsed = hours > 0
-      ? padRecordingUnit(hours) + ":" + padRecordingUnit(minutes) + ":" + padRecordingUnit(seconds)
-      : padRecordingUnit(minutes) + ":" + padRecordingUnit(seconds);
+    recordingElapsed = hours > 0 ? padRecordingUnit(hours) + ":" + padRecordingUnit(minutes) + ":" + padRecordingUnit(seconds) : padRecordingUnit(minutes) + ":" + padRecordingUnit(seconds);
   }
 
   function refreshTelemetry() {
@@ -493,12 +459,24 @@ Scope {
 
   IpcHandler {
     target: "desktopBar"
-    function reveal() { root.barOpen = true; }
-    function conceal() { root.barOpen = false; }
-    function toggle() { root.barOpen = !root.barOpen; }
-    function powerOpen() { root.powerMenuOpen = true; }
-    function powerClose() { root.powerMenuOpen = false; }
-    function powerToggle() { root.powerMenuOpen = !root.powerMenuOpen; }
+    function reveal() {
+      root.barOpen = true;
+    }
+    function conceal() {
+      root.barOpen = false;
+    }
+    function toggle() {
+      root.barOpen = !root.barOpen;
+    }
+    function powerOpen() {
+      root.powerMenuOpen = true;
+    }
+    function powerClose() {
+      root.powerMenuOpen = false;
+    }
+    function powerToggle() {
+      root.powerMenuOpen = !root.powerMenuOpen;
+    }
   }
 
   Timer {
@@ -545,7 +523,9 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.updateNotificationStatus()
-    onLoadFailed: function() { setText("0"); }
+    onLoadFailed: function () {
+      setText("0");
+    }
   }
 
   FileView {
@@ -555,7 +535,9 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.updateRecordingState()
-    onLoadFailed: function() { root.recording = false; }
+    onLoadFailed: function () {
+      root.recording = false;
+    }
   }
 
   FileView {
@@ -565,7 +547,9 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.updateNotificationStatus()
-    onLoadFailed: function() { setText("0"); }
+    onLoadFailed: function () {
+      setText("0");
+    }
   }
 
   PwObjectTracker {
@@ -588,7 +572,9 @@ Scope {
     target: Hyprland
     function onRawEvent(event) {
       if (root.workspaceIcons && event.name === "openwindow")
-        Qt.callLater(function() { root.workspaceIconRevision++; });
+        Qt.callLater(function () {
+          root.workspaceIconRevision++;
+        });
 
       if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup") {
         root.powerMenuOpen = false;
@@ -603,7 +589,7 @@ Scope {
     barSurface: barWindow
     barVisible: root.barOpen
 
-    onOpened: function(fromShelf) {
+    onOpened: function (fromShelf) {
       root.powerMenuOpen = false;
       root.batteryAnalysisPinned = false;
       root.batteryAnalysisOpen = false;
@@ -611,7 +597,7 @@ Scope {
       root.updateTrayShelfOpen();
     }
 
-    onClosed: function(fromShelf) {
+    onClosed: function (fromShelf) {
       if (fromShelf) {
         root.trayOpenMenus = 0;
         if (root.portraitMode)
@@ -728,14 +714,13 @@ Scope {
             Layout.fillWidth: true
             text: root.activeTitle
             color: text.length > 0 ? theme.textPrimary : "transparent"
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 16
             font.bold: true
             elide: Text.ElideRight
             verticalAlignment: Text.AlignVCenter
             topPadding: root.textOpticalYOffset
           }
-
         }
 
         Item {
@@ -752,7 +737,7 @@ Scope {
             anchors.verticalCenterOffset: root.textOpticalYOffset
             text: root.desktopClockText
             color: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 16
             font.bold: true
           }
@@ -761,7 +746,7 @@ Scope {
             id: fullClockMeasure
             visible: false
             text: root.clockText
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 16
             font.bold: true
           }
@@ -903,7 +888,7 @@ Scope {
                 icon: root.notificationStatus.text || ""
                 unread: root.notificationUnread
                 dnd: root.dnd
-                onClicked: Quickshell.execDetached([root.backend, "toggle"])
+                onClicked: root.controlCenterToggleRequested()
               }
 
               Text {
@@ -921,10 +906,14 @@ Scope {
                 scale: powerMouse.pressed ? 0.86 : (powerMouse.containsMouse ? 1.08 : 1)
 
                 Behavior on color {
-                  MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+                  MotionColorAnimation {
+                    role: MotionNumberAnimation.Feedback
+                  }
                 }
                 Behavior on scale {
-                  MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+                  MotionNumberAnimation {
+                    role: MotionNumberAnimation.Feedback
+                  }
                 }
 
                 MouseArea {
@@ -1015,7 +1004,7 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: root.clockTimeText
                 color: theme.textPrimary
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 18
                 font.bold: true
               }
@@ -1025,7 +1014,7 @@ Scope {
                 visible: !root.portraitNarrow
                 text: root.clockDateText
                 color: theme.textMuted
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 9
                 font.bold: true
               }
@@ -1058,7 +1047,7 @@ Scope {
               unread: root.notificationUnread
               dnd: root.dnd
               targetHeight: root.portraitPrimaryHeight
-              onClicked: Quickshell.execDetached([root.backend, "toggle"])
+              onClicked: root.controlCenterToggleRequested()
             }
 
             Text {
@@ -1076,10 +1065,14 @@ Scope {
               scale: portraitPowerMouse.pressed ? 0.86 : (portraitPowerMouse.containsMouse ? 1.08 : 1)
 
               Behavior on color {
-                MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+                MotionColorAnimation {
+                  role: MotionNumberAnimation.Feedback
+                }
               }
               Behavior on scale {
-                MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+                MotionNumberAnimation {
+                  role: MotionNumberAnimation.Feedback
+                }
               }
 
               MouseArea {
@@ -1107,7 +1100,7 @@ Scope {
               Layout.minimumWidth: root.portraitTitleReserve
               text: root.activeTitle
               color: text.length > 0 ? theme.textPrimary : theme.textMuted
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 14
               font.bold: true
               elide: Text.ElideRight
@@ -1416,7 +1409,9 @@ Scope {
 
         MouseArea {
           anchors.fill: parent
-          onClicked: function(mouse) { mouse.accepted = true; }
+          onClicked: function (mouse) {
+            mouse.accepted = true;
+          }
         }
 
         ColumnLayout {
@@ -1495,7 +1490,9 @@ Scope {
     scale: wsPointer.pressed ? 0.94 : (wsPointer.containsMouse ? 1.04 : 1)
 
     Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      MotionNumberAnimation {
+        role: MotionNumberAnimation.Feedback
+      }
     }
 
     Text {
@@ -1505,15 +1502,19 @@ Scope {
       text: wsButton.label
       color: wsButton.active ? theme.info : theme.textPrimary
       opacity: wsButton.active ? 1 : wsButton.inactiveOpacity
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 16
       font.bold: true
 
       Behavior on color {
-        MotionColorAnimation { role: MotionNumberAnimation.FocusTravel }
+        MotionColorAnimation {
+          role: MotionNumberAnimation.FocusTravel
+        }
       }
       Behavior on opacity {
-        MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+        MotionNumberAnimation {
+          role: MotionNumberAnimation.Feedback
+        }
       }
     }
 
@@ -1566,7 +1567,9 @@ Scope {
       scale: segmentMouse.pressed ? 0.92 : (segment.hovered ? 1.035 : 1)
 
       Behavior on scale {
-        MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+        MotionNumberAnimation {
+          role: MotionNumberAnimation.Feedback
+        }
       }
 
       Text {
@@ -1582,7 +1585,7 @@ Scope {
       Text {
         text: segment.label
         color: segment.textColor
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 16
         font.bold: true
         verticalAlignment: Text.AlignVCenter
@@ -1631,17 +1634,22 @@ Scope {
       Text {
         text: "MIC"
         color: theme.dangerStrong
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 11
         font.bold: true
         anchors.verticalCenter: parent.verticalCenter
       }
     }
 
-    HoverHandler { id: microphoneHover }
-    ToolTip.visible: visible && microphoneHover.hovered
-    ToolTip.delay: 350
-    ToolTip.text: root.microphoneTooltip
+    HoverHandler {
+      id: microphoneHover
+    }
+    ToolTip {
+      visible: parent.visible && microphoneHover.hovered
+      delay: 350
+      text: root.microphoneTooltip
+      font.family: theme.uiFontFamily
+    }
   }
 
   component RecordingIndicator: Rectangle {
@@ -1673,8 +1681,18 @@ Scope {
         SequentialAnimation on opacity {
           running: indicator.visible
           loops: Animation.Infinite
-          NumberAnimation { from: 1; to: 0.32; duration: 720; easing.type: Easing.InOutSine }
-          NumberAnimation { from: 0.32; to: 1; duration: 720; easing.type: Easing.InOutSine }
+          NumberAnimation {
+            from: 1
+            to: 0.32
+            duration: 720
+            easing.type: Easing.InOutSine
+          }
+          NumberAnimation {
+            from: 0.32
+            to: 1
+            duration: 720
+            easing.type: Easing.InOutSine
+          }
         }
       }
 
@@ -1683,7 +1701,7 @@ Scope {
         anchors.verticalCenterOffset: root.textOpticalYOffset
         text: "REC"
         color: theme.dangerStrong
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 12
         font.bold: true
       }
@@ -1700,7 +1718,7 @@ Scope {
         anchors.verticalCenterOffset: root.textOpticalYOffset
         text: indicator.elapsed
         color: theme.textPrimary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 12
         font.bold: true
       }
@@ -1719,7 +1737,7 @@ Scope {
         anchors.verticalCenterOffset: root.textOpticalYOffset
         text: indicator.clockTime
         color: theme.textPrimary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 12
         font.bold: true
       }
@@ -1756,7 +1774,7 @@ Scope {
     Text {
       text: metric.label
       color: theme.textPrimary
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 11
       font.bold: true
       elide: Text.ElideRight
@@ -1772,7 +1790,7 @@ Scope {
         anchors.fill: parent
         text: metric.value
         color: theme.textPrimary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 12
         font.bold: true
         horizontalAlignment: Text.AlignRight
@@ -1805,7 +1823,9 @@ Scope {
       scale: notificationMouse.pressed ? 0.88 : (notificationMouse.containsMouse ? 1.06 : 1)
 
       Behavior on scale {
-        MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+        MotionNumberAnimation {
+          role: MotionNumberAnimation.Feedback
+        }
       }
     }
 
@@ -1843,18 +1863,18 @@ Scope {
     scale: pressed ? 0.86 : (containsMouse ? 1.08 : 1)
 
     Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      MotionNumberAnimation {
+        role: MotionNumberAnimation.Feedback
+      }
     }
 
     function openMenu() {
       const point = trayIcon.mapToItem(null, trayIcon.width / 2, trayIcon.height);
-      const bottom = trayIcon.trackShelfMenu
-        ? Math.max(point.y, root.trayShelfHeight + 2)
-        : 0;
+      const bottom = trayIcon.trackShelfMenu ? Math.max(point.y, root.trayShelfHeight + 2) : 0;
       trayMenuPopup.openFor(trayIcon.item, point.x, bottom, trayIcon.trackShelfMenu);
     }
 
-    onClicked: function(mouse) {
+    onClicked: function (mouse) {
       if (mouse.button === Qt.LeftButton && item.hasMenu) {
         openMenu();
       } else if (mouse.button === Qt.RightButton && item.hasMenu) {
@@ -1898,13 +1918,19 @@ Scope {
     scale: overflowMouse.pressed ? 0.9 : (overflow.hovered ? 1.04 : 1)
 
     Behavior on color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+      MotionColorAnimation {
+        role: MotionNumberAnimation.Feedback
+      }
     }
     Behavior on border.color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+      MotionColorAnimation {
+        role: MotionNumberAnimation.Feedback
+      }
     }
     Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      MotionNumberAnimation {
+        role: MotionNumberAnimation.Feedback
+      }
     }
 
     Item {
@@ -1940,7 +1966,7 @@ Scope {
           anchors.verticalCenterOffset: root.textOpticalYOffset
           text: overflow.items.length > 9 ? "9+" : String(overflow.items.length)
           color: theme.textPrimary
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: overflow.items.length > 9 ? 8 : 9
           font.bold: true
         }
@@ -1973,10 +1999,14 @@ Scope {
     scale: powerHover.pressed ? 0.97 : 1
 
     Behavior on color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+      MotionColorAnimation {
+        role: MotionNumberAnimation.Feedback
+      }
     }
     Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      MotionNumberAnimation {
+        role: MotionNumberAnimation.Feedback
+      }
     }
 
     RowLayout {
@@ -1992,7 +2022,9 @@ Scope {
         color: Qt.alpha(action.accent, powerHover.containsMouse ? 0.25 : 0.15)
 
         Behavior on color {
-          MotionColorAnimation { role: MotionNumberAnimation.Feedback }
+          MotionColorAnimation {
+            role: MotionNumberAnimation.Feedback
+          }
         }
 
         Text {
@@ -2008,13 +2040,12 @@ Scope {
       Text {
         text: action.label
         color: theme.textPrimary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 13
         font.bold: true
         Layout.fillWidth: true
         elide: Text.ElideRight
       }
-
     }
 
     MouseArea {

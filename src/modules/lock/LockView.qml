@@ -143,7 +143,7 @@ Item {
       Text {
         text: root.keyboardText
         color: theme.textSecondary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 13
         height: 24
         verticalAlignment: Text.AlignVCenter
@@ -175,7 +175,7 @@ Item {
         Text {
           text: root.batteryText
           color: root.batterySeverity === "critical" ? theme.danger : theme.textSecondary
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 13
           height: parent.height
           verticalAlignment: Text.AlignVCenter
@@ -195,7 +195,7 @@ Item {
         width: parent.width
         text: root.clockText
         color: theme.textPrimary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: Math.max(56, Math.min(96, root.width * 0.075))
         font.weight: Font.Normal
         horizontalAlignment: Text.AlignHCenter
@@ -205,7 +205,7 @@ Item {
         width: parent.width
         text: root.dateText
         color: theme.textSecondary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 16
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
@@ -217,7 +217,7 @@ Item {
         width: parent.width
         text: root.userText
         color: theme.textMuted
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 13
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
@@ -276,7 +276,7 @@ Item {
             text: root.authRunning ? "Checking…" : "Password"
             visible: root.passwordLength === 0 || root.authRunning
             color: theme.textMuted
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 15
             elide: Text.ElideRight
           }
@@ -300,7 +300,7 @@ Item {
               visible: root.passwordLength > 24
               text: "+"
               color: theme.textPrimary
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 12
               anchors.verticalCenter: parent.verticalCenter
             }
@@ -341,7 +341,7 @@ Item {
         height: 40
         text: root.authRunning ? "" : (root.message || (root.failed ? "Wrong password" : ""))
         color: root.failed ? theme.danger : theme.textMuted
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 13
         horizontalAlignment: Text.AlignHCenter
         wrapMode: Text.Wrap

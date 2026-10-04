@@ -473,6 +473,7 @@ Scope {
           }
 
           Text {
+            font.family: theme.uiFontFamily
             anchors.top: imageFrame.bottom
             anchors.topMargin: 12
             anchors.horizontalCenter: parent.horizontalCenter
@@ -517,6 +518,7 @@ Scope {
         border.color: theme.borderSubtle
 
         Text {
+          font.family: theme.uiFontFamily
           id: prefix
 
           anchors.left: parent.left
@@ -529,6 +531,7 @@ Scope {
         }
 
         TextInput {
+          font.family: theme.uiFontFamily
           id: search
 
           anchors.left: prefix.right
@@ -576,6 +579,7 @@ Scope {
         }
 
         Text {
+          font.family: theme.uiFontFamily
           anchors.verticalCenter: parent.verticalCenter
           text: "No wallpapers found"
           color: theme.textPrimary

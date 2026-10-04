@@ -44,7 +44,7 @@ PopupWindow {
 
   TextMetrics {
     id: tipMetrics
-    font.family: theme.fontFamily
+    font.family: theme.uiFontFamily
     font.pixelSize: 10
     text: root.text
   }
@@ -63,7 +63,7 @@ PopupWindow {
       width: Math.min(tipMetrics.advanceWidth, root.availableTextWidth)
       text: root.text
       color: theme.textPrimary
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 10
       wrapMode: Text.WrapAtWordBoundaryOrAnywhere
       horizontalAlignment: Text.AlignHCenter

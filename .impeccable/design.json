@@ -1,0 +1,259 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-04T16:06:09.810615+00:00",
+  "title": "Design System: Desktop Shell \u2014 Graphite Aurora",
+  "extensions": {
+    "native": {
+      "platform": "Wayland desktop",
+      "framework": "Qt/QML and Quickshell",
+      "tokensSource": [
+        "nix/theme.nix",
+        "src/modules/common/Theme.qml"
+      ],
+      "units": "QML logical pixels",
+      "alphaFormat": "Runtime Qt #AARRGGBB; frontmatter uses equivalent portable #RRGGBBAA.",
+      "componentPreview": "Native source descriptors; no fabricated HTML/CSS previews.",
+      "symbolGeometry": {
+        "viewBox": [
+          0,
+          0,
+          24,
+          24
+        ],
+        "strokeWidth": 1.8,
+        "lineCap": "round",
+        "lineJoin": "round"
+      },
+      "focus": {
+        "borderWidth": 2,
+        "smallButtonOutsideInset": 3
+      },
+      "audioStateColors": {
+        "unmuted": "info",
+        "muted": "danger"
+      }
+    },
+    "colorMeta": {
+      "bgSolid": {
+        "role": "neutral"
+      },
+      "bgRaised": {
+        "role": "neutral"
+      },
+      "bgMuted": {
+        "role": "neutral"
+      },
+      "bgHover": {
+        "role": "neutral"
+      },
+      "bgHoverAlt": {
+        "role": "neutral"
+      },
+      "bgToast": {
+        "role": "neutral"
+      },
+      "selectedBg": {
+        "role": "neutral"
+      },
+      "textPrimary": {
+        "role": "neutral"
+      },
+      "textSecondary": {
+        "role": "neutral"
+      },
+      "textMuted": {
+        "role": "neutral"
+      },
+      "textDisabled": {
+        "role": "neutral"
+      },
+      "textOnAccent": {
+        "role": "neutral"
+      },
+      "accent": {
+        "role": "semantic"
+      },
+      "accentHover": {
+        "role": "semantic"
+      },
+      "info": {
+        "role": "semantic"
+      },
+      "special": {
+        "role": "semantic"
+      },
+      "resource": {
+        "role": "semantic"
+      },
+      "utility": {
+        "role": "semantic"
+      },
+      "success": {
+        "role": "semantic"
+      },
+      "warning": {
+        "role": "semantic"
+      },
+      "caution": {
+        "role": "semantic"
+      },
+      "danger": {
+        "role": "semantic"
+      },
+      "dangerStrong": {
+        "role": "semantic"
+      },
+      "border": {
+        "role": "neutral"
+      },
+      "borderMuted": {
+        "role": "neutral"
+      },
+      "surfaceGlassStrong": {
+        "role": "neutral",
+        "canonicalFormat": "Qt alpha-first runtime source; CSS alpha-last frontmatter equivalent"
+      },
+      "surfaceRaised": {
+        "role": "neutral",
+        "canonicalFormat": "Qt alpha-first runtime source; CSS alpha-last frontmatter equivalent"
+      },
+      "surfaceHover": {
+        "role": "neutral",
+        "canonicalFormat": "Qt alpha-first runtime source; CSS alpha-last frontmatter equivalent"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "purpose": "Shared panel title."
+      },
+      "title": {
+        "purpose": "Control Center section heading."
+      },
+      "label": {
+        "purpose": "Quick-control title."
+      },
+      "body": {
+        "purpose": "Shared action/body text."
+      },
+      "caption": {
+        "purpose": "Quick-control metadata."
+      },
+      "legacy-icon": {
+        "purpose": "Existing Nerd Font glyph-only Text items; new controls use authored symbols."
+      }
+    },
+    "motion": [
+      {
+        "name": "feedback",
+        "value": "120ms",
+        "purpose": "Color feedback; Motion.feedbackCurve = [0.2, 0, 0, 1, 1, 1]."
+      },
+      {
+        "name": "surface-enter",
+        "value": "300ms",
+        "purpose": "Existing surface entrance role."
+      },
+      {
+        "name": "surface-exit",
+        "value": "200ms",
+        "purpose": "Existing surface exit role."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-quick-controls",
+        "value": "main content height < 600 logical px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "description": "Native action with centered content and shared feedback/focus.",
+      "native": {
+        "framework": "QtQuick",
+        "source": "src/modules/common/ShellButton.qml"
+      },
+      "refersTo": "button"
+    },
+    {
+      "name": "Icon button",
+      "kind": "button",
+      "description": "Square icon-only action; accessible name comes from its contextual tooltip.",
+      "native": {
+        "framework": "QtQuick",
+        "source": "src/modules/common/ShellButton.qml"
+      },
+      "refersTo": "icon-button"
+    },
+    {
+      "name": "Task surface",
+      "kind": "button",
+      "description": "Native task/disclosure with full-target hover and optional outside corners.",
+      "native": {
+        "framework": "QtQuick",
+        "source": "src/modules/common/ShellTaskButton.qml"
+      },
+      "refersTo": "task-surface"
+    },
+    {
+      "name": "Group",
+      "kind": "card",
+      "description": "Glass tonal container for related controls, using the shared surfaceRaised token.",
+      "native": {
+        "framework": "QtQuick",
+        "source": "src/modules/common/ShellGroup.qml"
+      },
+      "refersTo": "group"
+    },
+    {
+      "name": "Slider",
+      "kind": "input",
+      "description": "Native slider with visible focus and optional boost segment.",
+      "native": {
+        "framework": "QtQuick",
+        "source": "src/modules/common/ShellSlider.qml"
+      },
+      "refersTo": "slider"
+    },
+    {
+      "name": "Switch",
+      "kind": "input",
+      "description": "Native switch with state owned by its caller.",
+      "native": {
+        "framework": "QtQuick",
+        "source": "src/modules/common/ShellSwitch.qml"
+      },
+      "refersTo": "switch"
+    },
+    {
+      "name": "Symbol",
+      "kind": "custom",
+      "description": "Authored SVG path in a centered square layout slot.",
+      "native": {
+        "framework": "QtQuick",
+        "source": "src/modules/common/ShellSymbol.qml"
+      }
+    }
+  ],
+  "narrative": {
+    "northStar": "Graphite Aurora",
+    "overview": "Desktop Shell uses the Graphite Aurora language: an ink-indigo canvas, cool\nneutral content, and a coordinated band of iris, cyan, orchid, mint, amber,\ncoral, and rose. It is a desktop control surface, so color must provide\nwayfinding even before interaction. Every major surface keeps one or two small\nchromatic anchors\u2014icons, markers, badges, rails, or borders\u2014while long text\nstays on the neutral hierarchy.\n\nThe shell is compact and keyboard-first. Density should make information quick\nto scan without collapsing the gaps that separate controls, status groups, and\ncontent regions.",
+    "keyCharacteristics": [],
+    "rules": [],
+    "dos": [
+      "Do use the UI font role consistently and keep glyph fonts on icon-only text.",
+      "Do center symbol bounds inside their targets and cover every rounded edge on hover.",
+      "Do keep device lists flat and preserve the backend's real states and recovery."
+    ],
+    "donts": [
+      "Don't use long feature-colored headings or body text without an interaction/state reason.",
+      "Don't create a shell where all domain accents collapse to one hue or disappear at rest.",
+      "Don't use multiple equal-brightness whites with different color temperatures.",
+      "Don't use blue, purple, yellow, or green only to make a module feel distinct.",
+      "Don't reduce contrast by combining a muted token with opacity.",
+      "Don't use pre-semantic palette aliases in shell components."
+    ]
+  }
+}

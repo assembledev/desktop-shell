@@ -299,7 +299,7 @@ Scope {
             y: contextLabel.visible ? 2 : Math.round((parent.height - implicitHeight) / 2)
             text: root.applicationTitle
             color: theme.textSecondary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 13
             font.bold: true
             elide: Text.ElideRight
@@ -314,7 +314,7 @@ Scope {
             visible: text.length > 0
             text: root.contextTitle
             color: root.depth > 1 ? theme.accent : theme.textMuted
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 10
             font.bold: root.depth > 1
             elide: Text.ElideRight
@@ -350,7 +350,7 @@ Scope {
               anchors.verticalCenterOffset: -1
               text: "‹"
               color: theme.textSecondary
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 23
               font.bold: true
             }
@@ -405,7 +405,7 @@ Scope {
                   anchors.centerIn: parent
                   text: "No actions available"
                   color: theme.textMuted
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 11
                 }
               }
@@ -538,7 +538,7 @@ Scope {
                     color: entryRow.sectionLabel
                       ? theme.utility
                       : entryRow.modelData.enabled ? theme.textSecondary : theme.textMuted
-                    font.family: theme.fontFamily
+                    font.family: theme.uiFontFamily
                     font.pixelSize: entryRow.sectionLabel ? 11 : 12
                     font.bold: entryRow.sectionLabel || entryRow.modelData.hasChildren
                     verticalAlignment: Text.AlignVCenter
@@ -557,7 +557,7 @@ Scope {
                     anchors.verticalCenterOffset: -1
                     text: "›"
                     color: entryMouse.containsMouse ? theme.accent : theme.textMuted
-                    font.family: theme.fontFamily
+                    font.family: theme.uiFontFamily
                     font.pixelSize: 20
                     font.bold: true
                     scale: entryMouse.containsMouse ? 1.14 : 1

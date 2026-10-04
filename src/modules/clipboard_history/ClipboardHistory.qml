@@ -325,27 +325,28 @@ Scope {
             Layout.fillWidth: true
             text: "Clipboard"
             color: theme.textPrimary
-            font.family: theme.fontFamily
-            font.pixelSize: 22
+            font.family: theme.uiFontFamily
+            font.pixelSize: 20
             font.bold: true
             elide: Text.ElideRight
           }
 
           Text {
             text: String(filteredModel.count)
-            color: theme.accent
-            font.family: theme.fontFamily
-            font.pixelSize: 13
+            color: theme.textMuted
+            font.family: theme.uiFontFamily
+            font.pixelSize: 12
             font.bold: true
           }
 
           IconButton {
-            icon: ""
+            glyph: "refresh"
+            tooltip: "Refresh clipboard history"
             onClicked: root.refresh(true)
           }
 
           IconButton {
-            icon: root.wipeArmed ? "󰗠" : "󰆴"
+            glyph: root.wipeArmed ? "warning" : "trash"
             tooltip: root.wipeArmed ? "Click again to wipe" : "Wipe clipboard history"
             danger: true
             onClicked: root.wipe()
@@ -360,14 +361,13 @@ Scope {
           border.color: search.activeFocus ? theme.accent : theme.borderMuted
           border.width: 1
 
-          Text {
+          ShellSymbol {
             anchors.left: parent.left
             anchors.leftMargin: 14
             anchors.verticalCenter: parent.verticalCenter
-            text: ""
-            color: search.activeFocus ? theme.iconAccent : theme.iconMuted
-            font.family: theme.fontFamily
-            font.pixelSize: 14
+            symbol: "search"
+            tint: search.activeFocus ? theme.accent : theme.textMuted
+            size: 18
           }
 
           TextInput {
@@ -380,7 +380,7 @@ Scope {
             color: theme.textPrimary
             selectionColor: theme.selectedBg
             selectedTextColor: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 13
             clip: true
             focus: true
@@ -416,9 +416,9 @@ Scope {
             height: list.currentItem?.height || 0
             y: list.currentItem?.y || 0
             radius: 10
-            color: theme.surfaceMuted
+            color: theme.surfaceRaised
             border.width: 1
-            border.color: Qt.alpha(theme.accent, 0.46)
+            border.color: theme.accent
             z: 1
 
             Behavior on y {
@@ -428,14 +428,7 @@ Scope {
               MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
             }
 
-            Rectangle {
-              anchors.left: parent.left
-              anchors.top: parent.top
-              anchors.bottom: parent.bottom
-              width: 3
-              radius: 2
-              color: theme.accent
-            }
+
           }
 
           add: Transition {
@@ -519,7 +512,7 @@ Scope {
             height: image ? 112 : 64
             radius: 10
             color: !selected && inputIntent.pointerActive && rowMouse.containsMouse
-              ? theme.surfaceAccent
+              ? theme.surfaceHover
               : "transparent"
             border.width: 1
             border.color: "transparent"
@@ -581,14 +574,14 @@ Scope {
                   smooth: true
                 }
 
-                Text {
+                ShellSymbol {
                   visible: !item.image || item.previewPath.length === 0
                   anchors.centerIn: parent
-                  text: item.image ? "󰋩" : item.link ? "󰌷" : "󰈙"
-                  color: item.image ? theme.info : theme.iconPrimary
-                  font.family: theme.fontFamily
-                  font.pixelSize: item.image ? 28 : 20
+                  symbol: item.image ? "image" : item.link ? "link" : "document"
+                  tint: item.image ? theme.info : theme.textSecondary
+                  size: item.image ? 28 : 20
                 }
+
               }
 
               ColumnLayout {
@@ -601,7 +594,7 @@ Scope {
                   text: item.image ? "Image" : item.cleanLabel
                   textFormat: Text.PlainText
                   color: theme.textPrimary
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: item.image ? 15 : 13
                   wrapMode: Text.Wrap
                   elide: Text.ElideRight
@@ -613,7 +606,7 @@ Scope {
                   Layout.fillWidth: true
                   text: [item.kind.toUpperCase(), item.dimensions.replace("x", " × "), item.size].filter(Boolean).join(" · ")
                   color: theme.textMuted
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 11
                   elide: Text.ElideRight
                 }
@@ -628,7 +621,7 @@ Scope {
                   anchors.right: parent.right
                   text: root.recordAge(item.createdAt)
                   color: theme.textMuted
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 11
                 }
 
@@ -637,8 +630,8 @@ Scope {
                   anchors.bottom: parent.bottom
                   width: 28
                   height: 28
-                  icon: "󰆴"
-                  visible: item.selected || (inputIntent.pointerActive && rowMouse.containsMouse)
+                  glyph: "trash"
+                  visible: item.selected || activeFocus || hovered || (inputIntent.pointerActive && rowMouse.containsMouse)
                   tooltip: "Delete entry"
                   onClicked: root.deleteItem(item)
                 }
@@ -653,7 +646,7 @@ Scope {
           visible: root.loading || filteredModel.count === 0 || root.message.length > 0
           text: root.message.length > 0 ? root.message : root.loading ? "Loading..." : "Clipboard is empty"
           color: theme.textSecondary
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 13
           horizontalAlignment: Text.AlignHCenter
         }
@@ -666,53 +659,10 @@ Scope {
     }
   }
 
-  component IconButton: Rectangle {
-    id: button
-
-    property string icon: ""
-    property string tooltip: ""
+  component IconButton: ShellButton {
+    colors: theme
     property bool danger: false
-    signal clicked()
-
-    Layout.preferredWidth: 38
-    Layout.preferredHeight: 38
-    radius: 8
-    color: mouse.pressed ? theme.selectedBg : mouse.containsMouse ? theme.surfaceAccent : "transparent"
-    border.width: 1
-    border.color: mouse.containsMouse ? (danger ? Qt.alpha(theme.danger, 0.45) : theme.borderSubtle) : "transparent"
-    scale: mouse.pressed ? 0.9 : 1
-
-    Behavior on color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on border.color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-    }
-
-    Text {
-      anchors.centerIn: parent
-      text: button.icon
-      color: button.danger ? theme.danger : theme.textPrimary
-      font.family: theme.fontFamily
-      font.pixelSize: 14
-    }
-
-    MouseArea {
-      id: mouse
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: button.clicked()
-    }
-
-    ShellToolTip {
-      anchorItem: button
-      shown: mouse.containsMouse
-      text: button.tooltip
-      delay: 400
-    }
+    accent: danger ? theme.danger : theme.accent
+    flatAction: true
   }
 }

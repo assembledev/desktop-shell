@@ -164,7 +164,16 @@ let
   themeOptions = lib.mapAttrs (
     name: value:
     mkOption {
-      type = if name == "fontFamily" then types.str else colorType;
+      type =
+        if
+          builtins.elem name [
+            "fontFamily"
+            "uiFontFamily"
+          ]
+        then
+          types.str
+        else
+          colorType;
       default = value;
       description = "Desktop Shell ${name} theme value.";
     }

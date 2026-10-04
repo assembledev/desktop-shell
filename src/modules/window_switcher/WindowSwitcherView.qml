@@ -710,7 +710,7 @@ Scope {
                   Layout.fillWidth: true
                   text: root.windowByAddress(root.selectedAddress)?.title || "No windows"
                   color: theme.textPrimary
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 16
                   font.bold: true
                   elide: Text.ElideRight
@@ -724,7 +724,7 @@ Scope {
                     return (win.class || "Window") + " · workspace " + (win.workspace?.id || "");
                   }
                   color: theme.textMuted
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 11
                   elide: Text.ElideRight
                 }
@@ -741,7 +741,7 @@ Scope {
                     count > 0 ? (index + 1) + " / " + count : "";
                   }
                   color: theme.textSecondary
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 12
                 }
 
@@ -749,7 +749,7 @@ Scope {
                   Layout.alignment: Qt.AlignRight
                   text: "ARROWS select · RELEASE ALT focus · DRAG move"
                   color: theme.textMuted
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 9
                 }
               }
@@ -886,7 +886,7 @@ Scope {
       text: shellConfig.workspaceLabel(ws.workspace)
       color: ws.active ? theme.info : theme.textPrimary
       opacity: ws.occupied || ws.active ? 1 : 0.5
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 14
       font.bold: true
       z: 40
@@ -900,7 +900,7 @@ Scope {
       anchors.topMargin: 11
       text: "SCROLL · " + root.columnCount(ws.workspace) + " COLS"
       color: theme.textMuted
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 9
       font.bold: true
       z: 40
@@ -911,7 +911,7 @@ Scope {
       anchors.centerIn: screenFrame
       text: "Empty workspace"
       color: theme.textMuted
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 11
       z: 3
     }
@@ -944,7 +944,7 @@ Scope {
         anchors.topMargin: 2
         text: "VIEW"
         color: theme.special
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 7
         font.bold: true
       }
@@ -967,7 +967,7 @@ Scope {
           anchors.horizontalCenter: parent.horizontalCenter
           text: ws.moveTarget && !ws.dragSource ? "󰁔" : shellConfig.workspaceLabel(ws.workspace)
           color: ws.moveTarget && !ws.dragSource ? theme.special : theme.textMuted
-          font.family: theme.fontFamily
+          font.family: ws.moveTarget && !ws.dragSource ? theme.fontFamily : theme.uiFontFamily
           font.pixelSize: ws.moveTarget && !ws.dragSource ? 22 : 18
           font.bold: true
         }
@@ -978,7 +978,7 @@ Scope {
             : ws.moveTarget ? "RELEASE · MOVE HERE"
             : "WORKSPACE " + ws.workspace
           color: ws.moveTarget && !ws.dragSource ? theme.textPrimary : theme.textMuted
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 9
           font.bold: ws.moveTarget && !ws.dragSource
         }
@@ -1116,7 +1116,7 @@ Scope {
         verticalAlignment: Text.AlignVCenter
         text: tile.windowData?.title || tile.windowData?.class || "Window"
         color: theme.textPrimary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: Math.min(10, Math.max(8, parent.height * 0.42))
         elide: Text.ElideRight
       }

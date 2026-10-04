@@ -142,7 +142,7 @@ Scope {
         color: Qt.alpha(theme.textPrimary, 0.8)
         style: Text.Outline
         styleColor: Qt.alpha(theme.bgSolid, 0.65)
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 14
       }
 
@@ -183,7 +183,7 @@ Scope {
               color: Qt.alpha(key.modelData.inherited ? theme.textSecondary : theme.textPrimary, 0.9)
               style: Text.Outline
               styleColor: Qt.alpha(theme.bgSolid, 0.75)
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: Math.max(9, Math.min(14, board.unit * 0.27))
               font.weight: Font.Medium
               horizontalAlignment: Text.AlignHCenter
@@ -202,7 +202,7 @@ Scope {
               color: theme.textSecondary
               style: Text.Outline
               styleColor: Qt.alpha(theme.bgSolid, 0.75)
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: Math.max(7, board.unit * 0.15)
               horizontalAlignment: Text.AlignHCenter
               elide: Text.ElideRight
@@ -221,7 +221,7 @@ Scope {
         color: theme.warning
         style: Text.Outline
         styleColor: theme.bgSolid
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 11
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
