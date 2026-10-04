@@ -13,12 +13,15 @@ Item {
   property point lastPointerScenePosition: Qt.point(0, 0)
   property real movementThreshold: 0.5
 
+  signal pointerActivity()
+
   function claimKeyboard() {
     pointerActive = false;
   }
 
   function claimPointer() {
     pointerActive = true;
+    pointerActivity();
   }
 
   function observePointerScenePosition(position) {
