@@ -40,6 +40,7 @@ Item {
   signal backspace(bool word)
   signal clear()
   signal submit()
+  signal activity()
 
   Behavior on entranceProgress {
     MotionNumberAnimation { role: MotionNumberAnimation.SurfaceEnter }
@@ -109,10 +110,14 @@ Item {
     focus: true
     hoverEnabled: true
 
-    onPressed: forceActiveFocus()
+    onPressed: {
+      root.activity();
+      forceActiveFocus();
+    }
     onPositionChanged: forceActiveFocus()
 
     Keys.onPressed: event => {
+      root.activity();
       if (root.authRunning) {
         event.accepted = true;
         return;
@@ -240,6 +245,7 @@ Item {
         MouseArea {
           anchors.fill: parent
           cursorShape: Qt.IBeamCursor
+          onPressed: root.activity()
           onClicked: root.forceInputFocus()
         }
 
@@ -331,6 +337,7 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             enabled: root.passwordLength > 0 && !root.authRunning
+            onPressed: root.activity()
             onClicked: root.submit()
           }
         }

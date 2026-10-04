@@ -113,6 +113,14 @@ output, while `"extend"` spans all outputs. The wallpaper path must already be
 readable by the `greeter` user; the module does not grant it access to a user's
 home directory. Do not enable SDDM at the same time.
 
+After ten minutes without input, the greeter clears unfinished password input
+and shows a black surface with the cursor hidden. Keyboard input, pointer
+movement, clicks, touch, and scrolling wake it; the wake key or click is consumed
+before password entry regains focus. Blanking pauses while authentication is
+running. This is visual blanking: the display link stays active, and the greeter
+does not run an idle daemon or change DPMS. The logged-in session owns its
+separate inactivity and display-power policy.
+
 ## Standalone Home Manager
 
 Import the Home Manager module directly:

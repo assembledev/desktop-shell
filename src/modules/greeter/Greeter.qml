@@ -35,7 +35,14 @@ Scope {
 
   function refocus() {
     focusRetry.restart();
-    lockView.forceInputFocus();
+    focusInput();
+  }
+
+  function focusInput() {
+    if (idleBlanker.blanked)
+      idleBlanker.forceActiveFocus();
+    else
+      lockView.forceInputFocus();
   }
 
   function appendPassword(text) {
@@ -133,7 +140,7 @@ Scope {
     id: focusRetry
     interval: 80
     repeat: false
-    onTriggered: lockView.forceInputFocus()
+    onTriggered: root.focusInput()
   }
 
   FloatingWindow {
@@ -150,6 +157,7 @@ Scope {
     LockView {
       id: lockView
       anchors.fill: parent
+      visible: !idleBlanker.blanked
       wallpaperPath: root.wallpaperPath
       clockText: root.clockText
       dateText: root.dateText
@@ -165,6 +173,15 @@ Scope {
       onBackspace: word => root.backspacePassword(word)
       onClear: root.clearPassword()
       onSubmit: root.submit()
+      onActivity: idleBlanker.activity()
+    }
+
+    IdleBlanker {
+      id: idleBlanker
+      anchors.fill: parent
+      suspended: root.authRunning
+      onBlankedChanged: if (blanked) root.password = ""
+      onResumed: root.refocus()
     }
   }
 }
