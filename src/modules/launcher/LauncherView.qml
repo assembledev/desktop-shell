@@ -929,7 +929,7 @@ Scope {
               ? "Search open windows and tabs"
               : "Search applications or @profile"
             placeholderTextColor: root.textMuted
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 16
             font.bold: true
 
@@ -1088,7 +1088,7 @@ Scope {
               anchors.horizontalCenter: parent.horizontalCenter
               text: root.emptyResultTitle()
               color: root.textPrimary
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 18
               font.bold: true
             }
@@ -1097,7 +1097,7 @@ Scope {
               anchors.horizontalCenter: parent.horizontalCenter
               text: root.emptyResultDetail()
               color: root.textMuted
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 11
             }
           }
@@ -1128,7 +1128,7 @@ Scope {
                 ? "↑↓ select   ·   Tab switch mode   ·   ! tabs only"
                 : "↑↓ select   ·   @ profile   ·   Tab switch mode"
               color: root.textMuted
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 10
             }
 
@@ -1143,7 +1143,7 @@ Scope {
                 return "Enter focus   ·   Ctrl+Enter launch new";
               }
               color: root.modeAccent
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 10
               font.bold: true
             }
@@ -1175,7 +1175,7 @@ Scope {
       anchors.centerIn: parent
       text: switchText.label
       color: switchText.active ? switchText.accent : root.textMuted
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 12
       font.bold: true
     }
@@ -1294,7 +1294,7 @@ Scope {
           anchors.centerIn: parent
           text: "◇"
           color: row.selected ? row.accent : root.textMuted
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: row.focusMode ? 22 : 24
           font.bold: true
         }
@@ -1310,7 +1310,7 @@ Scope {
           text: row.primaryText
           color: root.textPrimary
           elide: Text.ElideRight
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: row.focusMode ? 14 : 16
           font.bold: true
         }
@@ -1321,7 +1321,7 @@ Scope {
           text: row.secondaryText
           color: row.focusMode && row.selected ? Qt.alpha(root.textPrimary, 0.72) : root.textMuted
           elide: Text.ElideRight
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 10
         }
       }
@@ -1335,7 +1335,7 @@ Scope {
           visible: row.targetActive
           text: "CURRENT"
           color: root.infoAccent
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 9
           font.bold: true
         }
@@ -1353,7 +1353,7 @@ Scope {
             anchors.fill: parent
             text: row.tabMode ? "TAB" : root.workspaceLabel(row.targetWindow)
             color: row.selected ? root.focusAccent : (row.targetActive ? root.infoAccent : root.textMuted)
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 10
             font.bold: true
             horizontalAlignment: Text.AlignHCenter
@@ -1376,7 +1376,7 @@ Scope {
           anchors.centerIn: parent
           text: row.wins.length + " OPEN"
           color: root.resourceAccent
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 9
           font.bold: true
         }
@@ -1396,7 +1396,7 @@ Scope {
           anchors.centerIn: parent
           text: "PROFILE"
           color: root.launchAccent
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 9
           font.bold: true
         }

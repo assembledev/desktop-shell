@@ -174,6 +174,12 @@ case "${1:-}" in
       exit
     fi
     ;;
+  audio-page)
+    if [ "$#" -eq 1 ]; then
+      desktop_shell_ipc_call controlCenter audioPage
+      exit
+    fi
+    ;;
   display-page)
     if [ "$#" -eq 1 ]; then
       desktop_shell_ipc_call controlCenter displayPage
@@ -508,6 +514,9 @@ case "${1:-help}" in
     ;;
   bluetooth-page)
     desktop_shell_ipc_call controlCenter bluetoothPage
+    ;;
+  audio-page)
+    desktop_shell_ipc_call controlCenter audioPage
     ;;
   display-page)
     desktop_shell_ipc_call controlCenter displayPage

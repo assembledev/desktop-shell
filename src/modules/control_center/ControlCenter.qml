@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -9,6 +11,7 @@ import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import Quickshell.Services.Notifications
 import "../common"
+import "NotificationHistory.js" as History
 
 Scope {
   id: root
@@ -21,7 +24,9 @@ Scope {
     id: theme
   }
 
-  ShellConfig { id: shellConfig }
+  ShellConfig {
+    id: shellConfig
+  }
   MotionTransition {
     id: mainSurfaceTransition
     requested: root.open
@@ -57,6 +62,7 @@ Scope {
   property string pendingPassword: ""
   property string connectionTargetSsid: ""
   readonly property bool wifiBusy: wifi.busy
+  readonly property bool wifiToggleAvailable: wifi.backendAvailable && wifi.hardwareEnabled && wifi.device !== null && !wifiBusy
   property bool bluetoothAvailable: false
   property bool bluetoothEnabled: false
   property bool bluetoothDiscoverable: false
@@ -107,14 +113,21 @@ Scope {
   readonly property int osdVerticalPadding: 24
   readonly property int osdRowCount: osdModel.count
   readonly property bool osdVisible: osdRowCount > 0
-  readonly property int osdBoxHeight: osdVerticalPadding
-      + osdRowCount * osdRowHeight
-      + Math.max(0, osdRowCount - 1) * osdRowSpacing
+  readonly property int osdBoxHeight: osdVerticalPadding + osdRowCount * osdRowHeight + Math.max(0, osdRowCount - 1) * osdRowSpacing
   readonly property var osdKinds: ({
-    brightness: { icon: "󰃠", accent: theme.utility },
-    volume: { icon: "", accent: theme.info },
-    fallback: { icon: "󰘳", accent: theme.special }
-  })
+      brightness: {
+        icon: "󰃠",
+        accent: theme.utility
+      },
+      volume: {
+        icon: "",
+        accent: theme.info
+      },
+      fallback: {
+        icon: "󰘳",
+        accent: theme.special
+      }
+    })
   property var notifications: []
   property var clearedNotifications: []
   property var expandedNotificationGroups: ({})
@@ -132,16 +145,16 @@ Scope {
 
   property var sink: Pipewire.defaultAudioSink
   property var source: Pipewire.defaultAudioSource
-  readonly property bool audioDetailsActive: open
+  readonly property bool audioDetailsActive: open && page === "audio"
   readonly property var audioNodes: audioDetailsActive ? Pipewire.nodes.values : []
-  readonly property var outputDevices: audioNodes.filter(function(node) {
-    return Boolean(node?.audio && node.ready && !node.isStream && node.isSink)
+  readonly property var outputDevices: audioNodes.filter(function (node) {
+    return Boolean(node?.audio && node.ready && !node.isStream && node.isSink);
   })
-  readonly property var inputDevices: audioNodes.filter(function(node) {
-    return Boolean(node?.audio && node.ready && !node.isStream && !node.isSink)
+  readonly property var inputDevices: audioNodes.filter(function (node) {
+    return Boolean(node?.audio && node.ready && !node.isStream && !node.isSink);
   })
-  readonly property var appStreams: audioNodes.filter(function(node) {
-    return Boolean(node?.audio && node.isStream)
+  readonly property var appStreams: audioNodes.filter(function (node) {
+    return Boolean(node?.audio && node.isStream);
   })
 
   SequentialAnimation {
@@ -155,7 +168,7 @@ Scope {
         role: MotionNumberAnimation.SurfaceExit
       }
       MotionNumberAnimation {
-        target: pageLoader
+        target: pageTranslation
         property: "x"
         to: -root.pageDirection * 18
         role: MotionNumberAnimation.SurfaceExit
@@ -164,7 +177,7 @@ Scope {
     ScriptAction {
       script: {
         root.displayedPage = root.page;
-        pageLoader.x = root.pageDirection * 18;
+        pageTranslation.x = root.pageDirection * 18;
       }
     }
     ParallelAnimation {
@@ -175,7 +188,7 @@ Scope {
         role: MotionNumberAnimation.Content
       }
       MotionNumberAnimation {
-        target: pageLoader
+        target: pageTranslation
         property: "x"
         to: 0
         role: MotionNumberAnimation.Content
@@ -259,14 +272,11 @@ Scope {
   }
 
   function notificationIsResident(notification) {
-    return Boolean(notification?.resident)
-      || hintBoolean(notification, "resident", false);
+    return Boolean(notification?.resident) || hintBoolean(notification, "resident", false);
   }
 
   function notificationPopupPersistent(notification) {
-    return notificationIsResident(notification)
-      || Number(notification?.expireTimeout || -1) === 0
-      || Boolean(notification?.hasInlineReply);
+    return notificationIsResident(notification) || Number(notification?.expireTimeout || -1) === 0 || Boolean(notification?.hasInlineReply);
   }
 
   function notificationPopupDuration(notification) {
@@ -365,7 +375,9 @@ Scope {
   }
 
   function sameStreamLabel(left, right) {
-    return left.localeCompare(right, undefined, { sensitivity: "accent" }) === 0;
+    return left.localeCompare(right, undefined, {
+      sensitivity: "accent"
+    }) === 0;
   }
 
   function streamApplicationName(node) {
@@ -395,7 +407,9 @@ Scope {
     if (!sameStreamLabel(application, title))
       details.push(application);
     details.push(streamDirection(node));
-    if (role && !details.some(function(detail) { return sameStreamLabel(detail, role); }))
+    if (role && !details.some(function (detail) {
+      return sameStreamLabel(detail, role);
+    }))
       details.push(role);
     return details.join(" · ");
   }
@@ -419,14 +433,14 @@ Scope {
   }
 
   function notificationActions(actions) {
-    return (actions || []).filter(function(action) {
+    return (actions || []).filter(function (action) {
       const label = String(action?.text || "").trim();
       return action && label.length > 0 && action.invoke;
     });
   }
 
   function visibleNotificationActions(notification) {
-    return notificationActions(notification?.actions).filter(function(action) {
+    return notificationActions(notification?.actions).filter(function (action) {
       return String(action?.identifier || "") !== "default";
     });
   }
@@ -445,7 +459,7 @@ Scope {
   }
 
   function actionEntries(actions, notification) {
-    return (actions || []).map(function(action) {
+    return (actions || []).map(function (action) {
       return {
         action: action,
         notification: notification
@@ -552,9 +566,7 @@ Scope {
     if (!wifiEnabled)
       return "Wireless is disabled";
     if (wifi.connecting)
-      return wifi.changingNetwork?.name
-        ? "Connecting to " + wifi.changingNetwork.name + "…"
-        : "Connecting…";
+      return wifi.changingNetwork?.name ? "Connecting to " + wifi.changingNetwork.name + "…" : "Connecting…";
     if (wifi.disconnecting)
       return "Disconnecting…";
     if (wifiConnected)
@@ -567,9 +579,7 @@ Scope {
   }
 
   function wifiNetworkNeedsPsk(network) {
-    return network?.security === WifiSecurityType.WpaPsk
-      || network?.security === WifiSecurityType.Wpa2Psk
-      || network?.security === WifiSecurityType.Sae;
+    return network?.security === WifiSecurityType.WpaPsk || network?.security === WifiSecurityType.Wpa2Psk || network?.security === WifiSecurityType.Sae;
   }
 
   function wifiNetworkSecurity(network) {
@@ -613,8 +623,7 @@ Scope {
       return;
     }
 
-    if (reason === ConnectionFailReason.WifiAuthTimeout
-        || reason === ConnectionFailReason.WifiClientFailed) {
+    if (reason === ConnectionFailReason.WifiAuthTimeout || reason === ConnectionFailReason.WifiClientFailed) {
       wifiError = "Authentication failed for " + String(network?.name || "this network");
     } else if (reason === ConnectionFailReason.WifiNetworkLost) {
       wifiError = "The network disappeared while connecting";
@@ -624,15 +633,21 @@ Scope {
   }
 
   function bluetoothConnectedDevices() {
-    return bluetoothDevices.filter(function(device) { return Boolean(device?.connected); });
+    return bluetoothDevices.filter(function (device) {
+      return Boolean(device?.connected);
+    });
   }
 
   function bluetoothPairedDevices() {
-    return bluetoothDevices.filter(function(device) { return Boolean(device?.paired); });
+    return bluetoothDevices.filter(function (device) {
+      return Boolean(device?.paired);
+    });
   }
 
   function bluetoothNearbyDevices() {
-    return bluetoothDevices.filter(function(device) { return !Boolean(device?.paired); });
+    return bluetoothDevices.filter(function (device) {
+      return !Boolean(device?.paired);
+    });
   }
 
   function bluetoothSummaryText() {
@@ -730,13 +745,7 @@ Scope {
   }
 
   function cleanBluetoothError(message, fallback) {
-    const cleaned = String(message || "")
-      .replace(/\x1b\[[0-9;]*m/g, "")
-      .replace(/^\s*Failed to [^:]+:\s*/i, "")
-      .replace(/^\s*Error:\s*/i, "")
-      .replace(/org\.bluez\.Error\.[A-Za-z]+\s*/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
+    const cleaned = String(message || "").replace(/\x1b\[[0-9;]*m/g, "").replace(/^\s*Failed to [^:]+:\s*/i, "").replace(/^\s*Error:\s*/i, "").replace(/org\.bluez\.Error\.[A-Za-z]+\s*/g, "").replace(/\s+/g, " ").trim();
     return cleaned.length > 0 ? cleaned : fallback;
   }
 
@@ -764,12 +773,7 @@ Scope {
   }
 
   function escapeNotificationText(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/\"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+    return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   function safeNotificationLink(value) {
@@ -783,7 +787,7 @@ Scope {
   }
 
   function sanitizeNotificationBody(body) {
-    return String(body || "").replace(/<[^>]*>/g, function(tag) {
+    return String(body || "").replace(/<[^>]*>/g, function (tag) {
       const normalized = tag.trim().toLowerCase();
       const simpleTag = normalized.match(/^<\s*(\/?)\s*(b|i|u)\s*>$/);
       if (simpleTag)
@@ -820,14 +824,22 @@ Scope {
     if (rawValue === undefined || rawValue === null || rawValue === "")
       rawValue = hintValue(notification, "has-percentage");
     if (rawValue === undefined || rawValue === null || rawValue === "")
-      return { visible: false, value: 0, text: "" };
+      return {
+        visible: false,
+        value: 0,
+        text: ""
+      };
 
     const value = Number(rawValue);
     let maximum = Number(hintValue(notification, "value-max"));
     if (!isFinite(maximum) || maximum <= 0)
       maximum = 100;
     if (!isFinite(value) || value < 0)
-      return { visible: false, value: 0, text: "" };
+      return {
+        visible: false,
+        value: 0,
+        text: ""
+      };
 
     const fraction = clamp(value / maximum, 0, 1);
     return {
@@ -844,8 +856,7 @@ Scope {
     // Blueman marks only its routine connect/disconnect notifications as
     // transient. Keep those visible, but do not turn device state changes into
     // audible alerts; authentication and error notifications remain audible.
-    const silentBluetoothConnection = String(notification?.appName || "").trim().toLowerCase() === "blueman"
-      && Boolean(notification?.transient);
+    const silentBluetoothConnection = String(notification?.appName || "").trim().toLowerCase() === "blueman" && Boolean(notification?.transient);
     const allowedByDnd = !dnd || bypassDnd;
 
     return {
@@ -868,9 +879,13 @@ Scope {
 
   function removeNotification(id, dismissOriginal) {
     const popupItem = popupData(id);
-    const index = notifications.findIndex(function(n) { return n.id === id; });
+    const index = notifications.findIndex(function (n) {
+      return n.id === id;
+    });
     if (index < 0) {
-      const clearedIndex = clearedNotifications.findIndex(function(n) { return n.id === id; });
+      const clearedIndex = clearedNotifications.findIndex(function (n) {
+        return n.id === id;
+      });
       if (clearedIndex >= 0) {
         const nextCleared = clearedNotifications.slice();
         nextCleared.splice(clearedIndex, 1);
@@ -924,7 +939,7 @@ Scope {
     clearUndoTimer.stop();
     const restored = clearedNotifications.slice();
     clearedNotifications = [];
-    notifications = restored.concat(notifications).sort(function(a, b) {
+    notifications = restored.concat(notifications).sort(function (a, b) {
       return Number(b?.time || 0) - Number(a?.time || 0);
     });
     updateNotificationCount();
@@ -966,13 +981,18 @@ Scope {
   }
 
   function addPopup(item) {
-    const popup = Object.assign({ popupTime: Date.now(), pausedMs: 0 }, item);
+    const popup = Object.assign({
+      popupTime: Date.now(),
+      pausedMs: 0
+    }, item);
     const existing = popupIndex(popup.id);
     if (existing >= 0)
       notificationPopupModel.remove(existing);
 
     setPopupData(popup);
-    notificationPopupModel.insert(0, { popupId: popup.id });
+    notificationPopupModel.insert(0, {
+      popupId: popup.id
+    });
 
     while (notificationPopupModel.count > 4) {
       let staleIndex = -1;
@@ -1017,8 +1037,38 @@ Scope {
       focusBarOpen = false;
   }
 
-  function toggleOpen() {
-    open = !open;
+  function toggleDnd() {
+    dnd = !dnd;
+    dndFile.setText(dnd ? "1" : "0");
+  }
+
+  // A page transition commits displayedPage after the exit animation. Choose
+  // keyboard focus from that committed header, rather than the previous page.
+  function focusKeyboardHeader() {
+    Qt.callLater(function () {
+      if (root.open && mainWindow.keyboardRequested && !mainInputIntent.pointerActive && root.displayedPage === root.page)
+        mainHeader.focusDefault();
+    });
+  }
+
+  onDisplayedPageChanged: focusKeyboardHeader()
+
+  function openPanel(keyboard = true) {
+    mainWindow.keyboardRequested = keyboard;
+    open = true;
+    if (keyboard) {
+      mainInputIntent.claimKeyboard();
+      focusKeyboardHeader();
+    } else {
+      mainInputIntent.claimPointer();
+    }
+  }
+
+  function toggleOpen(keyboard = true) {
+    if (open)
+      open = false;
+    else
+      openPanel(keyboard);
   }
 
   function boundedBackendCommand(args, timeoutSeconds) {
@@ -1061,7 +1111,9 @@ Scope {
     const rerun = process.refreshPending && open && relevant;
     process.refreshPending = false;
     if (rerun)
-      Qt.callLater(function() { root.requestBluetoothRefresh(process); });
+      Qt.callLater(function () {
+        root.requestBluetoothRefresh(process);
+      });
   }
 
   function refreshBluetoothForPage() {
@@ -1077,15 +1129,15 @@ Scope {
     invalidateBluetoothForPage();
   }
 
-  readonly property bool displayDraftChanged: displayPrimary !== displayInitialPrimary || displays.some(function(output) {
+  readonly property bool displayHasChanges: displayPrimary !== displayInitialPrimary || displays.some(function (output) {
     const draft = displayDraft[output.name] || {};
-    return String(draft.mode) !== String(output.mode)
-      || Number(draft.scale) !== Number(output.scale)
-      || String(draft.position) !== String(output.position || "0x0");
+    return String(draft.mode) !== String(output.mode) || Number(draft.scale) !== Number(output.scale) || String(draft.position) !== String(output.position || "0x0");
   })
 
   function displayOutput(name) {
-    return displays.find(function(output) { return String(output?.name || "") === String(name || ""); }) || null;
+    return displays.find(function (output) {
+      return String(output?.name || "") === String(name || "");
+    }) || null;
   }
 
   function selectedDisplayOutput() {
@@ -1106,10 +1158,14 @@ Scope {
       return "Detecting displays";
     if (displays.length === 0)
       return "No displays";
-    const active = displays.filter(function(output) { return Boolean(output.enabled); });
+    const active = displays.filter(function (output) {
+      return Boolean(output.enabled);
+    });
     if (active.length === 1)
       return displayName(active[0]);
-    const mirrored = active.some(function(output) { return String(output.mirror || "").length > 0; });
+    const mirrored = active.some(function (output) {
+      return String(output.mirror || "").length > 0;
+    });
     return active.length + " displays · " + (mirrored ? "Duplicate" : "Extend");
   }
 
@@ -1128,7 +1184,13 @@ Scope {
 
   function parseDisplayPosition(position) {
     const match = /^(-?\d+)x(-?\d+)$/.exec(String(position || ""));
-    return match ? { x: Number(match[1]), y: Number(match[2]) } : { x: 0, y: 0 };
+    return match ? {
+      x: Number(match[1]),
+      y: Number(match[2])
+    } : {
+      x: 0,
+      y: 0
+    };
   }
 
   function displayDraftPosition(output) {
@@ -1182,14 +1244,22 @@ Scope {
   }
 
   function displayCurrentPreset() {
-    const active = displays.filter(function(output) { return Boolean(output.enabled); });
+    const active = displays.filter(function (output) {
+      return Boolean(output.enabled);
+    });
     if (active.length === 0)
       return "";
-    if (active.some(function(output) { return String(output.mirror || "").length > 0; }))
+    if (active.some(function (output) {
+      return String(output.mirror || "").length > 0;
+    }))
       return "duplicate";
-    if (active.every(function(output) { return Boolean(output.internal); }))
+    if (active.every(function (output) {
+      return Boolean(output.internal);
+    }))
       return "internal";
-    if (active.every(function(output) { return !output.internal; }))
+    if (active.every(function (output) {
+      return !output.internal;
+    }))
       return "external";
     return "extend";
   }
@@ -1202,8 +1272,12 @@ Scope {
     displayProfileAvailable = Boolean(snapshot.profileAvailable);
     const selected = displayOutput(displayPrimary);
     if (!selected || !selected.enabled) {
-      const focused = displays.find(function(output) { return Boolean(output.focused && output.enabled); });
-      const active = displays.find(function(output) { return Boolean(output.enabled); });
+      const focused = displays.find(function (output) {
+        return Boolean(output.focused && output.enabled);
+      });
+      const active = displays.find(function (output) {
+        return Boolean(output.enabled);
+      });
       displayPrimary = String((focused || active || displays[0])?.name || "");
     }
     const selectedOutput = displayOutput(displaySelected);
@@ -1262,10 +1336,7 @@ Scope {
   }
 
   function cleanDisplayError(text, fallback) {
-    const cleaned = String(text || "")
-      .replace(/^jq: error \(at [^)]*\):\s*/m, "")
-      .replace(/^desktop-shell:\s*/m, "")
-      .trim();
+    const cleaned = String(text || "").replace(/^jq: error \(at [^)]*\):\s*/m, "").replace(/^desktop-shell:\s*/m, "").trim();
     return cleaned.length > 0 ? cleaned : fallback;
   }
 
@@ -1541,7 +1612,7 @@ Scope {
       pageTransition.stop();
       displayedPage = page;
       pageLoader.opacity = 1;
-      pageLoader.x = 0;
+      pageTranslation.x = 0;
     } else {
       pageDirection = page === "main" ? -1 : 1;
       pageTransition.restart();
@@ -1580,8 +1651,7 @@ Scope {
 
     function onRawEvent(event) {
       const name = String(event?.name || "");
-      if (name === "monitoradded" || name === "monitoraddedv2"
-          || name === "monitorremoved" || name === "monitorremovedv2")
+      if (name === "monitoradded" || name === "monitoraddedv2" || name === "monitorremoved" || name === "monitorremovedv2")
         displayHotplugTimer.restart();
     }
   }
@@ -1624,9 +1694,7 @@ Scope {
     repeat: true
     onTriggered: {
       const now = Date.now();
-      if ((root.page === "main" || root.page === "bluetooth")
-          && root.lastBluetoothPollAt > 0
-          && now - root.lastBluetoothPollAt > root.bluetoothStaleAfter)
+      if ((root.page === "main" || root.page === "bluetooth") && root.lastBluetoothPollAt > 0 && now - root.lastBluetoothPollAt > root.bluetoothStaleAfter)
         root.handleBluetoothGap();
       root.lastBluetoothPollAt = now;
       root.refreshBluetoothForPage();
@@ -1706,7 +1774,7 @@ Scope {
 
   FontMetrics {
     id: notificationActionFont
-    font.family: theme.fontFamily
+    font.family: theme.uiFontFamily
     font.pixelSize: 12
     font.bold: true
   }
@@ -1718,7 +1786,7 @@ Scope {
   }
 
   PwObjectTracker {
-    objects: audioDetailsActive ? Pipewire.nodes.values : [sink]
+    objects: audioDetailsActive ? Pipewire.nodes.values : [sink, source]
   }
 
   Connections {
@@ -1740,7 +1808,9 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.dnd = text().trim() === "1"
-    onLoadFailed: function() { setText("0"); }
+    onLoadFailed: function () {
+      setText("0");
+    }
   }
 
   FileView {
@@ -1750,7 +1820,9 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.updateNotificationCount()
-    onLoadFailed: function() { setText("0"); }
+    onLoadFailed: function () {
+      setText("0");
+    }
   }
 
   FileView {
@@ -1760,7 +1832,9 @@ Scope {
     watchChanges: true
     onFileChanged: reload()
     onLoaded: root.focusMode = text().trim() === "1"
-    onLoadFailed: function() { setText("0"); }
+    onLoadFailed: function () {
+      setText("0");
+    }
   }
 
   NotificationServer {
@@ -1777,7 +1851,7 @@ Scope {
     keepOnReload: false
     persistenceSupported: true
 
-    onNotification: function(notification) {
+    onNotification: function (notification) {
       notification.tracked = true;
       const notificationId = Number(notification.id);
       const policy = root.notificationPolicy(notification);
@@ -1786,7 +1860,7 @@ Scope {
         notification: notification,
         time: Date.now()
       };
-      notification.closed.connect(function() {
+      notification.closed.connect(function () {
         root.removeNotification(notificationId, false);
       });
 
@@ -1816,7 +1890,7 @@ Scope {
     stdout: StdioCollector {
       onStreamFinished: bluetoothStatusProc.output = text
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       if (exitCode === 0 && generation === root.bluetoothGeneration) {
         const data = parseJson(output, null);
         if (data && typeof data.available === "boolean" && typeof data.enabled === "boolean") {
@@ -1849,7 +1923,7 @@ Scope {
     stdout: StdioCollector {
       onStreamFinished: bluetoothDevicesProc.output = text
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       if (exitCode === 0 && generation === root.bluetoothGeneration) {
         const data = parseJson(output, null);
         if (Array.isArray(data)) {
@@ -1867,7 +1941,7 @@ Scope {
     stdinEnabled: true
     stdout: SplitParser {
       splitMarker: "\n"
-      onRead: function(data) {
+      onRead: function (data) {
         const line = String(data).trim();
         bluetoothSessionProc.output = (bluetoothSessionProc.output + "\n" + line).trim();
         if (line === "ready" && root.open && root.page === "bluetooth" && root.bluetoothEnabled) {
@@ -1880,7 +1954,7 @@ Scope {
     stderr: StdioCollector {
       onStreamFinished: bluetoothSessionProc.output = (bluetoothSessionProc.output + "\n" + text).trim()
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       const wasClosing = root.bluetoothSessionClosing;
       bluetoothSessionStopTimer.stop();
       root.bluetoothSessionClosing = false;
@@ -1890,7 +1964,9 @@ Scope {
       if (!wasClosing && root.open && root.page === "bluetooth" && root.bluetoothEnabled)
         root.bluetoothError = root.cleanBluetoothError(output, "Pairing mode ended unexpectedly");
       else if (wasClosing && root.open && root.page === "bluetooth" && root.bluetoothEnabled)
-        Qt.callLater(function() { root.beginBluetoothSession(); });
+        Qt.callLater(function () {
+          root.beginBluetoothSession();
+        });
     }
   }
 
@@ -1901,7 +1977,7 @@ Scope {
     onStarted: bluetoothDiscoveryProc.write("scan on\n")
     stdout: SplitParser {
       splitMarker: "\n"
-      onRead: function(data) {
+      onRead: function (data) {
         const line = String(data).replace(/\x1b\[[0-9;]*m/g, "").trim();
         if (line.includes("Discovery started")) {
           root.bluetoothDiscoveryStarted = true;
@@ -1934,7 +2010,7 @@ Scope {
     stderr: StdioCollector {
       onStreamFinished: bluetoothToggleProc.output = (bluetoothToggleProc.output + "\n" + text).trim()
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       root.finishBluetoothOperation(exitCode, output, "Could not change Bluetooth state");
     }
   }
@@ -1948,15 +2024,9 @@ Scope {
     stderr: StdioCollector {
       onStreamFinished: bluetoothActionProc.output = (bluetoothActionProc.output + "\n" + text).trim()
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       const action = root.bluetoothOperation;
-      const fallback = action === "pair"
-        ? "Could not pair with this device"
-        : (action === "connect"
-            ? "Could not connect to this device"
-            : (action === "disconnect"
-                ? "Could not disconnect this device"
-                : "Could not forget this device"));
+      const fallback = action === "pair" ? "Could not pair with this device" : (action === "connect" ? "Could not connect to this device" : (action === "disconnect" ? "Could not disconnect this device" : "Could not forget this device"));
       root.finishBluetoothOperation(exitCode, output, fallback);
     }
   }
@@ -1972,7 +2042,7 @@ Scope {
     stderr: StdioCollector {
       onStreamFinished: displayStatusProc.errorOutput = text
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       if (exitCode === 0) {
         const snapshot = root.parseJson(output, null);
         if (snapshot)
@@ -1994,7 +2064,7 @@ Scope {
     stderr: StdioCollector {
       onStreamFinished: displayApplyProc.errorOutput = text
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       if (exitCode === 0) {
         const pending = root.parseJson(output, null);
         if (pending && pending.token) {
@@ -2020,7 +2090,7 @@ Scope {
     stderr: StdioCollector {
       onStreamFinished: displayDecisionProc.errorOutput = text
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       if (exitCode !== 0)
         root.displayError = root.cleanDisplayError(errorOutput, "Could not confirm display layout");
       root.displayPendingToken = "";
@@ -2038,7 +2108,7 @@ Scope {
     stderr: StdioCollector {
       onStreamFinished: displayRestoreProc.errorOutput = text
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       if (exitCode !== 0 && root.open && root.page === "display")
         root.displayError = root.cleanDisplayError(errorOutput, "Could not restore display profile");
       displayRefreshTimer.restart();
@@ -2056,7 +2126,7 @@ Scope {
     stderr: StdioCollector {
       onStreamFinished: displayResetProc.errorOutput = text
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       if (exitCode !== 0)
         root.displayError = root.cleanDisplayError(errorOutput, "Could not restore the startup layout");
       root.displayOperation = "";
@@ -2111,9 +2181,11 @@ Scope {
     command: [backend, "brightness", "watch"]
     stdout: SplitParser {
       splitMarker: "\n"
-      onRead: function(data) { root.updateBrightness(data); }
+      onRead: function (data) {
+        root.updateBrightness(data);
+      }
     }
-    onExited: function(exitCode) {
+    onExited: function (exitCode) {
       if (root.brightnessSupported && root.brightnessBackend === "backlight" && exitCode !== 3)
         brightnessWatchRestartTimer.restart();
     }
@@ -2140,12 +2212,7 @@ Scope {
         restart();
         return;
       }
-      setBrightnessProc.exec([
-        backend,
-        "brightness",
-        "set",
-        String(pendingBrightnessPercent)
-      ]);
+      setBrightnessProc.exec([backend, "brightness", "set", String(pendingBrightnessPercent)]);
     }
   }
 
@@ -2173,36 +2240,42 @@ Scope {
 
   IpcHandler {
     target: "controlCenter"
-    function toggle() { root.toggleOpen(); }
+    function toggle() {
+      root.toggleOpen();
+    }
     function open() {
       if (root.open)
         root.refreshAll();
-      else
-        root.open = true;
+      root.openPanel();
     }
     function wifiPage() {
       const refresh = root.open && root.page === "wifi";
       root.page = "wifi";
-      root.open = true;
+      root.openPanel();
       if (refresh)
         root.scanWifi();
     }
     function bluetoothPage() {
       const refresh = root.open && root.page === "bluetooth";
       root.page = "bluetooth";
-      root.open = true;
+      root.openPanel();
       if (refresh)
         root.refreshBluetooth(true);
     }
+    function audioPage() {
+      root.page = "audio";
+      root.openPanel();
+    }
     function displayPage() {
       root.page = "display";
-      root.open = true;
+      root.openPanel();
       root.refreshDisplays();
     }
-    function close() { root.open = false; }
+    function close() {
+      root.open = false;
+    }
     function dnd() {
-      root.dnd = !root.dnd;
-      dndFile.setText(root.dnd ? "1" : "0");
+      root.toggleDnd();
     }
   }
 
@@ -2253,9 +2326,6 @@ Scope {
         radius: 0
         clip: true
 
-        transform: Translate {
-          x: (1 - mainSurfaceTransition.progress) * 48
-        }
         opacity: 0.42 + mainSurfaceTransition.progress * 0.58
 
         Rectangle {
@@ -2263,19 +2333,21 @@ Scope {
           anchors.top: parent.top
           anchors.bottom: parent.bottom
           width: 1
-          color: Qt.alpha(theme.accent, 0.42)
+          color: theme.borderMuted
         }
 
         MouseArea {
           anchors.fill: parent
-          onClicked: function(mouse) { mouse.accepted = true; }
+          onClicked: function (mouse) {
+            mouse.accepted = true;
+          }
         }
 
         ColumnLayout {
           anchors.fill: parent
           anchors.leftMargin: 20
           anchors.rightMargin: 20
-          anchors.topMargin: 14
+          anchors.topMargin: 20
           anchors.bottomMargin: 16
           spacing: 12
           opacity: Math.max(0, Math.min(1, (mainSurfaceTransition.progress - 0.12) / 0.88))
@@ -2287,25 +2359,22 @@ Scope {
           }
 
           ControlHeader {
+            id: mainHeader
             Layout.fillWidth: true
-            pageTitle: root.displayedPage === "wifi"
-              ? "Wi-Fi"
-              : (root.displayedPage === "bluetooth"
-                  ? "Bluetooth"
-                  : (root.displayedPage === "display" ? "Displays" : "Control"))
+            pageTitle: root.displayedPage === "audio" ? "Sound" : root.displayedPage === "wifi" ? "Wi-Fi" : (root.displayedPage === "bluetooth" ? "Bluetooth" : (root.displayedPage === "display" ? "Displays" : "Control Center"))
             backVisible: root.displayedPage !== "main"
             onBack: root.page = "main"
           }
 
           Loader {
             id: pageLoader
+            // ColumnLayout owns geometry; page motion only transforms pixels.
+            transform: Translate {
+              id: pageTranslation
+            }
             Layout.fillWidth: true
             Layout.fillHeight: true
-            sourceComponent: root.displayedPage === "wifi"
-              ? wifiPage
-              : (root.displayedPage === "bluetooth"
-                  ? bluetoothPage
-                  : (root.displayedPage === "display" ? displayPage : mainPage))
+            sourceComponent: root.displayedPage === "audio" ? audioPage : root.displayedPage === "wifi" ? wifiPage : (root.displayedPage === "bluetooth" ? bluetoothPage : (root.displayedPage === "display" ? displayPage : mainPage))
           }
         }
       }
@@ -2313,7 +2382,12 @@ Scope {
 
     Shortcut {
       sequence: "Esc"
-      onActivated: root.open = false
+      onActivated: {
+        if (root.page !== "main")
+          root.page = "main";
+        else
+          root.open = false;
+      }
     }
   }
 
@@ -2352,7 +2426,9 @@ Scope {
         y: (1 - osdSurfaceTransition.progress) * 18
       }
       Behavior on height {
-        MotionNumberAnimation { role: MotionNumberAnimation.Content }
+        MotionNumberAnimation {
+          role: MotionNumberAnimation.Content
+        }
       }
 
       ColumnLayout {
@@ -2381,14 +2457,12 @@ Scope {
   PanelWindow {
     id: popupWindow
     screen: shellConfig.screen
-    visible: popupSurfaceTransition.presented
+    visible: popupSurfaceTransition.presented && !root.open
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:notificationPopups"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: popupKeyboardHover.hovered
-      ? WlrKeyboardFocus.OnDemand
-      : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: popupKeyboardHover.hovered ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors {
       top: true
@@ -2489,332 +2563,192 @@ Scope {
       opacity: root.focusBarOpen ? 0.35 : 0.8
 
       Behavior on height {
-        MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+        MotionNumberAnimation {
+          role: MotionNumberAnimation.FocusTravel
+        }
       }
       Behavior on opacity {
-        MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+        MotionNumberAnimation {
+          role: MotionNumberAnimation.Feedback
+        }
       }
     }
   }
 
   Component {
     id: mainPage
+    ColumnLayout {
+      id: mainContent
+      spacing: 10
+      QuickControls {
+        Layout.fillWidth: true
+        controller: root
+        colors: theme
+        compact: mainContent.height < 600
+      }
+      RowLayout {
+        Layout.fillWidth: true
+        Layout.topMargin: 8
+        Layout.preferredHeight: 32
+        Layout.minimumHeight: 32
+        Layout.maximumHeight: 32
+        spacing: 8
+        Text {
+          text: "Notifications"
+          color: theme.textPrimary
+          font.family: theme.uiFontFamily
+          font.pixelSize: 15
+          font.bold: true
+        }
+        Item {
+          Layout.fillWidth: true
+        }
+        Text {
+          visible: root.notifications.length > 0
+          text: root.notifications.length
+          color: theme.textMuted
+          font.family: theme.uiFontFamily
+          font.pixelSize: 10
+        }
+        ActionButton {
+          visible: root.notifications.length > 0
+          label: "Clear all"
+          flatAction: true
+          onClicked: root.clearNotifications()
+        }
+      }
+      RowLayout {
+        visible: root.clearedNotifications.length > 0
+        Layout.fillWidth: true
+        Text {
+          Layout.fillWidth: true
+          text: root.clearedNotifications.length + " cleared"
+          color: theme.textSecondary
+          font.family: theme.uiFontFamily
+          font.pixelSize: 12
+        }
+        ActionButton {
+          label: "Undo"
+          flatAction: true
+          onClicked: root.undoClearNotifications()
+        }
+      }
+      Item {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.minimumHeight: 60
+        ListView {
+          id: historyList
+          objectName: "notificationHistory"
+          anchors.fill: parent
+          anchors.rightMargin: 6
+          clip: true
+          spacing: 10
+          cacheBuffer: 0
+          boundsBehavior: Flickable.StopAtBounds
+          model: History.entries(root.notificationGroups(true).concat(root.notificationGroups(false)), root.expandedNotificationGroups)
+          delegate: NotificationItem {
+            required property var modelData
+            width: historyList.width
+            item: modelData.item
+            group: modelData.group
+            firstInGroup: modelData.first
+            onDismiss: root.dismissNotification(item.id)
+          }
+          ScrollBar.vertical: ThemedScrollBar {
+            visible: historyList.count > 0 && historyList.contentHeight > historyList.height
+          }
+        }
+        Text {
+          anchors.centerIn: parent
+          visible: root.notifications.length === 0
+          text: "No notifications"
+          color: theme.textSecondary
+          font.family: theme.uiFontFamily
+          font.pixelSize: 13
+        }
+      }
+    }
+  }
+
+  Component {
+    id: audioPage
     Flickable {
-      id: mainScroll
+      id: audioScroll
       clip: true
       contentWidth: width
-      contentHeight: mainContent.implicitHeight
+      contentHeight: audioContent.implicitHeight
       boundsBehavior: Flickable.StopAtBounds
-      ScrollBar.vertical: ThemedScrollBar {
-        parent: mainScroll.parent
-        visible: mainScroll.visible
-        anchors.top: mainScroll.top
-        anchors.left: mainScroll.right
-        anchors.leftMargin: 7
-        anchors.bottom: mainScroll.bottom
-      }
-
+      ScrollBar.vertical: ThemedScrollBar {}
       ColumnLayout {
-        id: mainContent
-        width: mainScroll.width
-        spacing: 12
-
-        Rectangle {
-          id: commandCluster
+        id: audioContent
+        width: audioScroll.width
+        spacing: 16
+        ShellGroup {
           Layout.fillWidth: true
-          implicitHeight: 118
-          radius: 12
-          color: theme.surfaceGlass
-          border.color: Qt.alpha(theme.borderSubtle, 0.54)
-          border.width: 1
-          clip: true
-
-          GridLayout {
-            anchors.fill: parent
-            anchors.margins: 7
-            columns: 2
-            rows: 2
-            columnSpacing: 6
-            rowSpacing: 4
-
-            CommandButton {
-              Layout.fillWidth: true
-              icon: root.wifiEnabled ? "" : "󰤮"
-              title: "Wi-Fi"
-              subtitle: root.wifiSummaryText()
-              active: root.wifiConnected
-              accent: theme.info
-              onClicked: root.page = "wifi"
-            }
-
-            CommandButton {
-              Layout.fillWidth: true
-              icon: root.bluetoothEnabled ? "󰂯" : "󰂲"
-              title: "Bluetooth"
-              subtitle: root.bluetoothSummaryText()
-              active: root.bluetoothConnectedDevices().length > 0
-              accent: theme.special
-              onClicked: root.page = "bluetooth"
-            }
-
-            CommandButton {
-              Layout.fillWidth: true
-              icon: root.dnd ? "" : ""
-              title: root.dnd ? "Silent" : "Notify"
-              subtitle: root.dnd ? "DND" : "Live"
-              active: root.dnd
-              accent: theme.special
-              onClicked: {
-                root.dnd = !root.dnd;
-                dndFile.setText(root.dnd ? "1" : "0");
-              }
-            }
-
-            CommandButton {
-              Layout.fillWidth: true
-              icon: "󰈈"
-              title: "Focus"
-              subtitle: root.focusMode ? "On" : "Off"
-              active: root.focusMode
-              accent: theme.special
-              onClicked: root.setFocusMode(!root.focusMode)
-            }
-          }
-        }
-
-        Section {
-          title: "Audio"
-          accent: theme.info
-
-          Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: audioMixerContent.implicitHeight + 22
-            radius: 10
-            color: Qt.alpha(theme.surfaceAccent, 0.72)
-            border.color: Qt.alpha(theme.borderSubtle, 0.64)
-            border.width: 1
-
-            ColumnLayout {
-              id: audioMixerContent
-              anchors.left: parent.left
-              anchors.right: parent.right
-              anchors.top: parent.top
-              anchors.margins: 12
-              spacing: 2
-
-              AudioDeviceSection {
-                title: "Output"
-                icon: sink?.audio?.muted ? "󰝟" : ""
-                current: root.sink
-                devices: root.outputDevices
-                expanded: root.outputExpanded
-                showDivider: false
-                accent: theme.info
-                onToggleExpanded: root.outputExpanded = !root.outputExpanded
-                onVolumeChanged: function(value) { root.setNodeVolume(root.sink, value); }
-                onToggleMute: root.toggleNodeMute(root.sink)
-                onChoose: function(node) {
-                  Pipewire.preferredDefaultAudioSink = node;
-                  root.outputExpanded = false;
-                }
-              }
-
-              AudioDeviceSection {
-                title: "Input"
-                icon: source?.audio?.muted ? "" : ""
-                current: root.source
-                devices: root.inputDevices
-                expanded: root.inputExpanded
-                accent: theme.special
-                onToggleExpanded: root.inputExpanded = !root.inputExpanded
-                onVolumeChanged: function(value) { root.setNodeVolume(root.source, value); }
-                onToggleMute: root.toggleNodeMute(root.source)
-                onChoose: function(node) {
-                  Pipewire.preferredDefaultAudioSource = node;
-                  root.inputExpanded = false;
-                }
-              }
-
-              RowLayout {
-                Layout.fillWidth: true
-                Layout.topMargin: 10
-                visible: root.appStreams.length > 0
-                spacing: 9
-
-                Text {
-                  text: "Applications"
-                  color: theme.textMuted
-                  font.family: theme.fontFamily
-                  font.pixelSize: 10
-                  font.bold: true
-                }
-                Rectangle {
-                  Layout.fillWidth: true
-                  Layout.preferredHeight: 1
-                  color: theme.borderSubtle
-                  opacity: 0.62
-                }
-              }
-
-              Repeater {
-                model: root.appStreams
-                delegate: StreamVolumeRow {
-                  required property var modelData
-                  required property int index
-                  node: modelData
-                  showDivider: index > 0
-                }
-              }
-            }
-          }
-        }
-
-        Section {
-          title: "Display"
-          accent: theme.utility
-          visible: root.displaysReady || root.brightnessSupported
-
-          Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: displayControls.implicitHeight + 22
-            radius: 10
-            color: Qt.alpha(theme.surfaceAccent, 0.72)
-            border.color: Qt.alpha(theme.borderSubtle, 0.64)
-            border.width: 1
-
-            ColumnLayout {
-              id: displayControls
-              anchors.left: parent.left
-              anchors.right: parent.right
-              anchors.top: parent.top
-              anchors.margins: 12
-              spacing: 4
-
-              CommandButton {
-                Layout.fillWidth: true
-                icon: "󰍹"
-                title: "Displays"
-                subtitle: root.displaySummaryText()
-                active: root.displays.length > 1
-                accent: theme.info
-                onClicked: root.page = "display"
-              }
-
-              MetricCard {
-                visible: root.brightnessSupported
-                icon: "󰃠"
-                title: "Brightness"
-                subtitle: "Display backlight"
-                value: root.brightness
-                enabled: root.brightnessWritable
-                showDivider: false
-                accent: theme.utility
-                onChanged: function(value) { root.setBrightness(value); }
-              }
-            }
-          }
-        }
-
-        Section {
-          title: "Notifications"
-          accent: theme.special
-          RowLayout {
-            Layout.fillWidth: true
+          colors: theme
+          implicitHeight: audioMixer.implicitHeight + 24
+          ColumnLayout {
+            id: audioMixer
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
             spacing: 8
-            Text {
-              Layout.fillWidth: true
-              text: root.notifications.length === 0
-                ? (root.clearedNotifications.length > 0 ? "History cleared" : "No notifications")
-                : root.notifications.length + " notification" + (root.notifications.length === 1 ? "" : "s")
-              color: theme.textSecondary
-              font.family: theme.fontFamily
-              font.pixelSize: 12
-            }
-            PillButton {
-              visible: root.notifications.length > 0
-              label: "Clear"
-              onClicked: root.clearNotifications()
-            }
-          }
-
-          Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: 48
-            visible: root.clearedNotifications.length > 0
-            radius: 9
-            color: Qt.alpha(theme.success, 0.12)
-            border.color: Qt.alpha(theme.success, 0.42)
-            border.width: 1
-
-            RowLayout {
-              anchors.fill: parent
-              anchors.leftMargin: 12
-              anchors.rightMargin: 8
-              spacing: 10
-
-              Text {
-                text: "󰕌"
-                color: theme.success
-                font.family: theme.fontFamily
-                font.pixelSize: 15
+            AudioDeviceSection {
+              title: "Output"
+              icon: root.sink?.audio?.muted ? "mute" : "speaker"
+              current: root.sink
+              devices: root.outputDevices
+              expanded: root.outputExpanded
+              showDivider: false
+              accent: theme.info
+              onToggleExpanded: root.outputExpanded = !root.outputExpanded
+              onVolumeChanged: value => root.setNodeVolume(root.sink, value)
+              onToggleMute: root.toggleNodeMute(root.sink)
+              onChoose: node => {
+                Pipewire.preferredDefaultAudioSink = node;
+                root.outputExpanded = false;
               }
-
-              Text {
-                Layout.fillWidth: true
-                text: root.clearedNotifications.length + " cleared"
-                color: theme.textSecondary
-                font.family: theme.fontFamily
-                font.pixelSize: 11
-                font.bold: true
-              }
-
-              PillButton {
-                label: "Undo"
-                active: true
-                onClicked: root.undoClearNotifications()
+            }
+            AudioDeviceSection {
+              title: "Input"
+              icon: root.source?.audio?.muted ? "mic-off" : "mic"
+              current: root.source
+              devices: root.inputDevices
+              expanded: root.inputExpanded
+              accent: theme.special
+              onToggleExpanded: root.inputExpanded = !root.inputExpanded
+              onVolumeChanged: value => root.setNodeVolume(root.source, value)
+              onToggleMute: root.toggleNodeMute(root.source)
+              onChoose: node => {
+                Pipewire.preferredDefaultAudioSource = node;
+                root.inputExpanded = false;
               }
             }
           }
-
-          Text {
-            Layout.fillWidth: true
-            visible: root.notificationGroups(true).length > 0
-            text: "NEEDS ATTENTION"
-            color: theme.danger
-            font.family: theme.fontFamily
-            font.pixelSize: 10
-            font.bold: true
-            font.letterSpacing: 0.8
-            Layout.topMargin: 2
+        }
+        Section {
+          title: "Applications"
+          visible: root.appStreams.length > 0
+        }
+        Repeater {
+          model: root.appStreams
+          delegate: StreamVolumeRow {
+            required property var modelData
+            required property int index
+            node: modelData
+            showDivider: index > 0
           }
-
-          Repeater {
-            model: root.notificationGroups(true)
-            delegate: NotificationGroup {
-              required property var modelData
-              group: modelData
-            }
-          }
-
-          Text {
-            Layout.fillWidth: true
-            visible: root.notificationGroups(false).length > 0
-            text: "RECENT"
-            color: theme.textMuted
-            font.family: theme.fontFamily
-            font.pixelSize: 10
-            font.bold: true
-            font.letterSpacing: 0.8
-            Layout.topMargin: root.notificationGroups(true).length > 0 ? 5 : 2
-          }
-
-          Repeater {
-            model: root.notificationGroups(false)
-            delegate: NotificationGroup {
-              required property var modelData
-              group: modelData
-            }
-          }
+        }
+        Text {
+          visible: root.appStreams.length === 0
+          Layout.fillWidth: true
+          text: "No applications are playing or recording audio"
+          color: theme.textSecondary
+          font.family: theme.uiFontFamily
+          font.pixelSize: 12
+          wrapMode: Text.Wrap
         }
       }
     }
@@ -2857,13 +2791,11 @@ Scope {
             anchors.margins: 12
             spacing: 10
 
-            Text {
-              text: "󰍹"
-              color: theme.warning
-              font.family: theme.fontFamily
-              font.pixelSize: 18
+            ShellSymbol {
+              symbol: "󰍹"
+              tint: theme.warning
+              size: 18
               Layout.preferredWidth: 24
-              horizontalAlignment: Text.AlignHCenter
             }
 
             ColumnLayout {
@@ -2873,7 +2805,7 @@ Scope {
                 Layout.fillWidth: true
                 text: "Testing this layout"
                 color: theme.textPrimary
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 12
                 font.bold: true
               }
@@ -2881,17 +2813,17 @@ Scope {
                 Layout.fillWidth: true
                 text: "Reverting in " + root.displayConfirmSeconds + " seconds"
                 color: theme.textSecondary
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 10
               }
             }
 
-            PillButton {
+            ActionButton {
               label: "Revert"
               enabled: root.displayOperation.length === 0
               onClicked: root.revertDisplayLayout()
             }
-            PillButton {
+            ActionButton {
               label: "Keep"
               active: true
               enabled: root.displayOperation.length === 0
@@ -2905,7 +2837,7 @@ Scope {
           visible: root.displayError.length > 0
           text: root.displayError
           color: theme.danger
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 11
           wrapMode: Text.Wrap
         }
@@ -2929,13 +2861,13 @@ Scope {
                 Layout.fillWidth: true
                 text: "Arrangement"
                 color: theme.textMuted
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 12
                 font.bold: true
               }
 
               IconButton {
-                icon: ""
+                glyph: ""
                 onClicked: root.refreshDisplays()
               }
             }
@@ -2945,7 +2877,7 @@ Scope {
               visible: !root.displaysReady
               text: "Detecting displays…"
               color: theme.textSecondary
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 11
             }
 
@@ -2954,18 +2886,23 @@ Scope {
               visible: root.displaysReady && root.displays.length === 0
               text: "No connected displays"
               color: theme.textSecondary
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 11
             }
 
             DisplayArrangement {
+              colors: theme
               draft: root.displayDraft
               Layout.fillWidth: true
               visible: root.displays.length > 0
               outputs: root.displays
               selectedName: root.displaySelected
-              onSelected: function(name) { root.displaySelected = name; }
-              onMoved: function(name, x, y) { root.moveDisplayDraft(name, x, y); }
+              onSelected: function (name) {
+                root.displaySelected = name;
+              }
+              onMoved: function (name, x, y) {
+                root.moveDisplayDraft(name, x, y);
+              }
             }
 
             Section {
@@ -2987,57 +2924,47 @@ Scope {
 
                   Repeater {
                     model: [
-                      { id: "extend", label: "Extend", available: true },
-                      { id: "duplicate", label: "Duplicate", available: root.displays.length > 1 },
-                      { id: "internal", label: "Internal", available: root.displays.some(function(output) { return Boolean(output.internal); }) },
-                      { id: "external", label: "External", available: root.displays.some(function(output) { return !output.internal; }) }
+                      {
+                        id: "extend",
+                        label: "Extend",
+                        available: true
+                      },
+                      {
+                        id: "duplicate",
+                        label: "Duplicate",
+                        available: root.displays.length > 1
+                      },
+                      {
+                        id: "internal",
+                        label: "Internal",
+                        available: root.displays.some(function (output) {
+                          return Boolean(output.internal);
+                        })
+                      },
+                      {
+                        id: "external",
+                        label: "External",
+                        available: root.displays.some(function (output) {
+                          return !output.internal;
+                        })
+                      }
                     ]
 
-                    delegate: Rectangle {
-                      id: displayPresetSegment
+                    delegate: ActionButton {
                       required property var modelData
-                      required property int index
                       Layout.fillWidth: true
                       Layout.fillHeight: true
                       enabled: Boolean(modelData.available)
-                      color: root.displayCurrentPreset() === modelData.id
-                        ? Qt.alpha(theme.info, 0.22)
-                        : (displayPresetMouse.containsMouse ? theme.surfaceMutedHover : "transparent")
-                      opacity: enabled ? 1 : 0.4
-
-                      Rectangle {
-                        visible: displayPresetSegment.index > 0
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 1
-                        height: parent.height - 12
-                        color: theme.borderSubtle
-                      }
-
-                      Text {
-                        anchors.centerIn: parent
-                        text: displayPresetSegment.modelData.label
-                        color: root.displayCurrentPreset() === displayPresetSegment.modelData.id
-                          ? theme.textPrimary
-                          : theme.textSecondary
-                        font.family: theme.fontFamily
-                        font.pixelSize: 10
-                        font.bold: root.displayCurrentPreset() === displayPresetSegment.modelData.id
-                      }
-
-                      MouseArea {
-                        id: displayPresetMouse
-                        anchors.fill: parent
-                        enabled: displayPresetSegment.enabled
-                        hoverEnabled: true
-                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: root.applyDisplayPreset(displayPresetSegment.modelData.id)
-                      }
+                      label: modelData.label
+                      active: root.displayCurrentPreset() === modelData.id
+                      checkable: true
+                      checked: active
+                      Accessible.role: Accessible.RadioButton
+                      onClicked: root.applyDisplayPreset(modelData.id)
                     }
                   }
                 }
               }
-
             }
 
             DisplayOutputInspector {
@@ -3050,17 +2977,19 @@ Scope {
               Layout.fillWidth: true
               spacing: 8
 
-              PillButton {
+              ActionButton {
                 visible: root.displayProfileAvailable
                 label: "Reset layout"
                 onClicked: root.resetDisplayProfiles()
               }
-              Item { Layout.fillWidth: true }
+              Item {
+                Layout.fillWidth: true
+              }
 
-              PillButton {
-                label: "Apply"
+              ActionButton {
+                label: "Test changes"
                 active: true
-                enabled: root.displays.length > 0 && root.displayDraftChanged
+                enabled: root.displays.length > 0 && root.displayHasChanges
                 onClicked: root.applyDisplayPreset("custom")
               }
             }
@@ -3077,8 +3006,6 @@ Scope {
               hoverEnabled: true
               cursorShape: Qt.ForbiddenCursor
             }
-
-
           }
         }
       }
@@ -3088,150 +3015,87 @@ Scope {
   Component {
     id: wifiPage
     ColumnLayout {
-      spacing: 12
-
-      Rectangle {
+      spacing: 14
+      RowLayout {
         Layout.fillWidth: true
-        implicitHeight: 72
-        radius: 12
-        color: Qt.alpha(theme.surfaceGlass, 0.82)
-        border.color: root.wifiConnected
-          ? Qt.alpha(theme.info, 0.46)
-          : Qt.alpha(theme.borderSubtle, 0.52)
-        border.width: 1
-
-        RowLayout {
-          anchors.fill: parent
-          anchors.margins: 12
-          spacing: 12
-
-          Rectangle {
-            Layout.preferredWidth: 40
-            Layout.preferredHeight: 40
-            radius: 12
-            color: root.wifiConnected
-              ? Qt.alpha(theme.info, 0.16)
-              : Qt.alpha(theme.surfaceMuted, 0.86)
-
-            Text {
-              anchors.centerIn: parent
-              text: root.wifiEnabled ? "" : "󰤮"
-              color: root.wifiConnected ? theme.info : (root.wifiEnabled ? theme.textPrimary : theme.textMuted)
-              font.family: theme.fontFamily
-              font.pixelSize: 19
-            }
+        implicitHeight: 48
+        spacing: 12
+        ShellSymbol {
+          symbol: "wifi"
+          tint: root.wifiEnabled ? theme.info : theme.textMuted
+          size: 24
+          Layout.preferredWidth: 24
+          Layout.preferredHeight: 24
+          Layout.alignment: Qt.AlignVCenter
+        }
+        ColumnLayout {
+          Layout.fillWidth: true
+          spacing: 3
+          Text {
+            text: root.wifiEnabled ? "On" : "Off"
+            color: theme.textPrimary
+            font.family: theme.uiFontFamily
+            font.pixelSize: 14
+            font.bold: true
           }
-
-          ColumnLayout {
+          Text {
             Layout.fillWidth: true
-            spacing: 2
-
-            Text {
-              Layout.fillWidth: true
-              text: root.wifiHeaderTitle()
-              color: theme.textPrimary
-              font.family: theme.fontFamily
-              font.pixelSize: 14
-              font.bold: true
-              elide: Text.ElideRight
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: root.wifiHeaderSubtitle()
-              color: theme.textSecondary
-              font.family: theme.fontFamily
-              font.pixelSize: 11
-              elide: Text.ElideRight
-            }
-          }
-
-          RadioSwitch {
-            checked: root.wifiEnabled
-            busy: false
-            accent: theme.info
-            enabled: wifi.backendAvailable && wifi.hardwareEnabled && wifi.device !== null && !root.wifiBusy
-            onToggled: root.toggleWifi()
+            text: root.wifiConnected ? "Connected to " + root.wifiHeaderTitle() : root.wifiHeaderSubtitle()
+            color: theme.textSecondary
+            font.family: theme.uiFontFamily
+            font.pixelSize: 11
+            elide: Text.ElideRight
           }
         }
+        RadioSwitch {
+          Accessible.name: "Wi-Fi radio"
+          checked: root.wifiEnabled
+          accent: theme.info
+          enabled: root.wifiToggleAvailable
+          onClicked: root.toggleWifi()
+        }
       }
-
       Rectangle {
+        Layout.fillWidth: true
+        implicitHeight: 1
+        color: theme.borderMuted
+      }
+      ConnectivityError {
         Layout.fillWidth: true
         visible: root.wifiError.length > 0
-        implicitHeight: wifiErrorRow.implicitHeight + 18
-        radius: 9
-        color: Qt.alpha(theme.danger, 0.09)
-        border.color: Qt.alpha(theme.danger, 0.4)
-        border.width: 1
-
-        RowLayout {
-          id: wifiErrorRow
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          anchors.leftMargin: 11
-          anchors.rightMargin: 8
-          spacing: 9
-
-          Text {
-            text: ""
-            color: theme.danger
-            font.family: theme.fontFamily
-            font.pixelSize: 13
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: root.wifiError
-            color: theme.textPrimary
-            font.family: theme.fontFamily
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
-          }
-
-          IconButton {
-            icon: "×"
-            onClicked: root.wifiError = ""
-          }
-        }
+        message: root.wifiError
+        onDismiss: root.wifiError = ""
       }
-
       RowLayout {
         Layout.fillWidth: true
         visible: root.wifiAdapterAvailable()
-        spacing: 8
-
         Text {
-          text: "AVAILABLE NETWORKS"
-          color: theme.textMuted
-          font.family: theme.fontFamily
-          font.pixelSize: 10
+          text: "Networks"
+          color: theme.textPrimary
+          font.family: theme.uiFontFamily
+          font.pixelSize: 13
           font.bold: true
-          font.letterSpacing: 0.8
         }
-
-        Text {
+        Item {
           Layout.fillWidth: true
-          text: root.wifiNetworks.length + " found · live"
-          color: theme.textMuted
-          font.family: theme.fontFamily
-          font.pixelSize: 10
-          horizontalAlignment: Text.AlignRight
         }
-
+        Text {
+          text: root.wifiNetworks.length + " available"
+          color: theme.textMuted
+          font.family: theme.uiFontFamily
+          font.pixelSize: 10
+        }
         IconButton {
-          icon: ""
-          active: false
+          glyph: "refresh"
+          tooltip: "Refresh Wi-Fi networks"
+          flatAction: true
           enabled: !root.wifiBusy
           onClicked: root.scanWifi()
         }
       }
-
       Item {
         Layout.fillWidth: true
         Layout.fillHeight: true
-
         Flickable {
           id: wifiScroll
           anchors.fill: parent
@@ -3240,20 +3104,11 @@ Scope {
           contentWidth: width
           contentHeight: wifiContent.implicitHeight
           boundsBehavior: Flickable.StopAtBounds
-          ScrollBar.vertical: ThemedScrollBar {
-            parent: wifiScroll.parent
-            visible: wifiScroll.visible
-            anchors.top: wifiScroll.top
-            anchors.left: wifiScroll.right
-            anchors.leftMargin: 7
-            anchors.bottom: wifiScroll.bottom
-          }
-
+          ScrollBar.vertical: ThemedScrollBar {}
           ColumnLayout {
             id: wifiContent
-            width: wifiScroll.width
-            spacing: 4
-
+            width: wifiScroll.width - 6
+            spacing: 0
             Repeater {
               model: root.wifiNetworks
               delegate: WifiNetworkRow {
@@ -3263,79 +3118,19 @@ Scope {
             }
           }
         }
-
-        Rectangle {
-          anchors.fill: parent
+        ConnectivityEmpty {
+          anchors.centerIn: parent
+          width: Math.min(parent.width - 32, 310)
           visible: !wifiScroll.visible
-          radius: 12
-          color: Qt.alpha(theme.surfaceGlass, 0.48)
-          border.color: Qt.alpha(theme.borderSubtle, 0.42)
-          border.width: 1
-
-          ColumnLayout {
-            anchors.centerIn: parent
-            width: Math.min(parent.width - 48, 300)
-            spacing: 9
-
-            Rectangle {
-              Layout.alignment: Qt.AlignHCenter
-              Layout.preferredWidth: 52
-              Layout.preferredHeight: 52
-              radius: 16
-              color: Qt.alpha(root.wifiAdapterAvailable() ? theme.info : theme.textMuted, 0.11)
-
-              Text {
-                anchors.centerIn: parent
-                text: root.wifiAdapterAvailable() ? "󰤯" : "󰤮"
-                color: root.wifiAdapterAvailable() ? theme.info : theme.textMuted
-                font.family: theme.fontFamily
-                font.pixelSize: 23
-              }
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: !wifi.backendAvailable
-                ? "Network service unavailable"
-                : (!wifi.hardwareEnabled || !wifi.device
-                    ? "Wi-Fi is unavailable"
-                    : (!root.wifiEnabled ? "Wi-Fi is off" : "Looking for networks"))
-              color: theme.textPrimary
-              font.family: theme.fontFamily
-              font.pixelSize: 14
-              font.bold: true
-              horizontalAlignment: Text.AlignHCenter
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: !wifi.backendAvailable
-                ? "NetworkManager did not provide a networking backend."
-                : (!wifi.hardwareEnabled || !wifi.device
-                    ? "No wireless adapter is ready."
-                    : (!root.wifiEnabled
-                        ? "Turn it on to discover nearby networks."
-                        : "Nearby networks will appear automatically."))
-              color: theme.textSecondary
-              font.family: theme.fontFamily
-              font.pixelSize: 11
-              wrapMode: Text.WordWrap
-              horizontalAlignment: Text.AlignHCenter
-            }
-
-            PillButton {
-              Layout.alignment: Qt.AlignHCenter
-              visible: wifi.backendAvailable
-                && wifi.hardwareEnabled
-                && wifi.device !== null
-                && (!root.wifiEnabled || root.wifiAdapterAvailable())
-              label: root.wifiEnabled ? "Refresh scan" : "Turn on Wi-Fi"
-              icon: root.wifiEnabled ? "" : ""
-              active: !root.wifiEnabled
-              enabled: !root.wifiBusy
-              onClicked: root.wifiEnabled ? root.scanWifi() : root.toggleWifi()
-            }
-          }
+          glyph: "wifi"
+          accent: theme.info
+          title: !wifi.backendAvailable ? "Network service unavailable" : !wifi.hardwareEnabled || !wifi.device ? "Wi-Fi is unavailable" : !root.wifiEnabled ? "Wi-Fi is off" : "Looking for networks"
+          message: !wifi.backendAvailable ? "NetworkManager did not provide a networking backend." : !wifi.hardwareEnabled || !wifi.device ? "No wireless adapter is ready." : !root.wifiEnabled ? "Turn it on to discover nearby networks." : "Nearby networks will appear automatically."
+          showAction: wifi.backendAvailable && wifi.hardwareEnabled && wifi.device !== null
+          actionLabel: root.wifiEnabled ? "Refresh scan" : "Turn on Wi-Fi"
+          actionGlyph: root.wifiEnabled ? "refresh" : "wifi"
+          actionEnabled: !root.wifiBusy
+          onTriggered: root.wifiEnabled ? root.scanWifi() : root.toggleWifi()
         }
       }
     }
@@ -3344,218 +3139,87 @@ Scope {
   Component {
     id: bluetoothPage
     ColumnLayout {
-      spacing: 12
-
-      Rectangle {
+      spacing: 14
+      RowLayout {
         Layout.fillWidth: true
-        implicitHeight: 72
-        radius: 12
-        color: Qt.alpha(theme.surfaceGlass, 0.82)
-        border.color: root.bluetoothConnectedDevices().length > 0
-          ? Qt.alpha(theme.special, 0.5)
-          : Qt.alpha(theme.borderSubtle, 0.52)
-        border.width: 1
-
-        RowLayout {
-          anchors.fill: parent
-          anchors.margins: 12
-          spacing: 12
-
-          Rectangle {
-            Layout.preferredWidth: 40
-            Layout.preferredHeight: 40
-            radius: 12
-            color: root.bluetoothConnectedDevices().length > 0
-              ? Qt.alpha(theme.special, 0.17)
-              : Qt.alpha(theme.surfaceMuted, 0.86)
-
-            Text {
-              anchors.centerIn: parent
-              text: root.bluetoothEnabled ? "󰂯" : "󰂲"
-              color: root.bluetoothConnectedDevices().length > 0
-                ? theme.special
-                : (root.bluetoothEnabled ? theme.textPrimary : theme.textMuted)
-              font.family: theme.fontFamily
-              font.pixelSize: 20
-            }
+        implicitHeight: 48
+        spacing: 12
+        ShellSymbol {
+          symbol: "bluetooth"
+          tint: root.bluetoothEnabled ? theme.special : theme.textMuted
+          size: 24
+          Layout.preferredWidth: 24
+          Layout.preferredHeight: 24
+          Layout.alignment: Qt.AlignVCenter
+        }
+        ColumnLayout {
+          Layout.fillWidth: true
+          spacing: 3
+          Text {
+            text: !root.bluetoothStatusReady ? "Checking…" : root.bluetoothEnabled ? "On" : "Off"
+            color: theme.textPrimary
+            font.family: theme.uiFontFamily
+            font.pixelSize: 14
+            font.bold: true
           }
-
-          ColumnLayout {
+          Text {
             Layout.fillWidth: true
-            spacing: 2
-
-            Text {
-              Layout.fillWidth: true
-              text: root.bluetoothHeaderTitle()
-              color: theme.textPrimary
-              font.family: theme.fontFamily
-              font.pixelSize: 14
-              font.bold: true
-              elide: Text.ElideRight
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: root.bluetoothHeaderSubtitle()
-              color: theme.textSecondary
-              font.family: theme.fontFamily
-              font.pixelSize: 11
-              elide: Text.ElideRight
-            }
-          }
-
-          RadioSwitch {
-            checked: root.bluetoothEnabled
-            busy: root.bluetoothOperation === "enable" || root.bluetoothOperation === "disable"
-            accent: theme.special
-            enabled: root.bluetoothStatusReady && root.bluetoothAvailable && !root.bluetoothBusy
-            onToggled: root.toggleBluetooth()
+            text: root.bluetoothHeaderSubtitle()
+            color: theme.textSecondary
+            font.family: theme.uiFontFamily
+            font.pixelSize: 11
+            elide: Text.ElideRight
           }
         }
+        RadioSwitch {
+          Accessible.name: "Bluetooth radio"
+          checked: root.bluetoothEnabled
+          busy: root.bluetoothOperation === "enable" || root.bluetoothOperation === "disable"
+          accent: theme.special
+          enabled: root.bluetoothStatusReady && root.bluetoothAvailable && !root.bluetoothBusy
+          onClicked: root.toggleBluetooth()
+        }
       }
-
       Rectangle {
+        Layout.fillWidth: true
+        implicitHeight: 1
+        color: theme.borderMuted
+      }
+      ConnectivityError {
         Layout.fillWidth: true
         visible: root.bluetoothError.length > 0
-        implicitHeight: bluetoothErrorRow.implicitHeight + 18
-        radius: 9
-        color: Qt.alpha(theme.danger, 0.09)
-        border.color: Qt.alpha(theme.danger, 0.4)
-        border.width: 1
-
-        RowLayout {
-          id: bluetoothErrorRow
-          anchors.left: parent.left
-          anchors.right: parent.right
-          anchors.verticalCenter: parent.verticalCenter
-          anchors.leftMargin: 11
-          anchors.rightMargin: 8
-          spacing: 9
-
-          Text {
-            text: ""
-            color: theme.danger
-            font.family: theme.fontFamily
-            font.pixelSize: 13
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: root.bluetoothError
-            color: theme.textPrimary
-            font.family: theme.fontFamily
-            font.pixelSize: 11
-            wrapMode: Text.WordWrap
-          }
-
-          IconButton {
-            icon: "×"
-            onClicked: root.bluetoothError = ""
-          }
-        }
+        message: root.bluetoothError
+        onDismiss: root.bluetoothError = ""
       }
-
-      Rectangle {
-        Layout.fillWidth: true
-        implicitHeight: 62
-        radius: 11
-        color: Qt.alpha(theme.special, 0.09)
-        border.color: Qt.alpha(theme.special, 0.32)
-        border.width: 1
-
-        RowLayout {
-          anchors.fill: parent
-          anchors.leftMargin: 12
-          anchors.rightMargin: 12
-          spacing: 10
-
-          Rectangle {
-            Layout.preferredWidth: 34
-            Layout.preferredHeight: 34
-            radius: 10
-            color: Qt.alpha(theme.special, 0.15)
-
-            Text {
-              anchors.centerIn: parent
-              text: root.bluetoothDiscoverable ? "󰑐" : "󰌾"
-              color: theme.special
-              font.family: theme.fontFamily
-              font.pixelSize: 16
-            }
-          }
-
-          ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 2
-
-            Text {
-              Layout.fillWidth: true
-              text: root.bluetoothDiscoverable ? "Visible while this page is open" : "Not discoverable"
-              color: theme.textPrimary
-              font.family: theme.fontFamily
-              font.pixelSize: 12
-              font.bold: true
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: root.bluetoothDiscoverable
-                ? "Nearby devices can find this computer and pair with it."
-                : (root.bluetoothEnabled ? "Paired devices can still reconnect normally." : "The Bluetooth radio is off.")
-              color: theme.textSecondary
-              font.family: theme.fontFamily
-              font.pixelSize: 10
-              elide: Text.ElideRight
-            }
-          }
-
-          StatusPill {
-            icon: root.bluetoothDiscoverable ? "󰂞" : "󰒃"
-            label: root.bluetoothDiscoverable ? "VISIBLE" : "HIDDEN"
-            active: true
-            accent: theme.special
-          }
-        }
-      }
-
       RowLayout {
         Layout.fillWidth: true
         visible: root.bluetoothEnabled && root.bluetoothAvailable
         spacing: 8
-
-        Text {
-          text: "DEVICES"
-          color: theme.textMuted
-          font.family: theme.fontFamily
-          font.pixelSize: 10
-          font.bold: true
-          font.letterSpacing: 0.8
+        ShellSymbol {
+          symbol: root.bluetoothDiscoverable ? "eye" : "eye-off"
+          tint: theme.special
+          size: 16
         }
-
         Text {
           Layout.fillWidth: true
-          text: !root.bluetoothDevicesReady
-            ? "Loading…"
-            : root.bluetoothDevices.length + " found"
-          color: theme.textMuted
-          font.family: theme.fontFamily
-          font.pixelSize: 10
-          horizontalAlignment: Text.AlignRight
+          text: root.bluetoothDiscoverable ? "Visible to nearby devices while this page is open" : "Paired devices can still reconnect"
+          color: theme.textSecondary
+          font.family: theme.uiFontFamily
+          font.pixelSize: 11
+          wrapMode: Text.WordWrap
         }
-
         IconButton {
-          icon: ""
-          active: root.bluetoothSessionActive
+          glyph: "refresh"
+          tooltip: "Restart Bluetooth discovery"
+          flatAction: true
           accent: theme.special
           enabled: root.bluetoothSessionActive && !root.bluetoothBusy
           onClicked: root.restartBluetoothDiscovery()
         }
       }
-
       Item {
         Layout.fillWidth: true
         Layout.fillHeight: true
-
         Flickable {
           id: bluetoothScroll
           anchors.fill: parent
@@ -3564,32 +3228,22 @@ Scope {
           contentWidth: width
           contentHeight: bluetoothContent.implicitHeight
           boundsBehavior: Flickable.StopAtBounds
-          ScrollBar.vertical: ThemedScrollBar {
-            parent: bluetoothScroll.parent
-            visible: bluetoothScroll.visible
-            anchors.top: bluetoothScroll.top
-            anchors.left: bluetoothScroll.right
-            anchors.leftMargin: 7
-            anchors.bottom: bluetoothScroll.bottom
-          }
-
+          ScrollBar.vertical: ThemedScrollBar {}
           ColumnLayout {
             id: bluetoothContent
-            width: bluetoothScroll.width
-            spacing: 5
-
+            width: bluetoothScroll.width - 6
+            spacing: 0
             Text {
               Layout.fillWidth: true
+              Layout.topMargin: 4
+              Layout.bottomMargin: 6
               visible: root.bluetoothPairedDevices().length > 0
-              text: "MY DEVICES"
-              color: theme.textMuted
-              font.family: theme.fontFamily
-              font.pixelSize: 9
+              text: "My devices"
+              color: theme.textPrimary
+              font.family: theme.uiFontFamily
+              font.pixelSize: 13
               font.bold: true
-              font.letterSpacing: 0.7
-              Layout.topMargin: 2
             }
-
             Repeater {
               model: root.bluetoothPairedDevices()
               delegate: BluetoothDeviceRow {
@@ -3597,19 +3251,17 @@ Scope {
                 device: modelData
               }
             }
-
             Text {
               Layout.fillWidth: true
+              Layout.topMargin: root.bluetoothPairedDevices().length > 0 ? 20 : 4
+              Layout.bottomMargin: 6
               visible: root.bluetoothNearbyDevices().length > 0
-              text: "NEARBY"
-              color: theme.textMuted
-              font.family: theme.fontFamily
-              font.pixelSize: 9
+              text: "Nearby devices"
+              color: theme.textPrimary
+              font.family: theme.uiFontFamily
+              font.pixelSize: 13
               font.bold: true
-              font.letterSpacing: 0.7
-              Layout.topMargin: root.bluetoothPairedDevices().length > 0 ? 7 : 2
             }
-
             Repeater {
               model: root.bluetoothNearbyDevices()
               delegate: BluetoothDeviceRow {
@@ -3619,120 +3271,107 @@ Scope {
             }
           }
         }
-
-        Rectangle {
-          anchors.fill: parent
+        ConnectivityEmpty {
+          anchors.centerIn: parent
+          width: Math.min(parent.width - 32, 310)
           visible: !bluetoothScroll.visible
-          radius: 12
-          color: Qt.alpha(theme.surfaceGlass, 0.48)
-          border.color: Qt.alpha(theme.borderSubtle, 0.42)
-          border.width: 1
-
-          ColumnLayout {
-            anchors.centerIn: parent
-            width: Math.min(parent.width - 48, 310)
-            spacing: 9
-
-            Rectangle {
-              Layout.alignment: Qt.AlignHCenter
-              Layout.preferredWidth: 52
-              Layout.preferredHeight: 52
-              radius: 16
-              color: Qt.alpha(root.bluetoothEnabled ? theme.special : theme.textMuted, 0.11)
-
-              Text {
-                anchors.centerIn: parent
-                text: !root.bluetoothStatusReady
-                  ? "󰔟"
-                  : (!root.bluetoothAvailable || !root.bluetoothEnabled
-                      ? "󰂲"
-                      : "󰂯")
-                color: root.bluetoothEnabled ? theme.special : theme.textMuted
-                font.family: theme.fontFamily
-                font.pixelSize: 23
-
-                SequentialAnimation on opacity {
-                  running: root.bluetoothEnabled && root.bluetoothSessionActive && !root.bluetoothDevicesReady
-                  loops: Animation.Infinite
-                  NumberAnimation { to: 0.3; duration: 440 }
-                  NumberAnimation { to: 1; duration: 440 }
-                }
-              }
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: !root.bluetoothStatusReady
-                ? "Checking Bluetooth"
-                : (!root.bluetoothAvailable
-                    ? "Bluetooth is unavailable"
-                    : (!root.bluetoothEnabled
-                        ? "Bluetooth is off"
-                        : (!root.bluetoothDevicesReady
-                            ? "Looking for devices"
-                            : "No devices found")))
-              color: theme.textPrimary
-              font.family: theme.fontFamily
-              font.pixelSize: 14
-              font.bold: true
-              horizontalAlignment: Text.AlignHCenter
-            }
-
-            Text {
-              Layout.fillWidth: true
-              text: !root.bluetoothStatusReady
-                ? "Reading the current BlueZ state…"
-                : (!root.bluetoothAvailable
-                    ? "No controller is ready on this system."
-                    : (!root.bluetoothEnabled
-                        ? "Turn it on to reconnect paired devices or add a new one."
-                        : "Put the accessory in pairing mode. It will appear here without leaving this screen."))
-              color: theme.textSecondary
-              font.family: theme.fontFamily
-              font.pixelSize: 11
-              wrapMode: Text.WordWrap
-              horizontalAlignment: Text.AlignHCenter
-            }
-
-            PillButton {
-              Layout.alignment: Qt.AlignHCenter
-              visible: root.bluetoothStatusReady && root.bluetoothAvailable && !root.bluetoothBusy
-              label: root.bluetoothEnabled ? "Scan again" : "Turn on Bluetooth"
-              icon: root.bluetoothEnabled ? "" : "󰂯"
-              active: !root.bluetoothEnabled
-              accent: theme.special
-              enabled: !root.bluetoothBusy
-              onClicked: root.bluetoothEnabled ? root.restartBluetoothDiscovery() : root.toggleBluetooth()
-            }
-          }
+          glyph: "bluetooth"
+          accent: theme.special
+          title: !root.bluetoothStatusReady ? "Checking Bluetooth" : !root.bluetoothAvailable ? "Bluetooth is unavailable" : !root.bluetoothEnabled ? "Bluetooth is off" : !root.bluetoothDevicesReady ? "Looking for devices" : "No devices found"
+          message: !root.bluetoothStatusReady ? "Reading the current BlueZ state…" : !root.bluetoothAvailable ? "No controller is ready on this system." : !root.bluetoothEnabled ? "Turn it on to reconnect paired devices or add a new one." : "Put the accessory in pairing mode. It will appear here automatically."
+          showAction: root.bluetoothStatusReady && root.bluetoothAvailable
+          actionLabel: root.bluetoothEnabled ? "Scan again" : "Turn on Bluetooth"
+          actionGlyph: root.bluetoothEnabled ? "refresh" : "bluetooth"
+          actionEnabled: !root.bluetoothBusy
+          onTriggered: root.bluetoothEnabled ? root.refreshBluetooth(true) : root.toggleBluetooth()
         }
       }
     }
   }
 
+  component ConnectivityError: RowLayout {
+    id: connectivityError
+    property string message: ""
+    signal dismiss
+    spacing: 8
+    ShellSymbol {
+      symbol: "warning"
+      tint: theme.danger
+      size: 18
+    }
+    Text {
+      Layout.fillWidth: true
+      text: connectivityError.message
+      color: theme.textPrimary
+      font.family: theme.uiFontFamily
+      font.pixelSize: 11
+      wrapMode: Text.WordWrap
+    }
+    IconButton {
+      glyph: "close"
+      tooltip: "Dismiss connectivity error"
+      flatAction: true
+      onClicked: connectivityError.dismiss()
+    }
+  }
+
+  component ConnectivityEmpty: ColumnLayout {
+    id: empty
+    property string glyph
+    property string title
+    property string message
+    property color accent
+    property bool showAction: false
+    property string actionLabel
+    property string actionGlyph
+    property bool actionEnabled: true
+    signal triggered
+    spacing: 10
+    ShellSymbol {
+      Layout.alignment: Qt.AlignHCenter
+      symbol: empty.glyph
+      tint: empty.accent
+      size: 32
+    }
+    Text {
+      Layout.fillWidth: true
+      text: empty.title
+      color: theme.textPrimary
+      font.family: theme.uiFontFamily
+      font.pixelSize: 15
+      font.bold: true
+      horizontalAlignment: Text.AlignHCenter
+    }
+    Text {
+      Layout.fillWidth: true
+      text: empty.message
+      color: theme.textSecondary
+      font.family: theme.uiFontFamily
+      font.pixelSize: 12
+      wrapMode: Text.WordWrap
+      horizontalAlignment: Text.AlignHCenter
+    }
+    ActionButton {
+      Layout.alignment: Qt.AlignHCenter
+      visible: empty.showAction
+      label: empty.actionLabel
+      glyph: empty.actionGlyph
+      enabled: empty.actionEnabled
+      onClicked: empty.triggered()
+    }
+  }
+
   component Section: ColumnLayout {
-    id: section
     property string title
     property color accent: theme.accent
     Layout.fillWidth: true
     spacing: 8
-    RowLayout {
-      spacing: 7
-
-      Rectangle {
-        Layout.preferredWidth: 3
-        Layout.preferredHeight: 11
-        radius: 2
-        color: section.accent
-      }
-
-      Text {
-        text: section.title
-        color: theme.textMuted
-        font.family: theme.fontFamily
-        font.pixelSize: 12
-        font.bold: true
-      }
+    Text {
+      text: parent.title
+      color: theme.textPrimary
+      font.family: theme.uiFontFamily
+      font.pixelSize: 13
+      font.bold: true
     }
   }
 
@@ -3752,476 +3391,74 @@ Scope {
       radius: 2
       color: theme.accent
       opacity: 0.72
-
     }
 
     Behavior on opacity {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
+      MotionNumberAnimation {
+        role: MotionNumberAnimation.Feedback
+      }
     }
   }
 
-  component ControlHeader: Rectangle {
+  component ControlHeader: Item {
     id: header
     property string pageTitle
     property bool backVisible: false
     signal back
-
-    implicitHeight: 54
-    radius: 0
-    color: "transparent"
-    border.color: "transparent"
-    border.width: 0
-
-    ColumnLayout {
-      anchors.fill: parent
-      spacing: 8
-
-      RowLayout {
-        Layout.fillWidth: true
-        spacing: 10
-
-        IconButton {
-          visible: header.backVisible
-          icon: ""
-          onClicked: header.back()
-        }
-
-        Text {
-          Layout.fillWidth: true
-          text: header.pageTitle
-          color: theme.textPrimary
-          font.family: theme.fontFamily
-          font.pixelSize: 22
-          font.bold: true
-          elide: Text.ElideRight
-        }
-
-        StatusPill {
-          visible: root.notifications.length > 0 && !header.backVisible
-          icon: ""
-          label: String(root.notifications.length)
-          active: true
-          accent: theme.accent
-        }
-      }
-
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 1
-        color: theme.borderSubtle
-        opacity: 0.46
-      }
+    function focusDefault() {
+      (backVisible ? backButton : closeButton).forceActiveFocus(Qt.TabFocusReason);
     }
-  }
-
-  component StatusPill: Rectangle {
-    id: pill
-    property string icon
-    property string label
-    property bool active: false
-    property color accent: theme.accent
-
-    implicitWidth: pillRow.implicitWidth + 18
-    implicitHeight: 26
-    radius: 8
-    color: active ? Qt.alpha(accent, 0.15) : "transparent"
-    border.color: active ? Qt.alpha(accent, 0.48) : theme.borderSubtle
-    border.width: 1
-
-    RowLayout {
-      id: pillRow
-      anchors.centerIn: parent
-      width: Math.min(parent.width - 12, implicitWidth)
-      spacing: 6
-
-      Text {
-        text: pill.icon
-        color: pill.active ? pill.accent : theme.textMuted
-        font.family: theme.fontFamily
-        font.pixelSize: 11
-      }
-
-      Text {
-        Layout.fillWidth: true
-        text: pill.label
-        color: pill.active ? theme.textPrimary : theme.textSecondary
-        font.family: theme.fontFamily
-        font.pixelSize: 10
-        font.bold: pill.active
-        elide: Text.ElideRight
-      }
-    }
-  }
-
-  component CommandButton: Rectangle {
-    id: command
-    property string icon
-    property string title
-    property string subtitle
-    property bool active: false
-    property color accent: theme.accent
-    signal clicked
-
-    Layout.preferredHeight: 50
-    radius: 9
-    color: active ? Qt.alpha(accent, 0.13) : commandHover.containsMouse ? theme.surfaceAccent : "transparent"
-    border.color: "transparent"
-    border.width: 0
-    scale: commandHover.pressed ? 0.97 : (commandHover.containsMouse ? 1.012 : 1)
-
-    Behavior on color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-    }
-
+    implicitHeight: 36
     RowLayout {
       anchors.fill: parent
-      anchors.leftMargin: 9
-      anchors.rightMargin: 8
-      spacing: 8
-
-      Text {
-        text: command.icon
-        color: command.active ? command.accent : theme.textPrimary
-        font.family: theme.fontFamily
-        font.pixelSize: 17
-        Layout.preferredWidth: 24
-        horizontalAlignment: Text.AlignHCenter
+      spacing: 10
+      IconButton {
+        id: backButton
+        visible: header.backVisible
+        glyph: "back"
+        tooltip: "Back to Control Center"
+        flatAction: true
+        onClicked: header.back()
       }
-
-      ColumnLayout {
+      Text {
         Layout.fillWidth: true
-        spacing: 1
-
-        Text {
-          Layout.fillWidth: true
-          text: command.title
-          color: theme.textPrimary
-          font.family: theme.fontFamily
-          font.pixelSize: 12
-          font.bold: true
-          elide: Text.ElideRight
-        }
-
-        Text {
-          Layout.fillWidth: true
-          text: command.subtitle
-          color: theme.textSecondary
-          font.family: theme.fontFamily
-          font.pixelSize: 10
-          elide: Text.ElideRight
-        }
-      }
-
-      Rectangle {
-        Layout.preferredWidth: 6
-        Layout.preferredHeight: 6
-        radius: 3
-        color: command.active ? command.accent : theme.borderSubtle
-        opacity: command.active ? 1 : 0.5
-      }
-    }
-
-    MouseArea {
-      id: commandHover
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: command.clicked()
-    }
-  }
-
-  component PillButton: Rectangle {
-    id: btn
-    property string label
-    property string icon: ""
-    property string iconSource: ""
-    property bool active: false
-    property color accent: theme.accent
-    property real maximumWidth: -1
-    signal clicked
-    implicitHeight: 34
-    implicitWidth: {
-      const naturalWidth = Math.max(72, contentRow.implicitWidth + 22);
-      return maximumWidth > 0 ? Math.min(maximumWidth, naturalWidth) : naturalWidth;
-    }
-    radius: 8
-    color: active ? btn.accent : (btnMouse.containsMouse ? theme.surfaceAccent : theme.surfaceMuted)
-    border.color: active ? btn.accent : (btnMouse.containsMouse ? theme.borderSubtle : theme.borderMuted)
-    border.width: 1
-    opacity: enabled ? 1 : 0.46
-    scale: btnMouse.pressed ? 0.94 : (btnMouse.containsMouse ? 1.025 : 1)
-
-    Behavior on color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on border.color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-    }
-
-    RowLayout {
-      id: contentRow
-      anchors.centerIn: parent
-      width: Math.min(parent.width - 14, implicitWidth)
-      spacing: btn.icon.length > 0 || btn.iconSource.length > 0 ? 7 : 0
-      Text {
-        visible: btn.icon.length > 0
-        text: btn.icon
-        color: btn.active ? theme.bgSolid : btn.accent
-        font.family: theme.fontFamily
-        font.pixelSize: 13
-      }
-      Image {
-        visible: btn.icon.length === 0 && btn.iconSource.length > 0
-        source: btn.iconSource
-        sourceSize.width: 16
-        sourceSize.height: 16
-        Layout.preferredWidth: visible ? 16 : 0
-        Layout.preferredHeight: visible ? 16 : 0
-        fillMode: Image.PreserveAspectFit
-        smooth: true
-      }
-      Text {
-        id: labelText
-        Layout.fillWidth: true
-        text: btn.label
-        color: btn.active ? theme.bgSolid : theme.textSecondary
-        font.family: theme.fontFamily
-        font.pixelSize: 12
+        text: header.pageTitle
+        color: theme.textPrimary
+        font.family: theme.uiFontFamily
+        font.pixelSize: 20
         font.bold: true
         elide: Text.ElideRight
-        horizontalAlignment: Text.AlignHCenter
       }
-    }
-
-    MouseArea {
-      id: btnMouse
-      anchors.fill: parent
-      enabled: btn.enabled
-      hoverEnabled: true
-      cursorShape: btn.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      onClicked: btn.clicked()
+      IconButton {
+        id: closeButton
+        glyph: "close"
+        tooltip: "Close Control Center"
+        onClicked: root.open = false
+      }
     }
   }
 
-  component RadioSwitch: Item {
-    id: radioSwitch
-    property bool checked: false
-    property bool busy: false
-    property color accent: theme.accent
-    signal toggled
-    implicitWidth: 48
-    implicitHeight: 30
-    opacity: enabled ? 1 : 0.5
-    scale: radioMouse.pressed ? 0.92 : 1
-
-    Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-    }
-
-    Rectangle {
-      id: radioSwitchTrack
-      width: 44
-      height: 24
-      anchors.centerIn: parent
-      radius: 12
-      color: radioSwitch.checked ? radioSwitch.accent : theme.surfaceMuted
-      border.color: radioSwitch.checked ? radioSwitch.accent : theme.borderMuted
-      border.width: 1
-
-      Behavior on color {
-        MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-      }
-      Behavior on border.color {
-        MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-      }
-
-      Rectangle {
-        id: radioSwitchThumb
-        x: radioSwitch.checked ? radioSwitchTrack.width - width - 3 : 3
-        anchors.verticalCenter: parent.verticalCenter
-        width: 18
-        height: 18
-        radius: 9
-        color: radioSwitch.checked ? theme.bgSolid : theme.textMuted
-        opacity: radioSwitch.busy ? 0.55 : 1
-
-        Behavior on x {
-          MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
-        }
-        Behavior on color {
-          MotionColorAnimation { role: MotionNumberAnimation.FocusTravel }
-        }
-
-        SequentialAnimation on opacity {
-          running: radioSwitch.busy
-          loops: Animation.Infinite
-          NumberAnimation { to: 0.35; duration: 360 }
-          NumberAnimation { to: 0.9; duration: 360 }
-        }
-      }
-    }
-
-    MouseArea {
-      id: radioMouse
-      anchors.fill: parent
-      enabled: radioSwitch.enabled
-      hoverEnabled: true
-      cursorShape: radioSwitch.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      onClicked: radioSwitch.toggled()
-    }
-  }
-
-  component ToggleTile: Rectangle {
-    id: tile
-    property string icon: ""
-    property string title
-    property string subtitle
+  component StatusLabel: Text {
+    property string glyph: ""
+    property string label
     property bool active: false
     property color accent: theme.accent
-    signal clicked
-    implicitHeight: 58
-    radius: 10
-    color: active ? Qt.alpha(tile.accent, 0.16) : tileHover.containsMouse ? theme.surfaceAccent : "transparent"
-    border.color: active ? Qt.alpha(tile.accent, 0.48) : tileHover.containsMouse ? theme.borderSubtle : "transparent"
-    border.width: 1
-    scale: tileHover.pressed ? 0.975 : (tileHover.containsMouse ? 1.012 : 1)
-
-    Behavior on color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on border.color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-    }
-
-    RowLayout {
-      anchors.fill: parent
-      anchors.leftMargin: 10
-      anchors.rightMargin: 10
-      anchors.topMargin: 8
-      anchors.bottomMargin: 8
-      spacing: 12
-      Text {
-        Layout.preferredWidth: 28
-        text: tile.icon
-        color: tile.active ? tile.accent : theme.textPrimary
-        font.family: theme.fontFamily
-        font.pixelSize: 18
-        horizontalAlignment: Text.AlignHCenter
-      }
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: 4
-        Text {
-          Layout.fillWidth: true
-          text: tile.title
-          color: theme.textPrimary
-          font.family: theme.fontFamily
-          font.pixelSize: 13
-          font.bold: true
-          elide: Text.ElideRight
-        }
-        Text {
-          Layout.fillWidth: true
-          text: tile.subtitle
-          color: theme.textSecondary
-          font.family: theme.fontFamily
-          font.pixelSize: 11
-          elide: Text.ElideRight
-        }
-      }
-
-      Text {
-        id: tileChevron
-        text: "›"
-        color: tile.active ? tile.accent : theme.iconMuted
-        font.family: theme.fontFamily
-        font.pixelSize: 17
-        scale: tileHover.containsMouse ? 1.16 : 1
-
-        Behavior on scale {
-          MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-        }
-      }
-    }
-
-    MouseArea {
-      id: tileHover
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: tile.clicked()
-    }
-
-    Rectangle {
-      anchors.left: parent.left
-      anchors.top: parent.top
-      anchors.bottom: parent.bottom
-      width: tile.active ? 3 : 0
-      radius: 2
-      color: tile.accent
-      Behavior on width {
-        MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
-      }
-    }
+    text: label
+    color: theme.textSecondary
+    font.family: theme.uiFontFamily
+    font.pixelSize: 10
   }
 
-  component IconButton: Rectangle {
-    id: iconButton
-    property string icon
-    property string tooltip: ""
-    property bool active: false
-    property color accent: theme.accent
-    signal clicked
-    implicitWidth: 34
-    implicitHeight: 34
-    radius: 8
-    color: active ? iconButton.accent : (iconMouse.containsMouse ? theme.surfaceAccent : theme.surfaceMuted)
-    border.color: active ? iconButton.accent : (iconMouse.containsMouse ? theme.borderSubtle : theme.borderMuted)
-    border.width: 1
-    opacity: enabled ? 1 : 0.46
-    scale: iconMouse.pressed ? 0.88 : (iconMouse.containsMouse ? 1.04 : 1)
-
-    Behavior on color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on border.color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-    }
-
-    Text {
-      anchors.centerIn: parent
-      text: iconButton.icon
-      color: iconButton.active ? theme.bgSolid : theme.textPrimary
-      font.family: theme.fontFamily
-      font.pixelSize: 14
-    }
-
-    MouseArea {
-      id: iconMouse
-      anchors.fill: parent
-      enabled: iconButton.enabled
-      hoverEnabled: true
-      cursorShape: iconButton.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      onClicked: iconButton.clicked()
-    }
-
-    ShellToolTip {
-      anchorItem: iconButton
-      shown: iconMouse.containsMouse
-      text: iconButton.tooltip
-    }
+  component ActionButton: ShellButton {
+    colors: theme
+  }
+  component IconButton: ShellButton {
+    colors: theme
+    implicitWidth: 32
+    implicitHeight: 32
+  }
+  component RadioSwitch: ShellSwitch {
+    colors: theme
   }
 
   component GainValueBadge: Rectangle {
@@ -4242,82 +3479,14 @@ Scope {
       anchors.centerIn: parent
       text: (gainBadge.boosted ? "Boost " : "") + Math.round(gainBadge.value * 100) + "%"
       color: gainBadge.boosted ? theme.caution : theme.textSecondary
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: gainBadge.boosted ? 9 : 11
       font.bold: gainBadge.boosted
     }
   }
 
-  component GainSlider: Slider {
-    id: gainSlider
-    property color accent: theme.accent
-    property bool boostAllowed: false
-    property bool dimmed: false
-    readonly property real unityPosition: root.clamp((1 - from) / Math.max(0.001, to - from), 0, 1)
-    implicitHeight: 22
-    opacity: dimmed || !enabled ? 0.45 : 1
-
-    background: Rectangle {
-      x: gainSlider.leftPadding + gainSlider.handle.width / 2
-      y: gainSlider.topPadding + gainSlider.availableHeight / 2 - height / 2
-      implicitWidth: 200
-      implicitHeight: 5
-      width: gainSlider.availableWidth - gainSlider.handle.width
-      height: 5
-      radius: 3
-      color: theme.surfaceMuted
-      border.color: Qt.alpha(theme.borderSubtle, 0.7)
-      border.width: 1
-
-      Rectangle {
-        visible: gainSlider.boostAllowed
-        x: parent.width * gainSlider.unityPosition
-        width: parent.width * (1 - gainSlider.unityPosition)
-        height: parent.height
-        radius: parent.radius
-        color: Qt.alpha(theme.caution, 0.11)
-      }
-
-      Rectangle {
-        width: parent.width * (gainSlider.boostAllowed
-          ? Math.min(gainSlider.visualPosition, gainSlider.unityPosition)
-          : gainSlider.visualPosition)
-        height: parent.height
-        radius: parent.radius
-        color: gainSlider.accent
-      }
-
-      Rectangle {
-        visible: gainSlider.boostAllowed && gainSlider.visualPosition > gainSlider.unityPosition
-        x: parent.width * gainSlider.unityPosition
-        width: parent.width * (gainSlider.visualPosition - gainSlider.unityPosition)
-        height: parent.height
-        radius: parent.radius
-        color: theme.caution
-      }
-
-      Rectangle {
-        visible: gainSlider.boostAllowed
-        x: Math.round(parent.width * gainSlider.unityPosition) - 1
-        anchors.verticalCenter: parent.verticalCenter
-        width: 2
-        height: 11
-        radius: 1
-        color: theme.textPrimary
-        opacity: 0.44
-      }
-    }
-
-    handle: Rectangle {
-      x: gainSlider.leftPadding + gainSlider.visualPosition * (gainSlider.availableWidth - width)
-      y: gainSlider.topPadding + gainSlider.availableHeight / 2 - height / 2
-      implicitWidth: 14
-      implicitHeight: 14
-      radius: 7
-      color: gainSlider.boostAllowed && gainSlider.value > 1 ? theme.caution : gainSlider.accent
-      border.color: theme.bgSolid
-      border.width: 2
-    }
+  component GainSlider: ShellSlider {
+    colors: theme
   }
 
   component Bar: Rectangle {
@@ -4333,10 +3502,14 @@ Scope {
       color: parent.accent
 
       Behavior on width {
-        MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+        MotionNumberAnimation {
+          role: MotionNumberAnimation.FocusTravel
+        }
       }
       Behavior on color {
-        MotionColorAnimation { role: MotionNumberAnimation.Content }
+        MotionColorAnimation {
+          role: MotionNumberAnimation.Content
+        }
       }
     }
   }
@@ -4349,14 +3522,11 @@ Scope {
     property color accent: theme.accent
     spacing: 12
 
-    Text {
-      text: osdRow.icon
-      color: osdRow.accent
-      font.family: theme.fontFamily
-      font.pixelSize: 17
-      font.bold: true
+    ShellSymbol {
+      symbol: osdRow.icon
+      tint: osdRow.accent
+      size: 17
       Layout.preferredWidth: 28
-      horizontalAlignment: Text.AlignHCenter
     }
     Bar {
       Layout.fillWidth: true
@@ -4366,113 +3536,17 @@ Scope {
     Text {
       text: osdRow.label
       color: theme.textSecondary
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 12
       horizontalAlignment: Text.AlignRight
       Layout.preferredWidth: 38
     }
   }
 
-  component MetricCard: Rectangle {
-    id: card
-    property string icon: ""
-    property string title
-    property string subtitle
-    property real value: 0
-    property real dragValue: value
-    property bool dragging: false
-    property bool showDivider: true
-    readonly property real displayedValue: dragging ? dragValue : value
-    property color accent: theme.accent
-    signal changed(real value)
-    signal toggle
-    Layout.fillWidth: true
-    implicitHeight: showDivider ? 78 : 68
-    radius: 0
-    color: "transparent"
-    border.color: "transparent"
-    border.width: 0
-
-    Rectangle {
-      visible: card.showDivider
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: parent.top
-      height: 1
-      color: theme.borderSubtle
-    }
-
-    ColumnLayout {
-      anchors.fill: parent
-      anchors.leftMargin: 0
-      anchors.rightMargin: 0
-      anchors.topMargin: card.showDivider ? 13 : 3
-      anchors.bottomMargin: 9
-      spacing: 6
-
-      RowLayout {
-        Layout.fillWidth: true
-        Text {
-          visible: card.icon.length > 0
-          text: card.icon
-          color: card.accent
-          font.family: theme.fontFamily
-          font.pixelSize: 15
-          Layout.preferredWidth: 22
-        }
-        Text {
-          Layout.fillWidth: true
-          text: card.title
-          color: theme.textPrimary
-          font.family: theme.fontFamily
-          font.pixelSize: 13
-          font.bold: true
-          elide: Text.ElideRight
-        }
-        Text {
-          text: Math.round(card.displayedValue * 100) + "%"
-          color: theme.textSecondary
-          font.family: theme.fontFamily
-          font.pixelSize: 12
-        }
-      }
-      Text {
-        Layout.fillWidth: true
-        text: card.subtitle
-        color: theme.textMuted
-        font.family: theme.fontFamily
-        font.pixelSize: 11
-        elide: Text.ElideRight
-      }
-      GainSlider {
-        Layout.fillWidth: true
-        from: 0
-        to: 1
-        value: card.displayedValue
-        accent: card.accent
-        onPressedChanged: {
-          if (pressed) {
-            card.dragValue = value;
-            card.dragging = true;
-          } else if (card.dragging) {
-            card.dragging = false;
-          }
-        }
-        onMoved: {
-          if (pressed)
-            card.dragValue = value;
-          card.changed(value);
-        }
-      }
-    }
-  }
-
   component DisplayOutputInspector: Item {
     id: displayInspector
     required property var output
-    readonly property var modes: output?.availableModes && output.availableModes.length > 0
-      ? output.availableModes
-      : ["preferred"]
+    readonly property var modes: output?.availableModes && output.availableModes.length > 0 ? output.availableModes : ["preferred"]
     readonly property string selectedMode: String(root.displayDraftValue(output?.name, "mode", output?.mode || "preferred"))
     readonly property real selectedScale: Number(root.displayDraftValue(output?.name, "scale", output?.scale || 1))
 
@@ -4488,13 +3562,11 @@ Scope {
         Layout.preferredHeight: 52
         spacing: 9
 
-        Text {
-          text: displayInspector.output?.internal ? "󰌢" : "󰍹"
-          color: theme.info
-          font.family: theme.fontFamily
-          font.pixelSize: 18
+        ShellSymbol {
+          symbol: displayInspector.output?.internal ? "󰌢" : "󰍹"
+          tint: theme.info
+          size: 18
           Layout.preferredWidth: 24
-          horizontalAlignment: Text.AlignHCenter
         }
 
         ColumnLayout {
@@ -4505,7 +3577,7 @@ Scope {
             Layout.fillWidth: true
             text: root.displayName(displayInspector.output)
             color: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 12
             font.bold: true
             elide: Text.ElideRight
@@ -4515,9 +3587,8 @@ Scope {
             Layout.fillWidth: true
             text: String(displayInspector.output?.name || "")
             color: theme.textSecondary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 9
-            elide: Text.ElideRight
           }
         }
 
@@ -4525,17 +3596,15 @@ Scope {
           visible: root.displays.length > 1 && root.displayPrimary === String(displayInspector.output?.name || "")
           text: "Primary"
           color: theme.info
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 9
           font.bold: true
         }
 
         IconButton {
           visible: root.displays.length > 1
-          icon: root.displayPrimary === String(displayInspector.output?.name || "") ? "" : ""
-          tooltip: root.displayPrimary === String(displayInspector.output?.name || "")
-            ? ""
-            : "Set as primary display"
+          glyph: root.displayPrimary === String(displayInspector.output?.name || "") ? "" : ""
+          tooltip: root.displayPrimary === String(displayInspector.output?.name || "") ? "" : "Set as primary display"
           active: root.displayPrimary === String(displayInspector.output?.name || "")
           accent: theme.info
           onClicked: root.displayPrimary = String(displayInspector.output?.name || "")
@@ -4557,13 +3626,14 @@ Scope {
         Text {
           text: "Mode"
           color: theme.textMuted
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 10
           Layout.preferredWidth: 48
         }
 
         ComboBox {
           id: displayModeBox
+          Accessible.name: "Display mode for " + String(displayInspector.output?.name || "")
           Layout.fillWidth: true
           model: displayInspector.modes
           currentIndex: {
@@ -4573,13 +3643,11 @@ Scope {
             }
             return 0;
           }
-          onActivated: function(index) {
-            root.setDisplayDraftValue(displayInspector.output.name, "mode", String(displayInspector.modes[index]));
+          onActivated: function (index) {
+            root.setDisplayDraftValue(String(displayInspector.output?.name || ""), "mode", String(displayInspector.modes[index]));
           }
           Keys.onPressed: event => {
-            if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
-                || event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown
-                || event.key === Qt.Key_Home || event.key === Qt.Key_End)
+            if (event.key === Qt.Key_Up || event.key === Qt.Key_Down || event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown || event.key === Qt.Key_Home || event.key === Qt.Key_End)
               mainInputIntent.claimKeyboard();
           }
 
@@ -4588,10 +3656,17 @@ Scope {
             rightPadding: 28
             text: root.displayModeLabel(displayModeBox.displayText)
             color: theme.textSecondary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 10
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
+          }
+          indicator: ShellSymbol {
+            symbol: "down"
+            size: 12
+            tint: theme.textSecondary
+            x: displayModeBox.width - width - 10
+            y: (displayModeBox.height - height) / 2
           }
           background: Rectangle {
             implicitHeight: 34
@@ -4608,14 +3683,12 @@ Scope {
             contentItem: Text {
               text: root.displayModeLabel(modelData)
               color: theme.textSecondary
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 10
               verticalAlignment: Text.AlignVCenter
             }
             background: Rectangle {
-              color: highlighted || (mainInputIntent.pointerActive && displayModeHover.hovered)
-                ? theme.surfaceMutedHover
-                : theme.surfaceGlassStrong
+              color: highlighted || (mainInputIntent.pointerActive && displayModeHover.hovered) ? theme.surfaceMutedHover : theme.bgSolid
             }
             HoverHandler {
               id: displayModeHover
@@ -4633,16 +3706,14 @@ Scope {
               model: displayModeBox.popup.visible ? displayModeBox.delegateModel : null
               currentIndex: displayModeBox.highlightedIndex
               Keys.onPressed: event => {
-                if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
-                    || event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown
-                    || event.key === Qt.Key_Home || event.key === Qt.Key_End)
+                if (event.key === Qt.Key_Up || event.key === Qt.Key_Down || event.key === Qt.Key_PageUp || event.key === Qt.Key_PageDown || event.key === Qt.Key_Home || event.key === Qt.Key_End)
                   mainInputIntent.claimKeyboard();
               }
-              ScrollIndicator.vertical: ScrollIndicator { }
+              ScrollIndicator.vertical: ScrollIndicator {}
             }
             background: Rectangle {
               radius: 7
-              color: theme.surfaceGlassStrong
+              color: theme.bgSolid
               border.color: theme.borderSubtle
               border.width: 1
             }
@@ -4665,25 +3736,26 @@ Scope {
         Text {
           text: "Scale"
           color: theme.textMuted
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 10
           Layout.preferredWidth: 48
         }
 
         GainSlider {
+          Accessible.name: "Display scale for " + String(displayInspector.output?.name || "")
           Layout.fillWidth: true
           from: 0.5
           to: 3
           stepSize: 0.25
           value: displayInspector.selectedScale
           accent: theme.info
-          onMoved: root.setDisplayDraftValue(displayInspector.output.name, "scale", value)
+          onMoved: root.setDisplayDraftValue(String(displayInspector.output?.name || ""), "scale", value)
         }
 
         Text {
           text: Math.round(displayInspector.selectedScale * 100) + "%"
           color: theme.textSecondary
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 10
           horizontalAlignment: Text.AlignRight
           Layout.preferredWidth: 38
@@ -4734,10 +3806,10 @@ Scope {
         spacing: 9
 
         IconButton {
-          icon: audioSection.icon
+          glyph: audioSection.icon
+          accent: audioSection.current?.audio?.muted ? theme.danger : theme.info
           active: false
-          tooltip: (audioSection.current?.audio?.muted ? "Unmute " : "Mute ")
-            + audioSection.title.toLowerCase()
+          tooltip: (audioSection.current?.audio?.muted ? "Unmute " : "Mute ") + audioSection.title.toLowerCase()
           onClicked: audioSection.toggleMute()
         }
 
@@ -4748,7 +3820,7 @@ Scope {
             Layout.fillWidth: true
             text: audioSection.title
             color: theme.textMuted
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 11
             font.bold: true
             elide: Text.ElideRight
@@ -4757,7 +3829,7 @@ Scope {
             Layout.fillWidth: true
             text: root.deviceName(audioSection.current)
             color: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 12
             font.bold: true
             elide: Text.ElideRight
@@ -4770,14 +3842,14 @@ Scope {
         }
 
         IconButton {
-          icon: audioSection.expanded ? "" : ""
-          tooltip: (audioSection.expanded ? "Hide " : "Show ")
-            + audioSection.title.toLowerCase() + " devices"
+          glyph: audioSection.expanded ? "" : ""
+          tooltip: (audioSection.expanded ? "Hide " : "Show ") + audioSection.title.toLowerCase() + " devices"
           onClicked: audioSection.toggleExpanded()
         }
       }
 
       GainSlider {
+        Accessible.name: audioSection.title + " volume for " + root.deviceName(audioSection.current)
         Layout.fillWidth: true
         from: 0
         to: 1.5
@@ -4799,7 +3871,7 @@ Scope {
           model: audioSection.devices
           delegate: DeviceChoiceRow {
             required property var modelData
-            icon: audioSection.title === "Input" ? "" : ""
+            glyph: audioSection.title === "Input" ? "" : ""
             node: modelData
             active: modelData === audioSection.current
             accent: audioSection.accent
@@ -4810,55 +3882,49 @@ Scope {
     }
   }
 
-  component DeviceChoiceRow: Rectangle {
+  component DeviceChoiceRow: Button {
     id: deviceRow
-    property string icon
+    property string glyph
     property var node
     property bool active: false
     property color accent: theme.info
-    signal clicked
     Layout.fillWidth: true
     implicitHeight: 46
-    radius: 8
-    color: active ? Qt.alpha(deviceRow.accent, 0.28) : theme.surfaceSoft
-    border.color: active ? deviceRow.accent : theme.borderMuted
-    border.width: 1
+    focusPolicy: Qt.StrongFocus
+    Accessible.name: root.deviceName(node)
+    Accessible.role: Accessible.RadioButton
+    Accessible.checked: active
+    background: Rectangle {
+      radius: theme.controlRadius
+      color: deviceRow.active ? theme.selectedBg : deviceRow.hovered ? theme.bgHover : "transparent"
+      border.color: theme.accent
+      border.width: deviceRow.visualFocus ? 2 : 0
+    }
 
     RowLayout {
       anchors.fill: parent
       anchors.margins: 10
       spacing: 10
-      Text {
+      ShellSymbol {
         Layout.preferredWidth: 24
-        text: deviceRow.icon
-        color: deviceRow.active ? deviceRow.accent : theme.textPrimary
-        font.family: theme.fontFamily
-        font.pixelSize: 15
-        horizontalAlignment: Text.AlignHCenter
+        symbol: deviceRow.glyph
+        tint: deviceRow.active ? deviceRow.accent : theme.textPrimary
+        size: 15
       }
       Text {
         Layout.fillWidth: true
         text: root.deviceName(deviceRow.node)
         color: theme.textSecondary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 11
         elide: Text.ElideRight
       }
-      Text {
-        text: deviceRow.active ? "" : ""
-        color: deviceRow.accent
-        font.family: theme.fontFamily
-        font.pixelSize: 13
+      ShellSymbol {
+        symbol: deviceRow.active ? "" : ""
+        tint: deviceRow.accent
+        size: 13
         Layout.preferredWidth: 18
-        horizontalAlignment: Text.AlignHCenter
       }
-    }
-
-    MouseArea {
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: deviceRow.clicked()
     }
   }
 
@@ -4906,12 +3972,11 @@ Scope {
           border.color: Qt.alpha(row.accent, 0.42)
           border.width: 1
 
-          Text {
+          ShellSymbol {
             anchors.centerIn: parent
-            text: root.streamIcon(node)
-            color: row.accent
-            font.family: theme.fontFamily
-            font.pixelSize: 13
+            symbol: root.streamIcon(node)
+            tint: row.accent
+            size: 13
           }
         }
 
@@ -4923,7 +3988,7 @@ Scope {
             Layout.fillWidth: true
             text: root.streamName(node)
             color: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 11
             font.bold: true
             elide: Text.ElideRight
@@ -4932,7 +3997,7 @@ Scope {
             Layout.fillWidth: true
             text: root.streamSubtitle(node)
             color: theme.textMuted
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 9
             elide: Text.ElideRight
           }
@@ -4944,7 +4009,9 @@ Scope {
         }
 
         IconButton {
-          icon: row.streamMuted ? "󰝟" : ""
+          glyph: row.streamMuted ? "󰝟" : ""
+          accent: row.streamMuted ? theme.danger : theme.info
+          tooltip: (row.streamMuted ? "Unmute " : "Mute ") + root.streamName(node)
           active: false
           implicitWidth: 30
           implicitHeight: 30
@@ -4956,6 +4023,7 @@ Scope {
       }
 
       GainSlider {
+        Accessible.name: "Volume for " + root.streamName(node)
         Layout.fillWidth: true
         from: 0
         to: 1
@@ -4999,19 +4067,22 @@ Scope {
       visible: status === Image.Ready
     }
 
-    Text {
+    ShellSymbol {
       anchors.centerIn: parent
       visible: !notificationImage.visible
-      text: notificationVisual.fallbackIcon
-      color: notificationVisual.accent
-      font.family: theme.fontFamily
-      font.pixelSize: Math.max(12, notificationVisual.visualSize * 0.46)
+      symbol: notificationVisual.fallbackIcon
+      tint: notificationVisual.accent
+      size: Math.max(12, notificationVisual.visualSize * 0.7)
     }
   }
 
   component NotificationProgress: ColumnLayout {
     id: notificationProgress
-    property var progressData: ({ visible: false, value: 0, text: "" })
+    property var progressData: ({
+        visible: false,
+        value: 0,
+        text: ""
+      })
 
     Layout.fillWidth: true
     visible: Boolean(progressData?.visible)
@@ -5023,15 +4094,14 @@ Scope {
         Layout.fillWidth: true
         text: "Progress"
         color: theme.textMuted
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 9
       }
       Text {
         text: notificationProgress.progressData?.text || ""
         color: theme.textSecondary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 9
-        font.bold: true
       }
     }
 
@@ -5069,7 +4139,7 @@ Scope {
       placeholderText: String(inlineReply.notification?.inlineReplyPlaceholder || "Reply")
       color: theme.textSecondary
       placeholderTextColor: theme.textMuted
-      font.family: theme.fontFamily
+      font.family: theme.uiFontFamily
       font.pixelSize: 11
       selectByMouse: true
       onAccepted: inlineReply.submit()
@@ -5082,7 +4152,7 @@ Scope {
       }
     }
 
-    PillButton {
+    ActionButton {
       label: "Send"
       maximumWidth: 82
       enabled: replyField.text.trim().length > 0
@@ -5090,135 +4160,38 @@ Scope {
     }
   }
 
-  component NotificationGroup: Rectangle {
-    id: notificationGroup
-    property var group
-    readonly property bool expanded: root.notificationGroupExpanded(group?.key || "")
-    readonly property var visibleItems: expanded ? (group?.items || []) : (group?.items || []).slice(0, 1)
-    readonly property bool canExpand: (group?.items || []).length > 1
-    readonly property var firstNotification: root.itemNotification((group?.items || [])[0])
-
-    Layout.fillWidth: true
-    implicitHeight: groupContent.implicitHeight + 20
-    radius: 11
-    color: Qt.alpha(theme.surfaceGlass, 0.58)
-    border.color: group?.critical ? Qt.alpha(theme.danger, 0.5)
-      : group?.resident ? Qt.alpha(theme.special, 0.46)
-      : Qt.alpha(theme.borderSubtle, 0.58)
-    border.width: 1
-
-    Behavior on implicitHeight {
-      MotionNumberAnimation { role: MotionNumberAnimation.Content }
-    }
-    Behavior on border.color {
-      MotionColorAnimation { role: MotionNumberAnimation.Content }
-    }
-
-    ColumnLayout {
-      id: groupContent
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: parent.top
-      anchors.margins: 10
-      spacing: 8
-
-      Item {
-        Layout.fillWidth: true
-        implicitHeight: 30
-
-        RowLayout {
-          anchors.fill: parent
-          spacing: 8
-
-          NotificationVisual {
-            notification: notificationGroup.firstNotification
-            Layout.preferredWidth: 28
-            Layout.preferredHeight: 28
-            fallbackIcon: notificationGroup.group?.critical ? "\uf071" : notificationGroup.group?.resident ? "\uf08d" : "\uf0f3"
-            accent: notificationGroup.group?.critical ? theme.danger : notificationGroup.group?.resident ? theme.special : theme.info
-          }
-
-          Text {
-            Layout.fillWidth: true
-            text: notificationGroup.group?.appName || "Application"
-            color: theme.textPrimary
-            font.family: theme.fontFamily
-            font.pixelSize: 12
-            font.bold: true
-            elide: Text.ElideRight
-          }
-
-          Rectangle {
-            visible: notificationGroup.canExpand
-            implicitWidth: groupCount.implicitWidth + 12
-            implicitHeight: 22
-            radius: 11
-            color: theme.surfaceMuted
-
-            Text {
-              id: groupCount
-              anchors.centerIn: parent
-              text: String(notificationGroup.group?.items?.length || 0)
-              color: theme.textMuted
-              font.family: theme.fontFamily
-              font.pixelSize: 10
-              font.bold: true
-            }
-          }
-
-          Text {
-            text: root.relativeNotificationTime(notificationGroup.group?.latestTime || 0)
-            color: theme.textMuted
-            font.family: theme.fontFamily
-            font.pixelSize: 10
-          }
-
-          Text {
-            visible: notificationGroup.canExpand
-            text: notificationGroup.expanded ? "" : ""
-            color: theme.textMuted
-            font.family: theme.fontFamily
-            font.pixelSize: 12
-            Layout.preferredWidth: 18
-            horizontalAlignment: Text.AlignHCenter
-          }
-        }
-
-        MouseArea {
-          anchors.fill: parent
-          enabled: notificationGroup.canExpand
-          cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-          onClicked: root.toggleNotificationGroup(notificationGroup.group.key)
-        }
-      }
-
-      Repeater {
-        model: notificationGroup.visibleItems
-        delegate: NotificationItem {
-          required property var modelData
-          item: modelData
-          onDismiss: root.dismissNotification(item.id)
-        }
-      }
-    }
-  }
-
   component NotificationItem: Rectangle {
     id: notifRow
     property var item
+    property var group: ({})
+    property bool firstInGroup: true
     readonly property var notification: root.itemNotification(item)
     readonly property var actions: root.visibleNotificationActions(notification)
     readonly property string bodyText: root.sanitizeNotificationBody(notification?.body || "")
     readonly property bool hasBody: bodyText.length > 0 && bodyText !== "."
     readonly property var progressData: root.notificationProgress(notification)
     readonly property bool hasDefaultAction: root.defaultNotificationAction(notification) !== null
+    activeFocusOnTab: hasDefaultAction
+    Accessible.role: hasDefaultAction ? Accessible.Button : Accessible.StaticText
+    Accessible.name: root.notificationAppName(notification) + ": " + (notification?.summary || "Notification")
+    Accessible.onPressAction: root.invokeDefaultNotificationAction(notification)
+    Keys.onSpacePressed: event => {
+      event.accepted = hasDefaultAction;
+      if (hasDefaultAction)
+        root.invokeDefaultNotificationAction(notification);
+    }
+    Keys.onReturnPressed: event => {
+      event.accepted = hasDefaultAction;
+      if (hasDefaultAction)
+        root.invokeDefaultNotificationAction(notification);
+    }
     signal dismiss
     Layout.fillWidth: true
-    implicitHeight: Math.max(74, notifColumn.implicitHeight + 20)
-    radius: 9
-    color: theme.surfaceAccent
-    border.color: Qt.alpha(theme.borderSubtle, 0.58)
-    border.width: 1
+    implicitHeight: Math.max(100, notifColumn.implicitHeight + 24)
+    radius: theme.groupRadius
+    color: theme.surfaceRaised
+    border.color: activeFocus ? theme.accent : theme.borderMuted
+    border.width: activeFocus ? 2 : 1
 
     MouseArea {
       anchors.fill: parent
@@ -5230,37 +4203,50 @@ Scope {
 
     ColumnLayout {
       id: notifColumn
-      anchors.fill: parent
-      anchors.margins: 10
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.top: parent.top
+      anchors.margins: 12
       spacing: 7
       RowLayout {
         Layout.fillWidth: true
         spacing: 8
         NotificationVisual {
           notification: notifRow.notification
-          visualSize: 24
-          Layout.preferredWidth: 24
-          Layout.preferredHeight: 24
+          visualSize: 20
+          Layout.preferredWidth: 20
+          Layout.preferredHeight: 20
         }
         Text {
           Layout.fillWidth: true
-          text: notifRow.notification?.summary || "Notification"
+          text: root.notificationAppName(notifRow.notification)
           color: theme.textPrimary
-          font.family: theme.fontFamily
-          font.pixelSize: 12
+          font.family: theme.uiFontFamily
+          font.pixelSize: 10
           font.bold: true
           elide: Text.ElideRight
         }
         Text {
           text: root.relativeNotificationTime(notifRow.item?.time || 0)
           color: theme.textMuted
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 9
         }
         IconButton {
-          icon: ""
+          glyph: "close"
+          tooltip: "Dismiss notification"
+          flatAction: true
           onClicked: notifRow.dismiss()
         }
+      }
+      Text {
+        Layout.fillWidth: true
+        text: notifRow.notification?.summary || "Notification"
+        color: theme.textPrimary
+        font.family: theme.uiFontFamily
+        font.pixelSize: 13
+        font.bold: true
+        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
       }
       Text {
         Layout.fillWidth: true
@@ -5269,12 +4255,14 @@ Scope {
         textFormat: Text.StyledText
         linkColor: theme.accent
         color: theme.textSecondary
-        font.family: theme.fontFamily
-        font.pixelSize: 11
+        font.family: theme.uiFontFamily
+        font.pixelSize: 12
         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         maximumLineCount: 4
         elide: Text.ElideRight
-        onLinkActivated: function(link) { root.openNotificationLink(link); }
+        onLinkActivated: function (link) {
+          root.openNotificationLink(link);
+        }
       }
       NotificationProgress {
         progressData: notifRow.progressData
@@ -5282,19 +4270,28 @@ Scope {
       NotificationInlineReply {
         notification: notifRow.notification
       }
-      RowLayout {
+      Flow {
         Layout.fillWidth: true
+        Layout.preferredHeight: implicitHeight
         visible: notifRow.actions.length > 0
         spacing: 6
         Repeater {
           model: root.actionEntries(notifRow.actions, notifRow.notification)
-          delegate: PillButton {
+          delegate: ActionButton {
             required property var modelData
+            maximumWidth: notifRow.width - 24
+            flatAction: true
             label: root.actionLabel(modelData.action)
-            iconSource: root.notificationActionIconSource(modelData.notification, modelData.action)
+            imageSource: root.notificationActionIconSource(modelData.notification, modelData.action)
             onClicked: root.invokeNotificationAction(modelData.action)
           }
         }
+      }
+      ActionButton {
+        visible: notifRow.firstInGroup && (notifRow.group?.items?.length || 0) > 1
+        label: root.notificationGroupExpanded(notifRow.group.key) ? "Show less" : "Show " + (notifRow.group.items.length - 1) + " older"
+        flatAction: true
+        onClicked: root.toggleNotificationGroup(notifRow.group.key)
       }
     }
   }
@@ -5335,7 +4332,9 @@ Scope {
     }
 
     Behavior on y {
-      MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
+      MotionNumberAnimation {
+        role: MotionNumberAnimation.FocusTravel
+      }
     }
 
     Component.onCompleted: {
@@ -5345,34 +4344,87 @@ Scope {
 
     Connections {
       target: toast.notification
-      function onExpireTimeoutChanged() { lifetime.restart(true); }
-      function onAppNameChanged() { lifetime.restart(true); }
-      function onAppIconChanged() { lifetime.restart(true); }
-      function onSummaryChanged() { lifetime.restart(true); }
-      function onBodyChanged() { lifetime.restart(true); }
-      function onActionsChanged() { lifetime.restart(true); }
-      function onImageChanged() { lifetime.restart(true); }
-      function onHasInlineReplyChanged() { lifetime.restart(true); }
-      function onHintsChanged() { lifetime.restart(true); }
+      function onExpireTimeoutChanged() {
+        lifetime.restart(true);
+      }
+      function onAppNameChanged() {
+        lifetime.restart(true);
+      }
+      function onAppIconChanged() {
+        lifetime.restart(true);
+      }
+      function onSummaryChanged() {
+        lifetime.restart(true);
+      }
+      function onBodyChanged() {
+        lifetime.restart(true);
+      }
+      function onActionsChanged() {
+        lifetime.restart(true);
+      }
+      function onImageChanged() {
+        lifetime.restart(true);
+      }
+      function onHasInlineReplyChanged() {
+        lifetime.restart(true);
+      }
+      function onHintsChanged() {
+        lifetime.restart(true);
+      }
     }
 
     Connections {
       target: root
-      function onNotificationPopupsCloseRequested() { toast.close(false); }
+      function onNotificationPopupsCloseRequested() {
+        toast.close(false);
+      }
     }
 
     ParallelAnimation {
       id: showAnim
-      MotionNumberAnimation { target: toast; property: "opacity"; from: 0; to: 1; role: MotionNumberAnimation.Content }
-      MotionNumberAnimation { target: toast; property: "x"; from: 32; to: 0; role: MotionNumberAnimation.Content }
-      MotionNumberAnimation { target: toast; property: "scale"; from: 0.96; to: 1; role: MotionNumberAnimation.Content }
+      MotionNumberAnimation {
+        target: toast
+        property: "opacity"
+        from: 0
+        to: 1
+        role: MotionNumberAnimation.Content
+      }
+      MotionNumberAnimation {
+        target: toast
+        property: "x"
+        from: 32
+        to: 0
+        role: MotionNumberAnimation.Content
+      }
+      MotionNumberAnimation {
+        target: toast
+        property: "scale"
+        from: 0.96
+        to: 1
+        role: MotionNumberAnimation.Content
+      }
     }
 
     ParallelAnimation {
       id: hideAnim
-      MotionNumberAnimation { target: toast; property: "opacity"; to: 0; role: MotionNumberAnimation.SurfaceExit }
-      MotionNumberAnimation { target: toast; property: "x"; to: 40; role: MotionNumberAnimation.SurfaceExit }
-      MotionNumberAnimation { target: toast; property: "scale"; to: 0.97; role: MotionNumberAnimation.SurfaceExit }
+      MotionNumberAnimation {
+        target: toast
+        property: "opacity"
+        to: 0
+        role: MotionNumberAnimation.SurfaceExit
+      }
+      MotionNumberAnimation {
+        target: toast
+        property: "x"
+        to: 40
+        role: MotionNumberAnimation.SurfaceExit
+      }
+      MotionNumberAnimation {
+        target: toast
+        property: "scale"
+        to: 0.97
+        role: MotionNumberAnimation.SurfaceExit
+      }
       onFinished: {
         if (toast.dismissOnClose)
           toast.dismiss();
@@ -5412,7 +4464,7 @@ Scope {
             Layout.fillWidth: true
             text: root.notificationAppName(toast.notification)
             color: theme.textMuted
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 11
             font.bold: true
             elide: Text.ElideRight
@@ -5421,14 +4473,12 @@ Scope {
             Layout.fillWidth: true
             text: toast.notification?.summary || ""
             color: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 14
-            font.bold: true
-            elide: Text.ElideRight
           }
         }
         IconButton {
-          icon: ""
+          glyph: ""
           onClicked: toast.close(true)
         }
       }
@@ -5440,12 +4490,14 @@ Scope {
         textFormat: Text.StyledText
         linkColor: theme.accent
         color: theme.textSecondary
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 13
         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         maximumLineCount: 3
         elide: Text.ElideRight
-        onLinkActivated: function(link) { root.openNotificationLink(link); }
+        onLinkActivated: function (link) {
+          root.openNotificationLink(link);
+        }
       }
 
       NotificationProgress {
@@ -5464,10 +4516,10 @@ Scope {
         spacing: root.notificationActionSpacing
         Repeater {
           model: root.actionEntries(toast.actions, toast.notification)
-          delegate: PillButton {
+          delegate: ActionButton {
             required property var modelData
             label: root.actionLabel(modelData.action)
-            iconSource: root.notificationActionIconSource(modelData.notification, modelData.action)
+            imageSource: root.notificationActionIconSource(modelData.notification, modelData.action)
             maximumWidth: actionFlow.width
             onClicked: root.invokeNotificationAction(modelData.action)
           }
@@ -5516,14 +4568,15 @@ Scope {
     property bool operationTarget: root.bluetoothOperationAddress === device.address
     Layout.fillWidth: true
     implicitHeight: 64
-    radius: 10
-    color: device.connected
-      ? Qt.alpha(theme.special, 0.14)
-      : (operationTarget ? Qt.alpha(theme.special, 0.08) : (bluetoothHover.containsMouse ? theme.surfaceAccent : "transparent"))
-    border.color: device.connected
-      ? Qt.alpha(theme.special, 0.45)
-      : (operationTarget ? Qt.alpha(theme.special, 0.25) : Qt.alpha(theme.borderSubtle, 0.28))
-    border.width: 1
+    radius: 0
+    color: bluetoothHover.containsMouse ? theme.surfaceHover : "transparent"
+    Rectangle {
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      height: 1
+      color: theme.borderMuted
+    }
 
     RowLayout {
       anchors.fill: parent
@@ -5531,19 +4584,13 @@ Scope {
       anchors.rightMargin: 9
       spacing: 10
 
-      Rectangle {
-        Layout.preferredWidth: 38
-        Layout.preferredHeight: 38
-        radius: 12
-        color: Qt.alpha(bluetoothRow.device.connected ? theme.special : theme.surfaceMuted, bluetoothRow.device.connected ? 0.18 : 0.82)
-
-        Text {
-          anchors.centerIn: parent
-          text: root.bluetoothDeviceIcon(bluetoothRow.device)
-          color: bluetoothRow.device.connected ? theme.special : theme.textPrimary
-          font.family: theme.fontFamily
-          font.pixelSize: 17
-        }
+      ShellSymbol {
+        symbol: root.bluetoothDeviceIcon(bluetoothRow.device)
+        tint: bluetoothRow.device.connected ? theme.special : theme.textMuted
+        size: 24
+        Layout.preferredWidth: 24
+        Layout.preferredHeight: 24
+        Layout.alignment: Qt.AlignVCenter
       }
 
       ColumnLayout {
@@ -5554,7 +4601,7 @@ Scope {
           Layout.fillWidth: true
           text: bluetoothRow.device.name
           color: theme.textPrimary
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 13
           font.bold: true
           elide: Text.ElideRight
@@ -5564,7 +4611,7 @@ Scope {
           Layout.fillWidth: true
           text: root.bluetoothDeviceDescription(bluetoothRow.device)
           color: theme.textSecondary
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 11
           elide: Text.ElideRight
         }
@@ -5572,18 +4619,17 @@ Scope {
 
       IconButton {
         visible: bluetoothRow.device.paired
-        icon: root.pendingBluetoothForgetAddress === bluetoothRow.device.address ? "" : "󰆴"
-        tooltip: root.pendingBluetoothForgetAddress === bluetoothRow.device.address
-          ? "Confirm forgetting " + bluetoothRow.device.name
-          : "Forget " + bluetoothRow.device.name
+        glyph: root.pendingBluetoothForgetAddress === bluetoothRow.device.address ? "" : "󰆴"
+        tooltip: root.pendingBluetoothForgetAddress === bluetoothRow.device.address ? "Confirm forgetting " + bluetoothRow.device.name : "Forget " + bluetoothRow.device.name
         enabled: !root.bluetoothBusy
         onClicked: root.requestForgetBluetoothDevice(bluetoothRow.device)
       }
 
-      PillButton {
+      ActionButton {
         label: root.bluetoothDeviceAction(bluetoothRow.device)
         maximumWidth: 126
-        active: !bluetoothRow.device.paired
+        flatAction: true
+        active: false
         accent: theme.special
         enabled: !root.bluetoothBusy
         onClicked: root.runBluetoothDeviceAction(bluetoothRow.device)
@@ -5606,14 +4652,15 @@ Scope {
     property bool operationTarget: network.stateChanging
     Layout.fillWidth: true
     implicitHeight: expanded ? 120 : 62
-    radius: 10
-    color: network.connected
-      ? Qt.alpha(theme.info, 0.13)
-      : (operationTarget ? Qt.alpha(theme.info, 0.07) : (wifiHover.containsMouse ? theme.surfaceAccent : "transparent"))
-    border.color: network.connected
-      ? Qt.alpha(theme.info, 0.42)
-      : (operationTarget ? Qt.alpha(theme.info, 0.24) : Qt.alpha(theme.borderSubtle, 0.28))
-    border.width: 1
+    radius: 0
+    color: wifiHover.containsMouse ? theme.surfaceHover : "transparent"
+    Rectangle {
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      height: 1
+      color: theme.borderMuted
+    }
 
     onExpandedChanged: {
       if (expanded)
@@ -5641,7 +4688,7 @@ Scope {
             Layout.fillWidth: true
             text: wifiRow.network.name
             color: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 13
             font.bold: true
             elide: Text.ElideRight
@@ -5650,21 +4697,17 @@ Scope {
             Layout.fillWidth: true
             text: root.wifiNetworkDescription(wifiRow.network)
             color: theme.textSecondary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 11
             elide: Text.ElideRight
           }
         }
-        PillButton {
-          label: wifiRow.expanded
-            && !wifiRow.network.connected
-            && !wifiRow.network.stateChanging
-            ? "Connect"
-            : root.wifiNetworkAction(wifiRow.network)
+        ActionButton {
+          label: wifiRow.expanded && !wifiRow.network.connected && !wifiRow.network.stateChanging ? "Connect" : root.wifiNetworkAction(wifiRow.network)
           maximumWidth: 126
+          flatAction: true
           active: false
-          enabled: !root.wifiBusy
-            && (!wifiRow.expanded || root.pendingPassword.length > 0)
+          enabled: !root.wifiBusy && (!wifiRow.expanded || root.pendingPassword.length > 0)
           onClicked: {
             if (wifiRow.network.connected) {
               root.disconnectWifi(wifiRow.network);
@@ -5688,6 +4731,7 @@ Scope {
         TextField {
           id: passwordInput
           Layout.fillWidth: true
+          Accessible.name: "Password for " + wifiRow.network.name
           placeholderText: "Network password"
           placeholderTextColor: theme.textMuted
           echoMode: wifiRow.revealPassword ? TextInput.Normal : TextInput.Password
@@ -5695,7 +4739,7 @@ Scope {
           onTextEdited: root.pendingPassword = text
           enabled: !root.wifiBusy
           color: theme.textSecondary
-          font.family: theme.fontFamily
+          font.family: theme.uiFontFamily
           font.pixelSize: 12
           background: Rectangle {
             radius: 8
@@ -5714,11 +4758,12 @@ Scope {
           }
         }
         IconButton {
-          icon: wifiRow.revealPassword ? "󰈈" : "󰈉"
+          glyph: wifiRow.revealPassword ? "󰈈" : "󰈉"
+          tooltip: wifiRow.revealPassword ? "Hide network password" : "Show network password"
           enabled: !root.wifiBusy
           onClicked: wifiRow.revealPassword = !wifiRow.revealPassword
         }
-        PillButton {
+        ActionButton {
           label: "Cancel"
           enabled: !root.wifiBusy
           onClicked: {
@@ -5738,8 +4783,7 @@ Scope {
       }
 
       function onConnectedChanged() {
-        if (wifiRow.network.connected
-            && root.connectionTargetSsid === wifiRow.network.name) {
+        if (wifiRow.network.connected && root.connectionTargetSsid === wifiRow.network.name) {
           root.pendingSsid = "";
           root.pendingPassword = "";
           root.connectionTargetSsid = "";

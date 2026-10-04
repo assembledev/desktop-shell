@@ -385,7 +385,7 @@ Item {
                 ? ((modelData.label || statusItem.currentStatus.text || "Network") + " !")
                 : (statusItem.currentStatus.text || modelData.label || "")
               color: statusItem.failed ? theme.danger : theme.textPrimary
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 15
               font.bold: true
             }

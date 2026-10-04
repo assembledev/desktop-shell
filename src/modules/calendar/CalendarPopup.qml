@@ -235,7 +235,7 @@ Scope {
                 Layout.fillWidth: true
                 text: Qt.formatDate(root.today, "dddd").toUpperCase()
                 color: theme.utility
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 11
                 font.bold: true
                 elide: Text.ElideRight
@@ -245,7 +245,7 @@ Scope {
                 Layout.fillWidth: true
                 text: Qt.formatDate(root.today, "d MMMM yyyy")
                 color: theme.textPrimary
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 22
                 font.bold: true
                 elide: Text.ElideRight
@@ -271,7 +271,7 @@ Scope {
                 Layout.fillWidth: true
                 text: Qt.formatDate(new Date(root.viewYear, root.viewMonth, 1), "MMMM yyyy")
                 color: theme.textSecondary
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 15
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
@@ -304,7 +304,7 @@ Scope {
                 Layout.preferredHeight: 24
                 text: "#"
                 color: theme.textMuted
-                font.family: theme.fontFamily
+                font.family: theme.uiFontFamily
                 font.pixelSize: 9
                 font.bold: true
                 horizontalAlignment: Text.AlignHCenter
@@ -324,7 +324,7 @@ Scope {
 
                   text: narrowName.toUpperCase()
                   color: theme.textMuted
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 10
                   font.bold: true
                   horizontalAlignment: Text.AlignHCenter
@@ -344,7 +344,7 @@ Scope {
 
                   text: weekNumber
                   color: theme.textMuted
-                  font.family: theme.fontFamily
+                  font.family: theme.uiFontFamily
                   font.pixelSize: 9
                   font.bold: true
                   horizontalAlignment: Text.AlignHCenter
@@ -383,7 +383,7 @@ Scope {
                       anchors.centerIn: parent
                       text: dayCell.model.day
                       color: dayCell.isToday ? theme.textOnAccent : theme.textSecondary
-                      font.family: theme.fontFamily
+                      font.family: theme.uiFontFamily
                       font.pixelSize: 12
                       font.bold: dayCell.isToday
                       horizontalAlignment: Text.AlignHCenter
@@ -400,7 +400,7 @@ Scope {
               text: "Return to today"
               color: theme.accent
               opacity: root.currentMonth ? 0 : 1
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 10
               font.bold: true
 

@@ -7,7 +7,7 @@ import "DisplayGeometry.js" as Geometry
 
 Rectangle {
   id: arrangement
-  Theme { id: theme }
+  required property var colors
   required property var draft
   required property var outputs
   property string selectedName: ""
@@ -19,10 +19,10 @@ Rectangle {
   readonly property bool mirrored: activeOutputs.some(output => String(output.mirror || "").length > 0)
 
   implicitHeight: activeOutputs.length > 1 ? 188 : 132
-  radius: 8
+  radius: colors.groupRadius
   clip: true
-  color: Qt.alpha(theme.surfaceGlass, 0.52)
-  border.color: Qt.alpha(theme.borderSubtle, 0.66)
+  color: colors.bgRaised
+  border.color: Qt.alpha(colors.borderSubtle, 0.66)
   border.width: 1
 
   Repeater {
@@ -43,6 +43,16 @@ Rectangle {
       property real dragX: baseX
       property real dragY: baseY
       property var dragPosition: ({ x: box.x, y: box.y })
+      activeFocusOnTab: true
+      Accessible.role: Accessible.RadioButton
+      Accessible.name: "Display " + String(index + 1) + ": " + String(output.name)
+      Accessible.description: "Select for mode and scale settings. Drag to arrange displays."
+      Accessible.checkable: true
+      Accessible.checked: arrangement.selectedName === String(output.name)
+      Accessible.onPressAction: arrangement.selected(String(output.name))
+      Keys.onSpacePressed: arrangement.selected(String(output.name))
+      Keys.onReturnPressed: arrangement.selected(String(output.name))
+      Keys.onEnterPressed: arrangement.selected(String(output.name))
 
       x: dragging ? dragX : baseX
       y: dragging ? dragY : baseY
@@ -50,12 +60,12 @@ Rectangle {
       height: Math.max(1, box.height * arrangement.viewport.scale)
       radius: 6
       color: arrangement.selectedName === String(output.name)
-        ? Qt.alpha(theme.info, 0.22)
-        : Qt.alpha(theme.surfaceRaised, 0.92)
-      border.color: arrangement.selectedName === String(output.name)
-        ? theme.info
-        : Qt.alpha(theme.borderSubtle, 0.88)
-      border.width: arrangement.selectedName === String(output.name) ? 2 : 1
+        ? Qt.alpha(colors.info, 0.22)
+        : Qt.alpha(colors.surfaceRaised, 0.92)
+      border.color: activeFocus ? colors.accent : arrangement.selectedName === String(output.name)
+        ? colors.info
+        : Qt.alpha(colors.borderSubtle, 0.88)
+      border.width: activeFocus || arrangement.selectedName === String(output.name) ? 2 : 1
       z: dragging ? 4 : (arrangement.selectedName === String(output.name) ? 2 : 1)
 
       Behavior on x {
@@ -75,8 +85,8 @@ Rectangle {
         Text {
           Layout.fillWidth: true
           text: String(displayTile.index + 1)
-          color: theme.textPrimary
-          font.family: theme.fontFamily
+          color: colors.textPrimary
+          font.family: colors.uiFontFamily
           font.pixelSize: 18
           font.bold: true
           horizontalAlignment: Text.AlignHCenter
@@ -86,8 +96,8 @@ Rectangle {
         Text {
           Layout.fillWidth: true
           text: String(displayTile.output.name)
-          color: arrangement.selectedName === String(displayTile.output.name) ? theme.info : theme.textMuted
-          font.family: theme.fontFamily
+          color: arrangement.selectedName === String(displayTile.output.name) ? colors.info : colors.textMuted
+          font.family: colors.uiFontFamily
           font.pixelSize: 8
           horizontalAlignment: Text.AlignHCenter
           elide: Text.ElideRight
@@ -106,6 +116,7 @@ Rectangle {
         property real tileStartY: 0
 
         onPressed: function(mouse) {
+          displayTile.forceActiveFocus(Qt.MouseFocusReason);
           arrangement.selected(String(displayTile.output.name));
           const pointer = mapToItem(arrangement, mouse.x, mouse.y);
           pointerStartX = pointer.x;

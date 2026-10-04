@@ -44,6 +44,7 @@ QtObject {
       surfaceAccent: "#38151725",
       surfaceToast: "#d8191c2b",
       borderSubtle: "#70424a68",
+      uiFontFamily: "sans-serif",
       fontFamily: "FiraCode Nerd Font"
     };
 
@@ -134,6 +135,9 @@ QtObject {
   readonly property color borderMuted: values.borderMuted
   readonly property color borderSubtle: values.borderSubtle
   readonly property string fontFamily: values.fontFamily
+  readonly property string uiFontFamily: values.uiFontFamily
+  readonly property int groupRadius: 14
+  readonly property int controlRadius: 6
 
   // Runtime aliases keep direct QML consumers source-compatible while the
   // shell itself uses only semantic roles.

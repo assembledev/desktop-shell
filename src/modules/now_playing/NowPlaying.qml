@@ -230,7 +230,7 @@ Scope {
             Text {
               text: "NOW PLAYING"
               color: theme.textMuted
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 9
               font.bold: true
               font.letterSpacing: 1
@@ -247,7 +247,7 @@ Scope {
               Layout.fillWidth: true
               text: root.playerName.toUpperCase()
               color: theme.textMuted
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 9
               elide: Text.ElideRight
             }
@@ -255,7 +255,7 @@ Scope {
             Text {
               text: root.hasKnownLength ? root.formatTime(root.playbackLength) : "--:--"
               color: root.hovered ? theme.textSecondary : theme.textMuted
-              font.family: theme.fontFamily
+              font.family: theme.uiFontFamily
               font.pixelSize: 9
               font.bold: root.hovered
             }
@@ -265,7 +265,7 @@ Scope {
             Layout.fillWidth: true
             text: root.title
             color: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 13
             font.bold: true
             elide: Text.ElideRight
@@ -275,7 +275,7 @@ Scope {
             Layout.fillWidth: true
             text: root.subtitle
             color: theme.textSecondary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 10
             elide: Text.ElideRight
           }

@@ -334,11 +334,12 @@ the Home Manager module.
 
 ## Theme
 
-`theme` is a typed color set with a complete built-in dark palette. Override
-only the values that differ:
+`theme` provides typed colors and font families with a complete built-in dark
+palette. Override only the values that differ:
 
 ```nix
 programs.desktop-shell.theme = {
+  uiFontFamily = "sans-serif";
   fontFamily = "FiraCode Nerd Font";
   bgSolid = "#10131c";
   textPrimary = "#e7eaf2";
@@ -347,12 +348,22 @@ programs.desktop-shell.theme = {
 };
 ```
 
-`fontFamily` is a fontconfig family name; install that font in the user
-profile. Color values use Qt hexadecimal form: `#RRGGBB` or `#AARRGGBB`. The
-available fields are:
+`uiFontFamily` controls UI text throughout the shell: bar labels, search and
+input fields, menus, calendars, notifications, device pages, the switcher,
+wallpaper picker, keybinding reference, keyboard overlay, media and lock
+surfaces. Its default `sans-serif` resolves through fontconfig.
+`fontFamily` retains the icon-font role for existing Nerd Font glyphs; authored
+vector symbols do not depend on it. Install any specifically named font in the
+user profile.
+
+To use Fira Code for all UI text, override just
+`programs.desktop-shell.theme.uiFontFamily = "FiraCode Nerd Font";`.
+
+Color values use Qt hexadecimal form: `#RRGGBB` or `#AARRGGBB`. The available
+fields are:
 
 ```text
-fontFamily bgSolid bgRaised bgMuted bgHover bgHoverAlt bgToast selectedBg
+fontFamily uiFontFamily bgSolid bgRaised bgMuted bgHover bgHoverAlt bgToast selectedBg
 textPrimary textSecondary textMuted textDisabled textOnAccent
 accent accentHover info special resource utility
 success warning caution danger dangerStrong

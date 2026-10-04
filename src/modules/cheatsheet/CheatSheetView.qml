@@ -344,7 +344,7 @@ Scope {
             Layout.fillWidth: true
             text: "Shortcuts"
             color: theme.textPrimary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 20
             font.bold: true
             elide: Text.ElideRight
@@ -395,7 +395,7 @@ Scope {
                       width: parent.width
                       text: section.modelData.name
                       color: theme.utility
-                      font.family: theme.fontFamily
+                      font.family: theme.uiFontFamily
                       font.pixelSize: 12
                       font.bold: true
                     }
@@ -422,7 +422,7 @@ Scope {
                             topPadding: 3
                             text: row.modelData.title
                             color: theme.textPrimary
-                            font.family: theme.fontFamily
+                            font.family: theme.uiFontFamily
                             font.pixelSize: 12
                             wrapMode: Text.Wrap
                             maximumLineCount: 2
@@ -454,7 +454,7 @@ Scope {
                                   anchors.centerIn: parent
                                   text: root.displayKey(modelData)
                                   color: theme.info
-                                  font.family: theme.fontFamily
+                                  font.family: theme.uiFontFamily
                                   font.pixelSize: 10
                                   font.bold: true
                                   maximumLineCount: 1
@@ -477,7 +477,7 @@ Scope {
             visible: root.categories.length === 0 || root.message.length > 0
             text: root.message.length > 0 ? root.message : "No shortcuts"
             color: theme.textSecondary
-            font.family: theme.fontFamily
+            font.family: theme.uiFontFamily
             font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter
           }

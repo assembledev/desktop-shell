@@ -232,7 +232,7 @@ Item {
         text: root.label
         color: root.active ? root.activeColor : root.textColor
         opacity: root.active ? 1 : root.inactiveOpacity
-        font.family: theme.fontFamily
+        font.family: theme.uiFontFamily
         font.pixelSize: 17
         font.bold: true
         horizontalAlignment: Text.AlignHCenter
@@ -251,7 +251,7 @@ Item {
     text: root.displayTitle
     color: root.occupied ? root.textColor : root.mutedColor
     opacity: root.expanded ? (root.occupied ? 1 : 0.74) : 0
-    font.family: theme.fontFamily
+    font.family: theme.uiFontFamily
     font.pixelSize: root.occupied ? 16 : 14
     font.bold: true
     elide: Text.ElideRight

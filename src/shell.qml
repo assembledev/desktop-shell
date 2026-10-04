@@ -22,13 +22,17 @@ ShellRoot {
     function ping(): bool { return true; }
   }
 
-  Bar { id: bar }
+  Bar {
+    id: bar
+    onControlCenterToggleRequested: controlCenter.toggleOpen(false)
+  }
   CalendarPopup {
     barSurface: bar.surface
   }
   CheatSheet {}
   ClipboardHistory {}
   ControlCenter {
+    id: controlCenter
     barSurface: bar.surface
   }
   Launcher {}
