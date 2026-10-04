@@ -211,6 +211,14 @@ scrolling history. `QuickControls` selects its compact layout when the main
 content area is below 600px high. Device lists are flat rows with hairline
 separators rather than nested rounded containers.
 
+The shortcuts reference uses three flat columns: Shell and Utilities, Windows,
+then Apps and Workspaces. Hotkey chords precede their action labels; related
+alternatives have a 6px vertical gap. Keys have no background or outline.
+Super uses `accent`, Alt uses `info`, Shift uses `utility`, and other keys and
+plus signs use `textPrimary`. This explicit modifier legend is the shortcuts
+surface's exception to the muted shortcut-label role. The full configured
+reference stays visible without search or scrolling.
+
 ## Elevation & Depth
 
 Depth comes from the existing tonal surface ladder and hairline borders.
