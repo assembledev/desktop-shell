@@ -339,7 +339,7 @@ palette. Override only the values that differ:
 
 ```nix
 programs.desktop-shell.theme = {
-  uiFontFamily = "sans-serif";
+  uiFontFamily = "Fira Sans";
   fontFamily = "FiraCode Nerd Font";
   bgSolid = "#10131c";
   textPrimary = "#e7eaf2";
@@ -351,13 +351,13 @@ programs.desktop-shell.theme = {
 `uiFontFamily` controls UI text throughout the shell: bar labels, search and
 input fields, menus, calendars, notifications, device pages, the switcher,
 wallpaper picker, keybinding reference, keyboard overlay, media and lock
-surfaces. Its default `sans-serif` resolves through fontconfig.
+surfaces. Its default is `Fira Sans`; fontconfig resolves the selected family.
 `fontFamily` retains the icon-font role for existing Nerd Font glyphs; authored
 vector symbols do not depend on it. Install any specifically named font in the
 user profile.
 
-To use Fira Code for all UI text, override just
-`programs.desktop-shell.theme.uiFontFamily = "FiraCode Nerd Font";`.
+To use sans-serif for all UI text, override just
+`programs.desktop-shell.theme.uiFontFamily = "sans-serif";`.
 
 Color values use Qt hexadecimal form: `#RRGGBB` or `#AARRGGBB`. The available
 fields are:

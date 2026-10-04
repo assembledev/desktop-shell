@@ -25,7 +25,7 @@ in
     ;
 
   fontFamily = "FiraCode Nerd Font";
-  uiFontFamily = "sans-serif";
+  uiFontFamily = "Fira Sans";
 
   # Content hierarchy. Chromatic colors are deliberately excluded here.
   textPrimary = "#eef0f8";
