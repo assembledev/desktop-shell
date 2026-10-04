@@ -34,14 +34,10 @@ Scope {
     "Apps",
     "Utilities"
   ]
-  readonly property var leftColumnOrder: [
-    "Shell",
-    "Apps",
-    "Utilities"
-  ]
-  readonly property var rightColumnOrder: [
-    "Windows",
-    "Workspaces"
+  readonly property var columnOrder: [
+    ["Shell", "Utilities"],
+    ["Windows"],
+    ["Apps", "Workspaces"]
   ]
 
   function openSheet() {
@@ -130,15 +126,18 @@ Scope {
   }
 
   function columnCategories(column) {
-    const order = column === 0 ? leftColumnOrder : rightColumnOrder;
     const result = [];
-
-    for (const name of order) {
+    for (const name of columnOrder[column]) {
       const category = categoryByName(name);
       if (category)
         result.push(category);
     }
-
+    if (column === 2) {
+      for (const category of categories) {
+        if (categoryOrder.indexOf(category.name) < 0)
+          result.push(category);
+      }
+    }
     return result;
   }
 
@@ -267,31 +266,140 @@ Scope {
     }
   }
 
+  function keys(entry) {
+    const displayed = entry.displayKeys;
+    const parts = displayed.map(function(key) { return root.keyPrefixAndTail(key); });
+    const arrows = ["left", "up", "down", "right"];
+    if (parts.length === 4 && parts.every(function(part) { return part.prefix === parts[0].prefix; })
+        && arrows.every(function(arrow) { return parts.some(function(part) { return part.tail === arrow; }); }))
+      return root.displayKey(parts[0].prefix) + " + ← ↑ ↓ →";
+    return displayed.map(function(key) {
+      const arrowNames = {left: "←", right: "→", up: "↑", down: "↓"};
+      return String(key).split(" + ").map(function(token) {
+        return arrowNames[token] || root.displayKeyToken(token);
+      }).join(" + ").replace(/(F?\d+)-(F?\d+)/g, "$1–$2");
+    }).join("\n");
+  }
+  component ReferenceText: Text {
+    color: theme.textPrimary
+    font.family: theme.uiFontFamily
+    font.pixelSize: 13
+    textFormat: Text.PlainText
+    wrapMode: Text.Wrap
+  }
+  function keyTokens(sequence) {
+    const tokens = [];
+    for (const key of String(sequence).split(" + ")) {
+      if (tokens.length > 0) tokens.push("+");
+      tokens.push(key === "SPACE" ? "Space" : key);
+    }
+    return tokens;
+  }
+  function keyTone(key) {
+    if (key === "Super") return theme.accent;
+    if (key === "Alt" || key === "Left Alt" || key === "Right Alt") return theme.info;
+    if (key === "Shift") return theme.utility;
+    return theme.textPrimary;
+  }
+  component ShortcutChord: Flow {
+    id: chord
+    required property string sequence
+    spacing: 5
+    Repeater {
+      model: root.keyTokens(chord.sequence)
+      delegate: Item {
+        id: token
+        required property string modelData
+        width: keyLabel.implicitWidth
+        height: 22
+        ReferenceText {
+          id: keyLabel
+          anchors.left: parent.left
+          anchors.verticalCenter: parent.verticalCenter
+          text: token.modelData
+          color: root.keyTone(token.modelData)
+          font.pixelSize: 12
+          font.weight: token.modelData === "+" ? Font.Normal : Font.DemiBold
+          wrapMode: Text.NoWrap
+        }
+      }
+    }
+  }
+  component KeyFirstAction: Item {
+    id: action
+    required property var entry
+    implicitHeight: Math.max(36, Math.max(chord.implicitHeight, title.implicitHeight) + 12)
+    Column {
+      id: chord
+      width: 151
+      y: 6
+      spacing: 6
+      Repeater {
+        model: root.keys(action.entry).split("\n")
+        delegate: ShortcutChord {
+          required property string modelData
+          width: chord.width
+          sequence: modelData
+        }
+      }
+    }
+    ReferenceText {
+      id: title
+      x: 163
+      y: 8
+      width: parent.width - x
+      text: action.entry.title
+      color: theme.textSecondary
+    }
+  }
+  component SectionHeading: Item {
+    id: heading
+    required property string label
+    implicitHeight: 44
+    ReferenceText {
+      width: parent.width
+      text: heading.label
+      font.pixelSize: 15
+      font.weight: Font.DemiBold
+    }
+    Rectangle {
+      y: 28
+      width: parent.width
+      height: 1
+      color: theme.borderMuted
+    }
+  }
+  component KeyFirstSection: Column {
+    id: section
+    required property var group
+    SectionHeading { width: parent.width; label: section.group.name }
+    Repeater {
+      model: section.group.entries
+      delegate: KeyFirstAction {
+        required property var modelData
+        width: section.width
+        entry: modelData
+      }
+    }
+  }
+
   PanelWindow {
-    screen: shellConfig.screen
     id: window
+    screen: shellConfig.screen
     visible: surfaceTransition.presented
     color: "transparent"
     exclusiveZone: 0
-
+    anchors { top: true; bottom: true; left: true; right: true }
     WlrLayershell.namespace: "quickshell:cheatsheet"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: root.open
       ? WlrKeyboardFocus.Exclusive
       : WlrKeyboardFocus.None
 
-    anchors {
-      top: true
-      bottom: true
-      left: true
-      right: true
-    }
-
     Rectangle {
       anchors.fill: parent
       color: theme.surfaceScrim
       opacity: surfaceTransition.progress
-
       MouseArea {
         anchors.fill: parent
         enabled: root.open
@@ -301,192 +409,89 @@ Scope {
 
     Rectangle {
       id: panel
-
-      width: Math.min(980, window.width - 44)
-      height: Math.min(window.height - 96, Math.max(340, header.implicitHeight + body.spacing + contentColumns.implicitHeight + 48))
+      width: Math.min(1200, window.width - 56)
+      height: Math.min(window.height - 56, Math.max(680, contentColumns.implicitHeight + 118))
       anchors.centerIn: parent
-      radius: 14
+      radius: theme.groupRadius
       color: theme.surfaceGlassStrong
-      border.color: theme.borderSubtle
       border.width: 1
+      border.color: theme.borderSubtle
       clip: true
       opacity: surfaceTransition.progress
       scale: 0.95 + surfaceTransition.progress * 0.05
       transform: Translate {
         y: (1 - surfaceTransition.progress) * 20
       }
-
       MouseArea {
         anchors.fill: parent
         onClicked: function(mouse) { mouse.accepted = true; }
       }
 
-      ColumnLayout {
-        id: body
-        anchors.fill: parent
-        anchors.margins: 18
-        spacing: 12
-        opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.16) / 0.84))
-        transform: Translate {
-          // Translate moves pixels without changing layout geometry.
-          // qmllint disable Quick.layout-positioning
-          y: (1 - body.opacity) * 8
-          // qmllint enable Quick.layout-positioning
-        }
-
-        RowLayout {
-          id: header
-
+      RowLayout {
+        x: 24
+        y: 20
+        width: parent.width - 48
+        spacing: 16
+        ReferenceText {
           Layout.fillWidth: true
-          spacing: 10
-
-          Text {
-            Layout.fillWidth: true
-            text: "Shortcuts"
-            color: theme.textPrimary
-            font.family: theme.uiFontFamily
-            font.pixelSize: 20
-            font.bold: true
-            elide: Text.ElideRight
-          }
+          text: "Shortcuts"
+          font.pixelSize: 20
+          font.bold: true
         }
+        ShellButton {
+          colors: theme
+          glyph: "close"
+          tooltip: "Close shortcuts"
+          flatAction: true
+          enabled: root.open
+          onClicked: root.closeSheet()
+        }
+      }
+      Rectangle {
+        x: 24
+        y: 64
+        width: parent.width - 48
+        height: 1
+        color: theme.borderMuted
+      }
 
-        RowLayout {
-          id: contentColumns
-
-          Layout.fillWidth: true
-          spacing: 12
-
-          Repeater {
-            model: [0, 1]
-
-            delegate: ColumnLayout {
-              id: column
-
-              required property int modelData
-
-              Layout.fillWidth: true
-              spacing: 10
-
-              Repeater {
-                model: root.columnCategories(column.modelData)
-
-                delegate: Rectangle {
-                  id: section
-
-                  required property var modelData
-
-                  Layout.fillWidth: true
-                  Layout.preferredHeight: sectionContent.implicitHeight + 16
-                  radius: 8
-                  color: theme.surfaceSoft
-                  border.width: 0
-                  border.color: "transparent"
-
-                  Column {
-                    id: sectionContent
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 8
-                    spacing: 5
-
-                    Text {
-                      width: parent.width
-                      text: section.modelData.name
-                      color: theme.utility
-                      font.family: theme.uiFontFamily
-                      font.pixelSize: 12
-                      font.bold: true
-                    }
-
-                    Repeater {
-                      model: section.modelData.entries
-
-                      delegate: Item {
-                        id: row
-
-                        required property var modelData
-
-                        width: sectionContent.width
-                        height: Math.max(26, Math.max(titleText.implicitHeight, keyFlow.implicitHeight) + 4)
-
-                        RowLayout {
-                          anchors.fill: parent
-                          spacing: 8
-
-                          Text {
-                            id: titleText
-                            Layout.fillWidth: true
-                            Layout.alignment: Qt.AlignTop
-                            topPadding: 3
-                            text: row.modelData.title
-                            color: theme.textPrimary
-                            font.family: theme.uiFontFamily
-                            font.pixelSize: 12
-                            wrapMode: Text.Wrap
-                            maximumLineCount: 2
-                            elide: Text.ElideRight
-                          }
-
-                          Flow {
-                            id: keyFlow
-                            Layout.preferredWidth: Math.min(230, Math.max(150, section.width * 0.44))
-                            Layout.alignment: Qt.AlignTop
-                            layoutDirection: Qt.RightToLeft
-                            spacing: 4
-
-                            Repeater {
-                              model: row.modelData.displayKeys
-
-                              delegate: Rectangle {
-                                required property string modelData
-
-                                height: 23
-                                width: Math.max(44, Math.min(220, keyLabel.implicitWidth + 14))
-                                radius: 6
-                                color: theme.surfaceHover
-                                border.width: 1
-                                border.color: theme.borderSubtle
-
-                                Text {
-                                  id: keyLabel
-                                  anchors.centerIn: parent
-                                  text: root.displayKey(modelData)
-                                  color: theme.info
-                                  font.family: theme.uiFontFamily
-                                  font.pixelSize: 10
-                                  font.bold: true
-                                  maximumLineCount: 1
-                                  elide: Text.ElideRight
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+      Row {
+        id: contentColumns
+        x: 24
+        y: 88
+        width: parent.width - 48
+        spacing: 24
+        visible: root.categories.length > 0 && root.message.length === 0
+        Repeater {
+          model: [0, 1, 2]
+          delegate: Column {
+            id: referenceColumn
+            required property int modelData
+            width: (contentColumns.width - 48) / 3
+            spacing: 24
+            Repeater {
+              model: root.columnCategories(referenceColumn.modelData)
+              delegate: KeyFirstSection {
+                required property var modelData
+                width: referenceColumn.width
+                group: modelData
               }
             }
           }
-
-          Text {
-            Layout.fillWidth: true
-            visible: root.categories.length === 0 || root.message.length > 0
-            text: root.message.length > 0 ? root.message : "No shortcuts"
-            color: theme.textSecondary
-            font.family: theme.uiFontFamily
-            font.pixelSize: 13
-            horizontalAlignment: Text.AlignHCenter
-          }
         }
       }
+      ReferenceText {
+        anchors.centerIn: parent
+        width: parent.width - 48
+        visible: root.categories.length === 0 || root.message.length > 0
+        text: root.message.length > 0 ? root.message : "No shortcuts"
+        color: theme.textSecondary
+        horizontalAlignment: Text.AlignHCenter
+      }
     }
-
     Shortcut {
       sequence: "Esc"
+      enabled: root.open
       onActivated: root.closeSheet()
     }
   }
