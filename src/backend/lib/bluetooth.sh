@@ -70,13 +70,18 @@ bluetooth_require_address() {
 }
 
 bluetooth_set_adapter_property() {
-  property="$1"
-  value="$2"
+  local property="$1" value="$2" output status
 
-  if ! timeout --signal=TERM --kill-after=0.2s 1s bluetoothctl "$property" "$value" >/dev/null; then
-    printf 'desktop-shell: could not set Bluetooth %s %s\n' "$property" "$value" >&2
-    return 1
+  if output="$(timeout --signal=TERM --kill-after=0.2s 1s bluetoothctl "$property" "$value" 2>&1)"; then
+    return 0
+  else
+    status=$?
   fi
+  printf 'desktop-shell: could not set Bluetooth %s %s (exit %s)\n' "$property" "$value" "$status" >&2
+  if [ -n "$output" ]; then
+    printf '%s\n' "$output" >&2
+  fi
+  return 1
 }
 
 bluetooth_private_mode() {

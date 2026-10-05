@@ -89,6 +89,14 @@ TestCase {
     }
   }
   Component {
+    id: pendingSwitchComponent
+    Common.ShellSwitch {
+      colors: suite.colors
+      checked: suite.radioState
+      onClicked: suite.clicks++
+    }
+  }
+  Component {
     id: arrangementComponent
     ControlCenter.DisplayArrangement {
       colors: suite.colors
@@ -238,6 +246,33 @@ TestCase {
     compare(b.checked, false);
     compare(b.Accessible.name, "Wi-Fi radio");
     verify(b.Accessible.role !== Accessible.NoRole);
+  }
+  function test_switchWaitsForBackend_data() {
+    return [
+      { tag: "mouse-disable", initial: true, keyboard: false },
+      { tag: "mouse-enable", initial: false, keyboard: false },
+      { tag: "keyboard-disable", initial: true, keyboard: true },
+      { tag: "keyboard-enable", initial: false, keyboard: true }
+    ];
+  }
+  function test_switchWaitsForBackend(row) {
+    radioState = row.initial;
+    const b = createTemporaryObject(pendingSwitchComponent, suite);
+    verify(b);
+    const before = clicks;
+    if (row.keyboard) {
+      b.forceActiveFocus(Qt.TabFocusReason);
+      keyClick(Qt.Key_Space);
+    } else {
+      mouseClick(b, b.width / 2, b.height / 2);
+    }
+    compare(clicks, before + 1);
+    compare(radioState, row.initial);
+    compare(b.checked, row.initial);
+    wait(20);
+    compare(b.checked, row.initial);
+    radioState = !row.initial;
+    compare(b.checked, !row.initial);
   }
   function test_keyboardSlider() {
     const b = createTemporaryObject(sliderComponent, suite);

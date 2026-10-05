@@ -1386,7 +1386,6 @@ Scope {
     if (bluetoothSessionActive || bluetoothSessionProc.running)
       return;
 
-    bluetoothError = "";
     bluetoothSessionClosing = false;
     bluetoothSessionProc.output = "";
     bluetoothSessionProc.exec([backend, "bluetooth", "session"]);
@@ -1517,8 +1516,19 @@ Scope {
       endBluetoothSession();
     else
       bluetoothDevicesReady = false;
+    startBluetoothToggle();
+  }
+
+  function startBluetoothToggle() {
+    if (bluetoothOperation !== "enable" && bluetoothOperation !== "disable")
+      return;
+    if (bluetoothToggleProc.running)
+      return;
+    // Session cleanup changes the same adapter properties as the off command.
+    if (bluetoothOperation === "disable" && (bluetoothSessionProc.running || bluetoothDiscoveryProc.running))
+      return;
     bluetoothToggleProc.output = "";
-    bluetoothToggleProc.exec(boundedBackendCommand(["bluetooth", bluetoothEnabled ? "off" : "on"], 15));
+    bluetoothToggleProc.exec(boundedBackendCommand(["bluetooth", bluetoothOperation === "disable" ? "off" : "on"], 15));
   }
 
   function runBluetoothDeviceAction(device) {
@@ -1944,7 +1954,7 @@ Scope {
       onRead: function (data) {
         const line = String(data).trim();
         bluetoothSessionProc.output = (bluetoothSessionProc.output + "\n" + line).trim();
-        if (line === "ready" && root.open && root.page === "bluetooth" && root.bluetoothEnabled) {
+        if (line === "ready" && !root.bluetoothSessionClosing && root.bluetoothOperation !== "disable" && root.open && root.page === "bluetooth" && root.bluetoothEnabled) {
           root.bluetoothSessionActive = true;
           root.startBluetoothDiscovery();
           root.refreshBluetooth();
@@ -1960,6 +1970,7 @@ Scope {
       root.bluetoothSessionClosing = false;
       root.bluetoothSessionActive = false;
       root.stopBluetoothDiscovery();
+      root.startBluetoothToggle();
 
       if (!wasClosing && root.open && root.page === "bluetooth" && root.bluetoothEnabled)
         root.bluetoothError = root.cleanBluetoothError(output, "Pairing mode ended unexpectedly");
@@ -1996,6 +2007,7 @@ Scope {
       bluetoothDiscoveryStopTimer.stop();
       root.bluetoothDiscoveryStarted = false;
       root.bluetoothDiscoveryStopRequested = false;
+      root.startBluetoothToggle();
       if (root.bluetoothSessionActive && root.open && root.page === "bluetooth")
         bluetoothDiscoveryRestartTimer.restart();
     }

@@ -6,6 +6,8 @@ Switch {
   required property var colors
   property bool busy: false
   property color accent: colors.accent
+  // The backend owns checked; activation only requests a state change.
+  checkable: false
   Accessible.role: Accessible.CheckBox
   Accessible.checked: checked
   focusPolicy: Qt.StrongFocus
