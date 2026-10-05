@@ -492,6 +492,14 @@ test "${captured_bluetoothctl_args[1]}" = "discoverable on"
 test "${captured_bluetoothctl_args[2]}" = "discoverable off"
 test "${captured_bluetoothctl_args[3]}" = "pairable off"
 
+printf '#!%s\nprintf "Failed to set discoverable off: org.bluez.Error.Busy\\n"\nexit 1\n' \
+  "$(command -v bash)" >"$test_bin/bluetoothctl"
+if bluetooth_error="$(PATH="$test_bin:$PATH" bluetooth_set_adapter_property discoverable off 2>&1)"; then
+  printf 'Rejected Bluetooth property change unexpectedly succeeded\n' >&2
+  exit 1
+fi
+[[ "$bluetooth_error" == *org.bluez.Error.Busy* ]]
+
 PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" direction l
 mapfile -t captured_hyprctl_args <"$hyprctl_args"
 test "${captured_hyprctl_args[0]}" = dispatch
