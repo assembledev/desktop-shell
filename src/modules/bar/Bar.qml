@@ -9,6 +9,7 @@ import Quickshell.Services.SystemTray
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "../common"
+import "../common/AudioStatus.js" as AudioStatus
 import "../launcher/LauncherSearch.js" as LauncherSearch
 import "BarLayout.js" as BarLayout
 
@@ -820,9 +821,9 @@ Scope {
 
               BarSegment {
                 visible: Boolean(root.sink?.ready && root.sink?.audio)
-                icon: root.sink?.audio?.muted ? "󰖁" : "󰕾"
+                symbol: AudioStatus.icon(root.sink?.audio)
                 label: root.sink?.audio?.muted ? "OFF" : Math.round((root.sink?.audio?.volume || 0) * 100) + "%"
-                iconColor: root.sink?.audio?.muted ? theme.iconMuted : theme.info
+                iconColor: AudioStatus.accent(root.sink?.audio, theme)
                 clickable: true
                 onClicked: {
                   if (root.sink?.audio)
@@ -1153,9 +1154,9 @@ Scope {
 
               BarSegment {
                 visible: Boolean(root.sink?.ready && root.sink?.audio)
-                icon: root.sink?.audio?.muted ? "󰖁" : "󰕾"
+                symbol: AudioStatus.icon(root.sink?.audio)
                 label: root.sink?.audio?.muted ? "OFF" : Math.round((root.sink?.audio?.volume || 0) * 100) + "%"
-                iconColor: root.sink?.audio?.muted ? theme.iconMuted : theme.info
+                iconColor: AudioStatus.accent(root.sink?.audio, theme)
                 clickable: true
                 targetHeight: root.portraitSecondaryHeight
                 onClicked: {
@@ -1548,6 +1549,7 @@ Scope {
   component BarSegment: Item {
     id: segment
     property string icon
+    property string symbol: ""
     property string label
     property color iconColor: theme.textPrimary
     property color textColor: theme.textPrimary
@@ -1573,6 +1575,7 @@ Scope {
       }
 
       Text {
+        visible: segment.symbol.length === 0
         text: segment.icon
         color: segment.iconColor
         font.family: theme.fontFamily
@@ -1580,6 +1583,14 @@ Scope {
         font.bold: true
         verticalAlignment: Text.AlignVCenter
         y: root.textOpticalYOffset
+      }
+
+      ShellSymbol {
+        visible: segment.symbol.length > 0
+        symbol: segment.symbol
+        tint: segment.iconColor
+        size: 16
+        anchors.verticalCenter: parent.verticalCenter
       }
 
       Text {
