@@ -41,6 +41,12 @@ See [Session-lock security](lock-security.md) for guarantees and host prerequisi
 models. Components consume configuration passed by the package; they do not
 select machine names, output identifiers, applications, or network providers.
 
+`src/modules/common/AudioStatus.js` owns audio mute symbols and their semantic
+color for the bar, volume OSD, quick controls, device mixer, and application
+mixer. Presentations bind directly to PipeWire audio objects; mute is independent
+of volume, and all surfaces render the same authored symbols through
+`ShellSymbol`.
+
 Hyprland is the supported compositor backend. Workspace and window operations
 are centralized in the Hyprland integration so UI components do not each grow
 their own dispatch vocabulary. The adapter targets Hyprland's Lua dispatcher

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../common"
+import "../common/AudioStatus.js" as AudioStatus
 
 ColumnLayout {
   id: quick
@@ -32,7 +33,7 @@ ColumnLayout {
       visible: level.muteControl
       colors: quick.colors
       glyph: level.glyph
-      accent: level.muted ? quick.colors.danger : quick.colors.info
+      accent: AudioStatus.accent({ muted: level.muted }, quick.colors)
       tooltip: (level.muted ? "Unmute " : "Mute ") + level.name
       flatAction: true
       implicitWidth: 30
@@ -191,7 +192,7 @@ ColumnLayout {
         Layout.leftMargin: 12
         Layout.rightMargin: 12
         Layout.bottomMargin: quick.compact ? 10 : 0
-        glyph: quick.controller.sink?.audio?.muted ? "mute" : "speaker"
+        glyph: AudioStatus.icon(quick.controller.sink?.audio)
         name: "Output"
         value: quick.controller.sink?.audio?.volume || 0
         muted: quick.controller.sink?.audio?.muted || false
@@ -205,7 +206,7 @@ ColumnLayout {
         Layout.rightMargin: 12
         Layout.bottomMargin: 10
         visible: !quick.compact
-        glyph: quick.controller.source?.audio?.muted ? "mic-off" : "mic"
+        glyph: AudioStatus.icon(quick.controller.source?.audio, true)
         name: "Input"
         value: quick.controller.source?.audio?.volume || 0
         muted: quick.controller.source?.audio?.muted || false

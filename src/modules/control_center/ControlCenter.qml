@@ -11,6 +11,7 @@ import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import Quickshell.Services.Notifications
 import "../common"
+import "../common/AudioStatus.js" as AudioStatus
 import "NotificationHistory.js" as History
 
 Scope {
@@ -120,8 +121,8 @@ Scope {
         accent: theme.utility
       },
       volume: {
-        icon: "",
-        accent: theme.info
+        icon: AudioStatus.icon(root.sink?.audio),
+        accent: AudioStatus.accent(root.sink?.audio, theme)
       },
       fallback: {
         icon: "󰘳",
@@ -2709,7 +2710,7 @@ Scope {
             spacing: 8
             AudioDeviceSection {
               title: "Output"
-              icon: root.sink?.audio?.muted ? "mute" : "speaker"
+              icon: AudioStatus.icon(root.sink?.audio)
               current: root.sink
               devices: root.outputDevices
               expanded: root.outputExpanded
@@ -2725,7 +2726,7 @@ Scope {
             }
             AudioDeviceSection {
               title: "Input"
-              icon: root.source?.audio?.muted ? "mic-off" : "mic"
+              icon: AudioStatus.icon(root.source?.audio, true)
               current: root.source
               devices: root.inputDevices
               expanded: root.inputExpanded
@@ -3819,7 +3820,7 @@ Scope {
 
         IconButton {
           glyph: audioSection.icon
-          accent: audioSection.current?.audio?.muted ? theme.danger : theme.info
+          accent: AudioStatus.accent(audioSection.current?.audio, theme)
           active: false
           tooltip: (audioSection.current?.audio?.muted ? "Unmute " : "Mute ") + audioSection.title.toLowerCase()
           onClicked: audioSection.toggleMute()
@@ -4021,8 +4022,8 @@ Scope {
         }
 
         IconButton {
-          glyph: row.streamMuted ? "󰝟" : ""
-          accent: row.streamMuted ? theme.danger : theme.info
+          glyph: AudioStatus.icon(row.node?.audio)
+          accent: AudioStatus.accent(row.node?.audio, theme)
           tooltip: (row.streamMuted ? "Unmute " : "Mute ") + root.streamName(node)
           active: false
           implicitWidth: 30
