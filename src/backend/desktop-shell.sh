@@ -72,6 +72,14 @@ if [ "${1:-}" = wait-ready ]; then
   exit
 fi
 
+# System metadata needs neither shell configuration nor device backends.
+if [ "${1:-}" = system ] && [ "${2:-}" = status-json ] && [ "$#" -eq 2 ]; then
+  # shellcheck source=lib/system-status.sh
+  source "${BASH_SOURCE[0]%/*}/lib/system-status.sh"
+  system_status_json
+  exit
+fi
+
 # Brightness changes are latency-sensitive continuous controls. The brightness
 # backend is self-contained, so dispatch it without parsing the shell config or
 # loading unrelated backend libraries. This is especially important for
@@ -358,7 +366,7 @@ Integration and backend commands:
   browser-tabs, lock-preview, lock-keyboard, apply, current, list-json,
   preview, set, notification-status, bluetooth, brightness, volume, power,
   display, focus, profile, bar, network-control, cursor, hypr, metrics, sound, run,
-  lock-run
+  lock-run, system status-json
 EOF
 }
 

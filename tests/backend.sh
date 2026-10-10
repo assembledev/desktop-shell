@@ -687,5 +687,6 @@ jq -e '.profiles == [{"topology":"another-display-set","primaryIdentity":"","out
 grep -Fx reload "$hyprctl_eval" >/dev/null
 
 # Exercise telemetry arithmetic and ensure polling does not query sleeping GPUs.
+bash "$source_root/tests/system-status.sh" "$source_root"
 bash "$source_root/tests/telemetry.sh" "$source_root"
 bash "$source_root/tests/session.sh" "$source_root"

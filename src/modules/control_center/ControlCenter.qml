@@ -49,6 +49,7 @@ Scope {
   property string backend: Quickshell.env("CONTROL_CENTER_BACKEND")
   property string stateDir: Quickshell.env("CONTROL_CENTER_STATE_DIR")
   property string preferencesDir: Quickshell.env("DESKTOP_SHELL_PREFERENCES_DIR")
+  property var systemInfo: null
   property bool open: false
   property bool dnd: false
   property string page: "main"
@@ -1370,9 +1371,17 @@ Scope {
   }
 
   function refreshAll() {
+    refreshSystemInfo();
     refreshBluetoothForPage();
     if (brightnessSupported)
       brightnessProc.running = true;
+  }
+
+  function refreshSystemInfo() {
+    if (systemStatusProc.running)
+      return;
+    systemStatusProc.output = "";
+    systemStatusProc.running = true;
   }
 
   function refreshBluetooth(includeDevices) {
@@ -2155,6 +2164,24 @@ Scope {
     }
   }
 
+  Process {
+    id: systemStatusProc
+    property string output: ""
+    command: root.boundedBackendCommand(["system", "status-json"])
+    running: true
+    stdout: StdioCollector {
+      onStreamFinished: systemStatusProc.output = text
+    }
+    onExited: exitCode => root.systemInfo = exitCode === 0 ? root.parseJson(output, null) : null
+  }
+
+  Timer {
+    interval: 5000
+    running: root.open && root.page === "main"
+    repeat: true
+    onTriggered: root.refreshSystemInfo()
+  }
+
   FileView {
     id: brightnessValueFile
     path: root.brightnessBackend === "ddc" && root.brightnessReady ? root.brightnessValuePath : ""
@@ -2680,6 +2707,13 @@ Scope {
           font.family: theme.uiFontFamily
           font.pixelSize: 13
         }
+      }
+      SystemFooter {
+        visible: Boolean(root.systemInfo?.available)
+        Layout.fillWidth: true
+        Layout.preferredHeight: implicitHeight
+        colors: theme
+        info: root.systemInfo
       }
     }
   }

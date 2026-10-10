@@ -53,6 +53,17 @@ The control center is attached beneath the bar. Quick controls stay above an
 independently scrolling notification history. Sound opens the detailed audio
 page. Lock and power actions belong to the separate power menu.
 
+On NixOS, the main page footer shows the running system's local-store
+registration time and `switch` or `test`. `switch` means the running closure
+matches a retained system generation or one of its specialisations; `test`
+means it does not. This is inferred state, not a record of the last rebuild
+command: testing an already retained generation also displays `switch`.
+The timestamp can reflect an import rather than build completion or activation.
+The read-only `desktop-shell system status-json` query uses the host's Nix CLI;
+when its local-store metadata API is unavailable, the date is unavailable.
+The footer refreshes on opening and while the main page is visible. It creates
+no rebuild history and does not require changes to rebuild commands.
+
 The display page provides a centered, draggable output arrangement. Dragging
 chooses exact top/center/bottom placements beside another display, or
 left/center/right placements above or below it. The shared edges stay touching;
