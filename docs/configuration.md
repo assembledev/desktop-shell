@@ -350,7 +350,7 @@ programs.desktop-shell.theme = {
 
 `uiFontFamily` controls UI text throughout the shell: bar labels, search and
 input fields, menus, calendars, notifications, device pages, the switcher,
-wallpaper picker, keybinding reference, keyboard overlay, media and lock
+wallpaper picker, keybinding reference, media and lock
 surfaces. Its default is `Fira Sans`; fontconfig resolves the selected family.
 `fontFamily` retains the icon-font role for existing Nerd Font glyphs; authored
 vector symbols do not depend on it. Install any specifically named font in the
