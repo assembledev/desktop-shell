@@ -10,7 +10,6 @@ import "modules/cheatsheet"
 import "modules/clipboard_history"
 import "modules/control_center"
 import "modules/launcher"
-import "modules/keyboard_overlay"
 import "modules/lock"
 import "modules/now_playing"
 import "modules/wallpaper_picker"
@@ -36,7 +35,6 @@ ShellRoot {
     barSurface: bar.surface
   }
   Launcher {}
-  KeyboardOverlay {}
   LockPreview {}
   NowPlaying {}
   WallpaperPicker {}
