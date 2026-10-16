@@ -408,7 +408,7 @@ Scope {
                 anchors.fill: parent
                 anchors.margins: -8
                 enabled: !root.currentMonth
-                cursorShape: Qt.PointingHandCursor
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: root.resetToToday()
               }
             }
