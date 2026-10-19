@@ -54,8 +54,8 @@ NixOS, also import its NixOS module for the lock-screen PAM service and the
 optional greetd greeter.
 
 See [Installation](docs/installation.md) for a complete flake example and
-[Configuration](docs/configuration.md) for the option reference. The visual
-language and semantic color contract live in [DESIGN.md](DESIGN.md).
+[Configuration](docs/configuration.md) for the option reference. Design
+principles and their code owners are documented in [Design notes](DESIGN.md).
 
 After activation:
 
@@ -76,7 +76,7 @@ working set is documented in [Keybindings](docs/keybindings.md).
 - [Keybindings](docs/keybindings.md)
 - [Browser tabs](docs/browser-tabs.md)
 - [Architecture](docs/architecture.md)
-- [Design system](DESIGN.md)
+- [Design notes](DESIGN.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Development

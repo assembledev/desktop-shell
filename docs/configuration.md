@@ -384,4 +384,4 @@ emit a migration warning. Their mappings are `foreground` → `textPrimary`,
 `warning`, `orange` → `caution`, `red` → `danger`, `brightRed` →
 `dangerStrong`, and `purple` → `special`.
 
-See [the design system](../DESIGN.md) for the role contract and contrast rules.
+See [Design notes](../DESIGN.md) for semantic roles and visual principles.
