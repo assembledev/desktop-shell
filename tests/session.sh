@@ -15,6 +15,41 @@ keyboard_json | jq -e '.index == -1' >/dev/null
 device_json='invalid'
 keyboard_json | jq -e '.name == "" and .layout == "" and .index == -1' >/dev/null
 
+# A transient lock service must keep the requesting session's connection even
+# when the systemd user manager still points at an exited compositor.
+(
+  desktop_shell_executable=desktop-shell
+  export XDG_RUNTIME_DIR="$test_root/runtime"
+  export WAYLAND_DISPLAY=wayland-live
+  export HYPRLAND_INSTANCE_SIGNATURE=live-instance
+
+  systemd-run() (
+    export XDG_RUNTIME_DIR=/stale/runtime
+    export WAYLAND_DISPLAY=wayland-stale
+    export DISPLAY=:99
+    export HYPRLAND_INSTANCE_SIGNATURE=stale-instance
+    for argument in "$@"; do
+      case "$argument" in
+        --setenv=*) export "${argument#--setenv=}" ;;
+      esac
+    done
+    printf '%s\n' "$XDG_RUNTIME_DIR" "$WAYLAND_DISPLAY" "$DISPLAY" \
+      "$HYPRLAND_INSTANCE_SIGNATURE" >"$test_root/service-environment"
+  )
+
+  for display in :7 unset; do
+    if [ "$display" = unset ]; then
+      unset DISPLAY
+    else
+      export DISPLAY="$display"
+    fi
+    lock_start
+    printf '%s\n' "$XDG_RUNTIME_DIR" "$WAYLAND_DISPLAY" "${DISPLAY:-}" \
+      "$HYPRLAND_INSTANCE_SIGNATURE" >"$test_root/expected-environment"
+    diff -u "$test_root/expected-environment" "$test_root/service-environment"
+  done
+)
+
 # Exercise the real IPC wrapper against an unresponsive client.
 mkdir -p "$test_root/bin"
 # Runtime-generated scripts are not processed by Nix's patchShebangs hook.

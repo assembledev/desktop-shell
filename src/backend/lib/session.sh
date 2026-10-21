@@ -140,10 +140,15 @@ lock_prepare_keyboard() {
 
 lock_start() {
   lock_prepare_keyboard
+  # The locker belongs to the caller's session, even if the manager env is stale.
   systemd-run \
     --user \
     --collect \
     --unit desktop-lock \
+    "--setenv=XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" \
+    "--setenv=WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-}" \
+    "--setenv=DISPLAY=${DISPLAY:-}" \
+    "--setenv=HYPRLAND_INSTANCE_SIGNATURE=${HYPRLAND_INSTANCE_SIGNATURE:-}" \
     "--setenv=DESKTOP_LOCK_RESTORE_KEYBOARD=$lock_restore_keyboard" \
     "--setenv=DESKTOP_LOCK_RESTORE_INDEX=$lock_restore_index" \
     --quiet \

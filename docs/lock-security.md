@@ -16,6 +16,11 @@ complete afterward.
 
 ## System integration
 
+The standalone lock service uses the requesting process's runtime directory,
+Wayland display, X11 display, and Hyprland instance. These identify the session
+that owns the lock request and take precedence over the systemd user manager's
+activation environment.
+
 The host must provide the PAM service, lock triggers, and suspend coordination.
 The shell does not install an inactivity-lock policy. Display dimming and DPMS
 off do not lock a session. Configure an explicit lock timeout in the host's idle
