@@ -16,6 +16,11 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: root.cancel()
+  }
   HyprlandAdapter { id: hyprland }
   HyprlandClientSnapshot {
     id: clientSnapshot
@@ -475,9 +480,11 @@ Scope {
     return true;
   }
 
-  function altTab(action) {
+  function altTab(action, screen) {
     const requestedAction = action || "next";
     if (!sessionActive) {
+      if (!placement.capture(screen))
+        return;
       snapshotState();
       originalAddress = addressOf(activeWindow);
       selectedAddress = originalAddress;
@@ -585,9 +592,9 @@ Scope {
   Component.onCompleted: snapshotState()
 
   PanelWindow {
-    screen: shellConfig.screen
+    screen: placement.screen
     id: switcherWindow
-    visible: surfaceTransition.presented
+    visible: surfaceTransition.presented && placement.screen !== null
     color: "transparent"
     exclusiveZone: 0
     WlrLayershell.namespace: "quickshell:windowSwitcher"

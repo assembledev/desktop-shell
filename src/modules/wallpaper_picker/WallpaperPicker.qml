@@ -16,6 +16,11 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: shell.cancel()
+  }
   MotionTransition {
     id: surfaceTransition
     requested: shell.open
@@ -124,7 +129,9 @@ Scope {
     close();
   }
 
-  function openPicker() {
+  function openPicker(screen) {
+    if (!placement.capture(screen) || open)
+      return;
     accepted = false;
     closing = false;
     ready = false;
@@ -207,10 +214,10 @@ Scope {
   }
 
   PanelWindow {
-    screen: shellConfig.screen
+    screen: placement.screen
     id: panel
 
-    visible: surfaceTransition.presented
+    visible: surfaceTransition.presented && placement.screen !== null
     color: "transparent"
     implicitHeight: 300
 

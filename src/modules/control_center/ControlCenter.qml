@@ -18,6 +18,7 @@ Scope {
   id: root
 
   required property var barSurface
+  readonly property var screen: placement.screen
 
   signal notificationPopupsCloseRequested
 
@@ -28,17 +29,14 @@ Scope {
   ShellConfig {
     id: shellConfig
   }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: root.open = false
+  }
   MotionTransition {
     id: mainSurfaceTransition
     requested: root.open
-  }
-  MotionTransition {
-    id: osdSurfaceTransition
-    requested: root.osdVisible
-  }
-  MotionTransition {
-    id: popupSurfaceTransition
-    requested: notificationPopupModel.count > 0
   }
 
   WifiModel {
@@ -113,9 +111,7 @@ Scope {
   readonly property int osdRowHeight: 38
   readonly property int osdRowSpacing: 10
   readonly property int osdVerticalPadding: 24
-  readonly property int osdRowCount: osdModel.count
-  readonly property bool osdVisible: osdRowCount > 0
-  readonly property int osdBoxHeight: osdVerticalPadding + osdRowCount * osdRowHeight + Math.max(0, osdRowCount - 1) * osdRowSpacing
+  property var osdEntries: []
   readonly property var osdKinds: ({
       brightness: {
         icon: "󰃠",
@@ -203,8 +199,8 @@ Scope {
   }
 
   function osdIndex(kind) {
-    for (let i = 0; i < osdModel.count; i++) {
-      if (osdModel.get(i).kind === kind)
+    for (let i = 0; i < osdEntries.length; i++) {
+      if (osdEntries[i].kind === kind)
         return i;
     }
     return -1;
@@ -223,13 +219,13 @@ Scope {
   }
 
   function armOsdSweep() {
-    if (osdModel.count === 0)
+    if (osdEntries.length === 0)
       return;
 
     const now = Date.now();
-    let nextExpiry = osdModel.get(0).expiresAt;
-    for (let i = 1; i < osdModel.count; i++)
-      nextExpiry = Math.min(nextExpiry, osdModel.get(i).expiresAt);
+    let nextExpiry = osdEntries[0].expiresAt;
+    for (let i = 1; i < osdEntries.length; i++)
+      nextExpiry = Math.min(nextExpiry, osdEntries[i].expiresAt);
 
     osdSweepTimer.interval = Math.max(16, nextExpiry - now);
     osdSweepTimer.restart();
@@ -237,11 +233,43 @@ Scope {
 
   function sweepOsd() {
     const now = Date.now();
-    for (let i = osdModel.count - 1; i >= 0; i--) {
-      if (osdModel.get(i).expiresAt <= now)
-        osdModel.remove(i);
-    }
+    osdEntries = osdEntries.filter(entry => entry.expiresAt > now);
     armOsdSweep();
+  }
+
+  function osdRows(outputName) {
+    const rows = [];
+    for (let i = 0; i < osdEntries.length; i++) {
+      const row = osdEntries[i];
+      if (row.outputName === outputName)
+        rows.push(row);
+    }
+    return rows;
+  }
+
+  function popupRows(outputName) {
+    const rows = [];
+    for (let i = 0; i < notificationPopupModel.count; i++) {
+      const id = notificationPopupModel.get(i).popupId;
+      if (popupData(id).outputName === outputName)
+        rows.push(id);
+    }
+    return rows;
+  }
+
+  function pruneOutputs() {
+    const names = shellConfig.screens.map(screen => String(screen.name));
+    osdEntries = osdEntries.filter(entry => names.indexOf(entry.outputName) >= 0);
+    for (let i = notificationPopupModel.count - 1; i >= 0; i--) {
+      const id = notificationPopupModel.get(i).popupId;
+      if (names.indexOf(popupData(id).outputName) < 0)
+        hidePopup(id);
+    }
+  }
+
+  Connections {
+    target: shellConfig
+    function onScreensChanged() { root.pruneOutputs(); }
   }
 
   function showOsd(kind, value, label) {
@@ -251,13 +279,16 @@ Scope {
       kind: kind,
       osdLevel: level,
       displayText: text,
-      expiresAt: Date.now() + osdTimeout
+      expiresAt: Date.now() + osdTimeout,
+      outputName: String(placement.target()?.name || "")
     };
     const index = osdIndex(kind);
+    const entries = osdEntries.slice();
     if (index >= 0)
-      osdModel.set(index, entry);
+      entries[index] = entry;
     else
-      osdModel.append(entry);
+      entries.push(entry);
+    osdEntries = entries;
     armOsdSweep();
   }
 
@@ -516,10 +547,12 @@ Scope {
     return width;
   }
 
-  function notificationPopupWidth() {
+  function notificationPopupWidth(outputName) {
     let width = notificationPopupDefaultWidth;
     for (let i = 0; i < notificationPopupModel.count; i++) {
       const popup = popupData(notificationPopupModel.get(i).popupId);
+      if (popup.outputName !== outputName)
+        continue;
       const notification = itemNotification(popup);
       const contentWidth = notificationActionsWidth(visibleNotificationActions(notification), notification) + 26;
       width = Math.max(width, Math.min(notificationPopupMaxWidth, contentWidth));
@@ -985,6 +1018,7 @@ Scope {
   function addPopup(item) {
     const popup = Object.assign({
       popupTime: Date.now(),
+      outputName: String(placement.target()?.name || ""),
       pausedMs: 0
     }, item);
     const existing = popupIndex(popup.id);
@@ -1055,7 +1089,9 @@ Scope {
 
   onDisplayedPageChanged: focusKeyboardHeader()
 
-  function openPanel(keyboard = true) {
+  function openPanel(keyboard = true, screen) {
+    if (!placement.capture(screen))
+      return;
     mainWindow.keyboardRequested = keyboard;
     open = true;
     if (keyboard) {
@@ -1066,11 +1102,11 @@ Scope {
     }
   }
 
-  function toggleOpen(keyboard = true) {
-    if (open)
+  function toggleOpen(keyboard = true, screen) {
+    if (open && placement.matches(screen))
       open = false;
     else
-      openPanel(keyboard);
+      openPanel(keyboard, screen);
   }
 
   function boundedBackendCommand(args, timeoutSeconds) {
@@ -1779,9 +1815,6 @@ Scope {
     onTriggered: root.finalizeClearNotifications()
   }
 
-  ListModel {
-    id: osdModel
-  }
 
   Timer {
     id: osdSweepTimer
@@ -2334,6 +2367,7 @@ Scope {
   BarOverlayWindow {
     id: mainWindow
     barSurface: root.barSurface
+    targetScreen: placement.screen
     requested: root.open
     presented: mainSurfaceTransition.presented
     surfaceNamespace: "quickshell:controlCenter"
@@ -2431,185 +2465,206 @@ Scope {
     }
   }
 
-  PanelWindow {
-    id: osdWindow
-    screen: shellConfig.screen
-    visible: osdSurfaceTransition.presented
-    color: "transparent"
-    exclusiveZone: 0
-    WlrLayershell.namespace: "quickshell:controlCenterOsd"
-    WlrLayershell.layer: WlrLayer.Overlay
-    anchors {
-      top: true
-      bottom: true
-      left: true
-      right: true
-    }
-    mask: Region {
-      item: osdBox
-    }
-
-    Rectangle {
-      id: osdBox
-      width: 276
-      height: root.osdBoxHeight
-      anchors.horizontalCenter: parent.horizontalCenter
-      anchors.bottom: parent.bottom
-      anchors.bottomMargin: parent.height * 0.26
-      radius: 14
-      color: theme.surfaceGlassStrong
-      border.color: theme.borderSubtle
-      border.width: 1
-      opacity: osdSurfaceTransition.progress
-      scale: 0.96 + osdSurfaceTransition.progress * 0.04
-      transform: Translate {
-        y: (1 - osdSurfaceTransition.progress) * 18
+  Variants {
+    model: shellConfig.screens
+    PanelWindow {
+      id: osdWindow
+      required property var modelData
+      readonly property var rows: root.osdRows(String(modelData.name))
+      MotionTransition {
+        id: osdSurfaceTransition
+        requested: rows.length > 0
       }
-      Behavior on height {
-        MotionNumberAnimation {
-          role: MotionNumberAnimation.Content
+      screen: modelData
+      visible: osdSurfaceTransition.presented
+      color: "transparent"
+      exclusiveZone: 0
+      WlrLayershell.namespace: "quickshell:controlCenterOsd"
+      WlrLayershell.layer: WlrLayer.Overlay
+      anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+      }
+      mask: Region {
+        item: osdBox
+      }
+
+      Rectangle {
+        id: osdBox
+        width: 276
+        height: root.osdVerticalPadding + osdWindow.rows.length * root.osdRowHeight + Math.max(0, osdWindow.rows.length - 1) * root.osdRowSpacing
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: parent.height * 0.26
+        radius: 14
+        color: theme.surfaceGlassStrong
+        border.color: theme.borderSubtle
+        border.width: 1
+        opacity: osdSurfaceTransition.progress
+        scale: 0.96 + osdSurfaceTransition.progress * 0.04
+        transform: Translate {
+          y: (1 - osdSurfaceTransition.progress) * 18
         }
-      }
+        Behavior on height {
+          MotionNumberAnimation {
+            role: MotionNumberAnimation.Content
+          }
+        }
 
-      ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 12
-        spacing: root.osdRowSpacing
+        ColumnLayout {
+          anchors.fill: parent
+          anchors.margins: 12
+          spacing: root.osdRowSpacing
 
-        Repeater {
-          model: osdModel
-          delegate: OsdRow {
-            required property string kind
-            required property real osdLevel
-            required property string displayText
-            Layout.fillWidth: true
-            Layout.preferredHeight: root.osdRowHeight
-            icon: root.osdIcon(kind)
-            level: osdLevel
-            label: displayText
-            accent: root.osdAccent(kind)
+          Repeater {
+            model: osdWindow.rows
+            delegate: OsdRow {
+              required property var modelData
+              Layout.fillWidth: true
+              Layout.preferredHeight: root.osdRowHeight
+              icon: root.osdIcon(modelData.kind)
+              level: modelData.osdLevel
+              label: modelData.displayText
+              accent: root.osdAccent(modelData.kind)
+            }
           }
         }
       }
     }
   }
 
-  PanelWindow {
-    id: popupWindow
-    screen: shellConfig.screen
-    visible: popupSurfaceTransition.presented && !root.open
-    color: "transparent"
-    exclusiveZone: 0
-    WlrLayershell.namespace: "quickshell:notificationPopups"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: popupKeyboardHover.hovered ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+  Variants {
+    model: shellConfig.screens
+    PanelWindow {
+      id: popupWindow
+      required property var modelData
+      readonly property var rows: root.popupRows(String(modelData.name))
+      MotionTransition {
+        id: popupSurfaceTransition
+        requested: rows.length > 0
+      }
+      screen: modelData
+      visible: popupSurfaceTransition.presented && !(root.open && root.screen === modelData)
+      color: "transparent"
+      exclusiveZone: 0
+      WlrLayershell.namespace: "quickshell:notificationPopups"
+      WlrLayershell.layer: WlrLayer.Overlay
+      WlrLayershell.keyboardFocus: popupKeyboardHover.hovered ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
-    anchors {
-      top: true
-      right: true
-    }
-
-    implicitWidth: popupColumn.width + 24
-    implicitHeight: popupColumn.implicitHeight + 28
-    mask: Region {
-      item: popupColumn
-    }
-
-    ColumnLayout {
-      id: popupColumn
-      width: root.notificationPopupWidth()
-      anchors.top: parent.top
-      anchors.right: parent.right
-      anchors.margins: 14
-      spacing: 10
-      opacity: popupSurfaceTransition.progress
-      transform: Translate {
-        // Translate moves pixels without changing layout geometry.
-        // qmllint disable Quick.layout-positioning
-        x: (1 - popupSurfaceTransition.progress) * 32
-        // qmllint enable Quick.layout-positioning
+      anchors {
+        top: true
+        right: true
       }
 
-      HoverHandler {
-        id: popupKeyboardHover
+      implicitWidth: popupColumn.width + 24
+      implicitHeight: popupColumn.implicitHeight + 28
+      mask: Region {
+        item: popupColumn
       }
 
-      Repeater {
-        model: notificationPopupModel
-        delegate: NotificationToast {
-          required property var popupId
-          item: root.popupData(popupId)
-          onDismiss: root.dismissNotification(popupId)
-          onHide: root.hidePopup(popupId)
+      ColumnLayout {
+        id: popupColumn
+        width: Math.min(root.notificationPopupWidth(String(popupWindow.modelData.name)), Math.max(1, Number(popupWindow.modelData?.width || 0) - 28))
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 14
+        spacing: 10
+        opacity: popupSurfaceTransition.progress
+        transform: Translate {
+          // Translate moves pixels without changing layout geometry.
+          // qmllint disable Quick.layout-positioning
+          x: (1 - popupSurfaceTransition.progress) * 32
+          // qmllint enable Quick.layout-positioning
+        }
+
+        HoverHandler {
+          id: popupKeyboardHover
+        }
+
+        Repeater {
+          model: popupWindow.rows
+          delegate: NotificationToast {
+            required property var modelData
+            readonly property int popupId: modelData
+            item: root.popupData(popupId)
+            onDismiss: root.dismissNotification(popupId)
+            onHide: root.hidePopup(popupId)
+          }
         }
       }
     }
   }
 
-  PanelWindow {
-    id: focusWindow
-    screen: shellConfig.screen
-    visible: root.focusMode
-    color: "transparent"
-    WlrLayershell.namespace: "quickshell:focusBar"
-    WlrLayershell.layer: WlrLayer.Top
-    exclusiveZone: 0
-    implicitHeight: 8
-    anchors {
-      top: true
-      left: true
-      right: true
-    }
-    mask: Region {
-      item: focusHitbox
-    }
-
-    Item {
-      id: focusHitbox
-      anchors.top: parent.top
-      anchors.left: parent.left
-      anchors.right: parent.right
-      height: 8
-    }
-
-    MouseArea {
-      id: focusHover
-      anchors.fill: focusHitbox
-      hoverEnabled: true
-      onEntered: {
-        root.focusBarOpen = true;
-        barProc.exec([backend, "bar", "show"]);
-        focusHideTimer.stop();
+  Variants {
+    model: shellConfig.barScreens
+    PanelWindow {
+      id: focusWindow
+      required property var modelData
+      screen: modelData
+      visible: root.focusMode
+      color: "transparent"
+      WlrLayershell.namespace: "quickshell:focusBar"
+      WlrLayershell.layer: WlrLayer.Top
+      exclusiveZone: 0
+      implicitHeight: 8
+      anchors {
+        top: true
+        left: true
+        right: true
       }
-      onExited: focusHideTimer.restart()
-    }
-
-    Timer {
-      id: focusHideTimer
-      interval: 1800
-      onTriggered: {
-        if (!focusHover.containsMouse && !root.open)
-          cursorProc.exec([backend, "cursor", "near-top"]);
+      mask: Region {
+        item: focusHitbox
       }
-    }
 
-    Rectangle {
-      id: focusEdge
-      anchors.left: parent.left
-      anchors.right: parent.right
-      anchors.top: parent.top
-      height: root.focusBarOpen ? 2 : 4
-      color: theme.special
-      opacity: root.focusBarOpen ? 0.35 : 0.8
+      Item {
+        id: focusHitbox
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 8
+      }
 
-      Behavior on height {
-        MotionNumberAnimation {
-          role: MotionNumberAnimation.FocusTravel
+      MouseArea {
+        id: focusHover
+        anchors.fill: focusHitbox
+        hoverEnabled: true
+        onEntered: {
+          root.focusBarOpen = true;
+          barProc.exec([backend, "bar", "show"]);
+          focusHideTimer.stop();
+        }
+        onExited: focusHideTimer.restart()
+      }
+
+      Timer {
+        id: focusHideTimer
+        interval: 1800
+        onTriggered: {
+          if (!focusHover.containsMouse && !root.open)
+            cursorProc.exec([backend, "cursor", "near-top"]);
         }
       }
-      Behavior on opacity {
-        MotionNumberAnimation {
-          role: MotionNumberAnimation.Feedback
+
+      Rectangle {
+        id: focusEdge
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        height: root.focusBarOpen ? 2 : 4
+        color: theme.special
+        opacity: root.focusBarOpen ? 0.35 : 0.8
+
+        Behavior on height {
+          MotionNumberAnimation {
+            role: MotionNumberAnimation.FocusTravel
+          }
+        }
+        Behavior on opacity {
+          MotionNumberAnimation {
+            role: MotionNumberAnimation.Feedback
+          }
         }
       }
     }

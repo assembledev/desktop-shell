@@ -1,21 +1,18 @@
 import QtQuick
 import Quickshell
+import Quickshell.Hyprland
 
 QtObject {
   id: root
 
   readonly property string outputName: Quickshell.env("DESKTOP_SHELL_OUTPUT")
-  readonly property var screen: {
-    const screens = Quickshell.screens || [];
-    if (outputName.length > 0) {
-      const configured = screens.find(function(candidate) {
-        return String(candidate?.name || "") === outputName;
-      });
-      if (configured)
-        return configured;
-      console.warn("desktop-shell: configured output is unavailable: " + outputName);
-    }
-    return screens.length > 0 ? screens[0] : null;
+  readonly property var screens: Quickshell.screens || []
+  readonly property string focusedOutputName: String(Hyprland.focusedMonitor?.name || "")
+  readonly property var barScreens: {
+    if (outputName.length === 0)
+      return screens;
+    const configured = screens.find(candidate => String(candidate.name) === outputName);
+    return configured ? [configured] : screens.slice(0, 1);
   }
 
   readonly property var workspaces: {

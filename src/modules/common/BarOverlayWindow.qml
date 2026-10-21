@@ -8,6 +8,7 @@ PanelWindow {
   id: root
 
   required property var barSurface
+  property var targetScreen: root.barSurface?.screen || null
   required property bool requested
   required property bool presented
   required property string surfaceNamespace
@@ -17,8 +18,8 @@ PanelWindow {
   // This is an ordinary layer surface, not a pointer-grabbing popup. Its
   // geometry starts below the bar, so mapping and unmapping it never changes
   // pointer ownership for a stationary bar trigger.
-  screen: root.barSurface?.screen
-  visible: root.presented
+  screen: root.targetScreen
+  visible: root.presented && root.targetScreen !== null
   color: "transparent"
   exclusionMode: ExclusionMode.Ignore
 

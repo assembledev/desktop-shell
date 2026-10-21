@@ -16,6 +16,11 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: root.closeSheet()
+  }
   MotionTransition {
     id: surfaceTransition
     requested: root.open
@@ -40,19 +45,19 @@ Scope {
     ["Apps", "Workspaces"]
   ]
 
-  function openSheet() {
-    open = true;
+  function openSheet(screen) {
+    open = placement.capture(screen) !== null;
   }
 
   function closeSheet() {
     open = false;
   }
 
-  function toggleSheet() {
-    if (open)
+  function toggleSheet(screen) {
+    if (open && placement.matches(screen))
       closeSheet();
     else
-      openSheet();
+      openSheet(screen);
   }
 
   function loadHotkeys(raw) {
@@ -385,8 +390,8 @@ Scope {
 
   PanelWindow {
     id: window
-    screen: shellConfig.screen
-    visible: surfaceTransition.presented
+    screen: placement.screen
+    visible: surfaceTransition.presented && placement.screen !== null
     color: "transparent"
     exclusiveZone: 0
     anchors { top: true; bottom: true; left: true; right: true }

@@ -18,6 +18,11 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: root.closePicker()
+  }
   MotionTransition {
     id: surfaceTransition
     requested: root.open
@@ -106,7 +111,13 @@ Scope {
     listProc.running = true;
   }
 
-  function openPicker() {
+  function openPicker(screen) {
+    if (!placement.capture(screen))
+      return;
+    if (open) {
+      Qt.callLater(function() { search.forceActiveFocus(); });
+      return;
+    }
     inputIntent.claimKeyboard();
     ageNow = Date.now() / 1000;
     open = true;
@@ -127,11 +138,11 @@ Scope {
     open = false;
   }
 
-  function togglePicker() {
-    if (open)
+  function togglePicker(screen) {
+    if (open && placement.matches(screen))
       closePicker();
     else
-      openPicker();
+      openPicker(screen);
   }
 
   function currentItem() {
@@ -253,9 +264,9 @@ Scope {
   }
 
   PanelWindow {
-    screen: shellConfig.screen
+    screen: placement.screen
     id: window
-    visible: surfaceTransition.presented
+    visible: surfaceTransition.presented && placement.screen !== null
     color: "transparent"
     exclusiveZone: 0
 

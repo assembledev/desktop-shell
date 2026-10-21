@@ -339,7 +339,7 @@ in
     output = mkOption {
       type = types.nullOr types.str;
       default = null;
-      description = "Output name for shell surfaces; null uses Quickshell's default screen.";
+      description = "Restrict bars to this output; null shows bars on all outputs. Keyboard surfaces follow compositor focus.";
     };
 
     display.startupLayout = mkOption {

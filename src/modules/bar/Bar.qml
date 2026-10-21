@@ -15,6 +15,14 @@ import "BarLayout.js" as BarLayout
 
 Scope {
   id: root
+  required property var screen
+  required property var sharedState
+  readonly property var monitor: screen ? Hyprland.monitorFor(screen) : null
+  readonly property bool outputFocused: shellConfig.focusedOutputName === String(screen?.name || "")
+  readonly property var clock: sharedState.clockState
+  readonly property var batteryState: sharedState.batteryState
+  readonly property var keyboardState: sharedState.keyboardState
+  signal calendarToggleRequested
   signal controlCenterToggleRequested
 
   Theme {
@@ -35,22 +43,12 @@ Scope {
     id: hyprland
   }
 
-  SystemClock {
-    id: clock
-    // Qt timers pause during suspend; seconds precision bounds the stale time
-    // after wake without a separate resume listener. Display remains HH:mm.
-    precision: SystemClock.Seconds
-  }
-
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
-  property string stateDir: Quickshell.env("CONTROL_CENTER_STATE_DIR")
-  property string preferencesDir: Quickshell.env("DESKTOP_SHELL_PREFERENCES_DIR")
-  property string networkControlsPath: Quickshell.env("DESKTOP_SHELL_NETWORK_CONTROLS")
   readonly property var surface: barWindow
   property bool compact: Quickshell.env("DESKTOP_SHELL_BAR_COMPACT") === "1"
   property bool showVram: Quickshell.env("DESKTOP_SHELL_BAR_SHOW_VRAM") !== "0"
   property bool workspaceIcons: Quickshell.env("DESKTOP_SHELL_BAR_WORKSPACE_ICONS") !== "0"
-  property bool barOpen: true
+  readonly property bool barOpen: sharedState.barOpen
   readonly property bool portraitMode: Number(barWindow.screen?.width || 0) > 0 && Number(barWindow.screen?.width || 0) < Number(barWindow.screen?.height || 0)
   readonly property bool portraitNarrow: portraitMode && Number(barWindow.screen?.width || 0) < 700
   readonly property int desktopBarHeight: 37
@@ -61,42 +59,20 @@ Scope {
   readonly property string clockText: Qt.formatDateTime(clock.date, "ddd, MMM dd HH:mm")
   readonly property string clockTimeText: Qt.formatDateTime(clock.date, "HH:mm")
   readonly property string clockDateText: Qt.formatDateTime(clock.date, "ddd, MMM d")
-  property var metrics: ({
-      ramText: "--",
-      hasVram: false,
-      vramText: "--"
-    })
+  readonly property var metrics: sharedState.metrics
   readonly property var battery: batteryState.data
 
-  BatteryState {
-    id: batteryState
-    onAvailableChanged: {
-      if (!available) {
-        root.batterySegmentHovered = false;
-        root.batteryPanelHovered = false;
-        root.batteryAnalysisOpen = false;
-      }
-    }
-  }
-
-  KeyboardState {
-    id: keyboardState
-  }
-  property var notificationStatus: ({
-      text: "",
-      class: "normal",
-      tooltip: "Control center"
-    })
-  property bool notificationUnread: false
-  property bool dnd: false
+  readonly property var notificationStatus: sharedState.notificationStatus
+  readonly property bool notificationUnread: sharedState.notificationUnread
+  readonly property bool dnd: sharedState.dnd
   property bool powerMenuOpen: false
   property bool batterySegmentHovered: false
   property bool batteryPanelHovered: false
   property bool batteryAnalysisPinned: false
   property bool batteryAnalysisOpen: false
-  property bool recording: false
-  property double recordingStartedAt: 0
-  property string recordingElapsed: "00:00"
+  readonly property bool recording: sharedState.recording
+  readonly property double recordingStartedAt: sharedState.recordingStartedAt
+  readonly property string recordingElapsed: sharedState.recordingElapsed
   property bool trayTriggerHovered: false
   property bool trayShelfHovered: false
   property bool trayShelfPinned: false
@@ -108,7 +84,7 @@ Scope {
   property var sink: Pipewire.defaultAudioSink
   // Inspect every source, including non-default and virtual microphones. Sink
   // monitor capture is output recording and must not light the microphone badge.
-  readonly property var microphoneLinks: Pipewire.linkGroups.values.filter(link => Boolean(link.source?.audio && !link.source.isStream && !link.source.isSink))
+  readonly property var microphoneLinks: sharedState.microphoneLinks
   readonly property var activeMicrophoneLinks: microphoneLinks.filter(link => link.state === PwLinkState.Active)
   readonly property string microphoneTooltip: {
     const names = [];
@@ -183,19 +159,6 @@ Scope {
 
   readonly property var applicationIdentities: LauncherSearch.applicationIdentityIndex(desktopApplications)
 
-  function parseJson(text, fallback) {
-    const rawText = String(text || "").trim();
-    if (!rawText)
-      return fallback;
-
-    try {
-      return JSON.parse(rawText);
-    } catch (error) {
-      console.error("bar: JSON parse failed: " + error);
-      return fallback;
-    }
-  }
-
   function workspaceLabel(id) {
     return shellConfig.workspaceLabel(id);
   }
@@ -215,7 +178,7 @@ Scope {
   }
 
   function workspaceActive(id) {
-    return (Hyprland.focusedWorkspace?.id || 1) === id;
+    return Number(root.monitor?.activeWorkspace?.id || 0) === id;
   }
 
   function workspacePrimaryToplevel(id) {
@@ -280,7 +243,7 @@ Scope {
   }
 
   function currentWorkspaceTitle() {
-    return normalizeWindowTitle(workspacePrimaryToplevel(Hyprland.focusedWorkspace?.id || 0)?.title || "");
+    return normalizeWindowTitle(workspacePrimaryToplevel(root.monitor?.activeWorkspace?.id || 0)?.title || "");
   }
 
   function focusWorkspace(id) {
@@ -392,107 +355,20 @@ Scope {
       trayMenuPopup.closeMenu();
   }
 
-  function updateNotificationStatus() {
-    const nextDnd = dndFile.text().trim() === "1";
-    const count = Number(countFile.text().trim() || "0");
-    dnd = nextDnd;
-    notificationUnread = count > 0;
 
-    if (dnd && notificationUnread) {
-      notificationStatus = {
-        text: "",
-        class: "dnd-unread",
-        tooltip: "Control center"
-      };
-    } else if (dnd) {
-      notificationStatus = {
-        text: "",
-        class: "dnd",
-        tooltip: "Control center"
-      };
-    } else if (notificationUnread) {
-      notificationStatus = {
-        text: "",
-        class: "unread",
-        tooltip: "Control center"
-      };
-    } else {
-      notificationStatus = {
-        text: "",
-        class: "normal",
-        tooltip: "Control center"
-      };
-    }
+  function power(action) {
+    powerMenuOpen = action === "open" || (action === "toggle" && !powerMenuOpen);
   }
 
-  function updateRecordingState() {
-    const startedAt = Number(recordingStateFile.text().trim() || "0");
-    recording = isFinite(startedAt) && startedAt > 0;
-    recordingStartedAt = recording ? startedAt : 0;
-    updateRecordingElapsed();
-  }
-
-  function padRecordingUnit(value) {
-    return String(Math.max(0, value)).padStart(2, "0");
-  }
-
-  function updateRecordingElapsed() {
-    if (!recording || recordingStartedAt <= 0) {
-      recordingElapsed = "00:00";
-      return;
+  Connections {
+    target: root.batteryState
+    function onAvailableChanged() {
+      if (!root.batteryState.available) {
+        root.batterySegmentHovered = false;
+        root.batteryPanelHovered = false;
+        root.batteryAnalysisOpen = false;
+      }
     }
-
-    const elapsed = Math.max(0, Math.floor(Date.now() / 1000 - recordingStartedAt));
-    const hours = Math.floor(elapsed / 3600);
-    const minutes = Math.floor((elapsed % 3600) / 60);
-    const seconds = elapsed % 60;
-    recordingElapsed = hours > 0 ? padRecordingUnit(hours) + ":" + padRecordingUnit(minutes) + ":" + padRecordingUnit(seconds) : padRecordingUnit(minutes) + ":" + padRecordingUnit(seconds);
-  }
-
-  function refreshTelemetry() {
-    metricsProc.running = true;
-  }
-
-  Component.onCompleted: {
-    refreshTelemetry();
-    updateNotificationStatus();
-  }
-
-  IpcHandler {
-    target: "desktopBar"
-    function reveal() {
-      root.barOpen = true;
-    }
-    function conceal() {
-      root.barOpen = false;
-    }
-    function toggle() {
-      root.barOpen = !root.barOpen;
-    }
-    function powerOpen() {
-      root.powerMenuOpen = true;
-    }
-    function powerClose() {
-      root.powerMenuOpen = false;
-    }
-    function powerToggle() {
-      root.powerMenuOpen = !root.powerMenuOpen;
-    }
-  }
-
-  Timer {
-    interval: 1000
-    running: root.recording
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.updateRecordingElapsed()
-  }
-
-  Timer {
-    interval: 30000
-    running: true
-    repeat: true
-    onTriggered: root.refreshTelemetry()
   }
 
   Timer {
@@ -517,58 +393,6 @@ Scope {
 
   onTrayOverflowCountChanged: updateTrayShelfOpen()
 
-  FileView {
-    id: dndFile
-    path: preferencesDir + "/dnd"
-    preload: true
-    watchChanges: true
-    onFileChanged: reload()
-    onLoaded: root.updateNotificationStatus()
-    onLoadFailed: function () {
-      setText("0");
-    }
-  }
-
-  FileView {
-    id: recordingStateFile
-    path: Quickshell.env("DESKTOP_SHELL_RECORDING_STATE")
-    preload: true
-    watchChanges: true
-    onFileChanged: reload()
-    onLoaded: root.updateRecordingState()
-    onLoadFailed: function () {
-      root.recording = false;
-    }
-  }
-
-  FileView {
-    id: countFile
-    path: stateDir + "/count"
-    preload: true
-    watchChanges: true
-    onFileChanged: reload()
-    onLoaded: root.updateNotificationStatus()
-    onLoadFailed: function () {
-      setText("0");
-    }
-  }
-
-  PwObjectTracker {
-    objects: Pipewire.nodes.values
-  }
-
-  PwObjectTracker {
-    objects: root.microphoneLinks
-  }
-
-  Process {
-    id: metricsProc
-    command: [backend, "metrics"]
-    stdout: StdioCollector {
-      onStreamFinished: root.metrics = root.parseJson(text, root.metrics)
-    }
-  }
-
   Connections {
     target: Hyprland
     function onRawEvent(event) {
@@ -586,7 +410,7 @@ Scope {
 
   TrayMenu {
     id: trayMenuPopup
-    shellScreen: shellConfig.screen
+    shellScreen: root.screen
     barSurface: barWindow
     barVisible: root.barOpen
 
@@ -618,7 +442,7 @@ Scope {
 
   PanelWindow {
     id: barWindow
-    screen: shellConfig.screen
+    screen: root.screen
     visible: true
     color: "transparent"
     exclusiveZone: root.barOpen ? root.barHeight : 0
@@ -657,7 +481,7 @@ Scope {
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           height: 1
-          color: theme.borderSubtle
+          color: root.outputFocused ? Qt.alpha(theme.info, 0.45) : theme.borderSubtle
         }
 
         RowLayout {
@@ -685,7 +509,7 @@ Scope {
                   return root.workspaceApplications(workspaceId);
                 }
                 activeTitle: active ? root.activeTitle : ""
-                activeColor: theme.info
+                activeColor: root.outputFocused ? theme.info : theme.textMuted
                 textColor: theme.textPrimary
                 mutedColor: theme.textMuted
                 hoverColor: theme.surfaceAccent
@@ -765,7 +589,7 @@ Scope {
           MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: Quickshell.execDetached([root.backend, "bar", "calendar"])
+            onClicked: root.calendarToggleRequested()
           }
         }
 
@@ -834,9 +658,7 @@ Scope {
               NetworkControls {
                 id: desktopNetworkControls
                 compactLabels: root.desktopCompactNetwork
-                backend: root.backend
-                configPath: root.networkControlsPath
-                pollingEnabled: !root.portraitMode
+                controller: root.sharedState.network
                 itemPadding: barSpacing.itemPadding
                 itemGap: barSpacing.itemGap
                 contentGap: barSpacing.contentGap
@@ -965,7 +787,7 @@ Scope {
                   return root.workspaceApplications(workspaceId);
                 }
                 activeTitle: ""
-                activeColor: theme.info
+                activeColor: root.outputFocused ? theme.info : theme.textMuted
                 textColor: theme.textPrimary
                 mutedColor: theme.textMuted
                 hoverColor: theme.surfaceAccent
@@ -1024,7 +846,7 @@ Scope {
             MouseArea {
               anchors.fill: parent
               cursorShape: Qt.PointingHandCursor
-              onClicked: Quickshell.execDetached([root.backend, "bar", "calendar"])
+              onClicked: root.calendarToggleRequested()
             }
           }
 
@@ -1166,9 +988,7 @@ Scope {
               }
 
               NetworkControls {
-                backend: root.backend
-                configPath: root.networkControlsPath
-                pollingEnabled: root.portraitMode
+                controller: root.sharedState.network
                 targetHeight: root.portraitSecondaryHeight
                 itemPadding: barSpacing.itemPadding
                 itemGap: barSpacing.itemGap
@@ -1201,7 +1021,7 @@ Scope {
 
   PanelWindow {
     id: trayShelfWindow
-    screen: shellConfig.screen
+    screen: root.screen
     visible: trayShelfTransition.presented
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -1281,7 +1101,7 @@ Scope {
 
   PanelWindow {
     id: batteryAnalysisWindow
-    screen: shellConfig.screen
+    screen: root.screen
     visible: batteryAnalysisTransition.presented
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore

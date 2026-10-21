@@ -34,7 +34,7 @@ disabled.
 | `finalPackage` | read-only | Resolved package used by the module |
 | `systemd.enable` | `true` | Enable the user service |
 | `systemd.target` | `"graphical-session.target"` | User target that owns shell services |
-| `output` | `null` | Output name for shell surfaces; `null` uses the first screen reported by Quickshell |
+| `output` | `null` | Restrict bars to one output; `null` shows a bar on every output. An unavailable named output falls back to the first available screen |
 | `display.startupLayout` | `[]` | Declarative monitor rules shown as the exact restore target in display settings |
 | `launcher.profiles` | `{}` | Named application layouts with labels and icons |
 | `launcher.autoStartProfile` | `null` | Profile applied at graphical session startup |
@@ -167,6 +167,25 @@ programs.desktop-shell.wallpaper = {
 The current selection is stored below
 `$XDG_STATE_HOME/desktop-shell/wallpaper/`. `hyprpaper` must be running; the
 module does not take ownership of its monitor policy.
+
+## Multiple displays
+
+Bars appear on each output by default. Each bar uses that output's logical
+geometry, scale and orientation, highlights its visible workspace, and marks
+keyboard focus with an accented edge. Workspace IDs and application state are
+shared across the session.
+
+Keyboard commands open shell surfaces on the compositor-focused output, even
+when its workspace is empty. Bar clicks open menus on that bar's output.
+Surfaces stay there until closed or explicitly invoked on another output.
+Notifications and OSD appear once on the focused output when their event occurs;
+existing items keep their output when focus changes.
+
+Connecting an output adds its presentations without restarting the shell.
+Disconnecting closes its interactive surfaces and removes its transient items.
+The next invocation uses the remaining focused output. The `output` option
+restricts bars and supplies a fallback when compositor focus is unavailable;
+it does not pin keyboard surfaces. Wallpaper selection remains session-wide.
 
 ## Bar
 

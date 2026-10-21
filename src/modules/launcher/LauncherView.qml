@@ -20,6 +20,11 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: root.closeLauncher()
+  }
   HyprlandAdapter { id: hyprland }
   ProfileController {
     id: profileController
@@ -86,7 +91,13 @@ Scope {
   readonly property color resourceAccent: theme.resource
   readonly property color modeAccent: mode === "focus" ? focusAccent : launchAccent
 
-  function openLauncher() {
+  function openLauncher(screen) {
+    if (!placement.capture(screen))
+      return;
+    if (open) {
+      Qt.callLater(function() { search.forceActiveFocus(); });
+      return;
+    }
     if (pendingProfileApplyId.length > 0)
       return;
     pendingFocusTarget = null;
@@ -104,8 +115,8 @@ Scope {
     Qt.callLater(function() { search.forceActiveFocus(); });
   }
 
-  function openFocusLauncher() {
-    openLauncher();
+  function openFocusLauncher(screen) {
+    openLauncher(screen);
     mode = "focus";
     applyFilter();
   }
@@ -115,11 +126,11 @@ Scope {
     appReloadTimer.stop();
   }
 
-  function toggleLauncher() {
-    if (open)
+  function toggleLauncher(screen) {
+    if (open && placement.matches(screen))
       closeLauncher();
     else
-      openLauncher();
+      openLauncher(screen);
   }
 
   function reloadApps() {
@@ -800,8 +811,8 @@ Scope {
 
   PanelWindow {
     id: window
-    screen: shellConfig.screen
-    visible: surfaceTransition.presented
+    screen: placement.screen
+    visible: surfaceTransition.presented && placement.screen !== null
     color: "transparent"
     exclusiveZone: 0
 

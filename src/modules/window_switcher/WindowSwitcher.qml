@@ -9,6 +9,9 @@ Scope {
 
   HyprlandAdapter { id: hyprland }
 
+  ShellConfig { id: shellConfig }
+  ScreenPlacement { id: commandPlacement; configuration: shellConfig }
+
   property var pendingCalls: []
   property double closeBeforeOpenUntil: 0
 
@@ -25,7 +28,7 @@ Scope {
   }
 
   function enqueue(method, argument) {
-    pendingCalls.push({ method: method, argument: argument });
+    pendingCalls.push({ method: method, argument: argument, screen: commandPlacement.capture() });
     flushTimer.restart();
   }
 
@@ -37,9 +40,9 @@ Scope {
     pendingCalls = [];
     for (const call of calls) {
       if (call.argument === undefined)
-        switcherLoader.item[call.method]();
+        switcherLoader.item[call.method](call.screen);
       else
-        switcherLoader.item[call.method](call.argument);
+        switcherLoader.item[call.method](call.argument, call.screen);
     }
   }
 

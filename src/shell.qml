@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 
 import Quickshell
 import Quickshell.Io
+import "modules/common"
 import "modules/bar"
 import "modules/calendar"
 import "modules/cheatsheet"
@@ -16,23 +17,51 @@ import "modules/wallpaper_picker"
 import "modules/window_switcher"
 
 ShellRoot {
+  id: root
+  ShellConfig { id: shellConfig }
+  ScreenPlacement { id: commandPlacement; configuration: shellConfig }
+
+  function barFor(screen) {
+    return bars.instances.find(bar => bar.screen === screen) || null;
+  }
+
   IpcHandler {
     target: "desktopShell"
     function ping(): bool { return true; }
   }
 
-  Bar {
-    id: bar
-    onControlCenterToggleRequested: controlCenter.toggleOpen(false)
+  BarState {
+    id: barState
+    onPowerRequested: action => {
+      commandPlacement.capture();
+      for (const bar of bars.instances) {
+        if (action === "close" || bar.screen !== commandPlacement.screen)
+          bar.power("close");
+        else
+          bar.power(action);
+      }
+    }
+  }
+  Variants {
+    id: bars
+    model: shellConfig.barScreens
+    Bar {
+      required property var modelData
+      screen: modelData
+      sharedState: barState
+      onCalendarToggleRequested: calendar.toggleCalendar(screen)
+      onControlCenterToggleRequested: controlCenter.toggleOpen(false, screen)
+    }
   }
   CalendarPopup {
-    barSurface: bar.surface
+    id: calendar
+    barSurface: root.barFor(screen)?.surface || null
   }
   CheatSheet {}
   ClipboardHistory {}
   ControlCenter {
     id: controlCenter
-    barSurface: bar.surface
+    barSurface: root.barFor(screen)?.surface || null
   }
   Launcher {}
   LockPreview {}

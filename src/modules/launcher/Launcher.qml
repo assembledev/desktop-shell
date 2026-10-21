@@ -2,14 +2,18 @@ import QtQuick
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
+import "../common"
 
 Scope {
   id: root
 
+  ShellConfig { id: shellConfig }
+  ScreenPlacement { id: commandPlacement; configuration: shellConfig }
+
   property var pendingCalls: []
 
   function enqueue(method, argument) {
-    pendingCalls.push({ method: method, argument: argument });
+    pendingCalls.push({ method: method, argument: argument, screen: commandPlacement.capture() });
     unloadTimer.stop();
     launcherLoader.active = true;
     flushTimer.restart();
@@ -23,7 +27,7 @@ Scope {
     pendingCalls = [];
     for (const call of calls) {
       if (call.argument === undefined)
-        launcherLoader.item[call.method]();
+        launcherLoader.item[call.method](call.screen);
       else
         launcherLoader.item[call.method](call.argument);
     }

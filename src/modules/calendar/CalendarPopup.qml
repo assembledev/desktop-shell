@@ -11,12 +11,18 @@ Scope {
   id: root
 
   required property var barSurface
+  readonly property var screen: placement.screen
 
   Theme {
     id: theme
   }
 
   ShellConfig { id: shellConfig }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: root.closeCalendar()
+  }
   MotionTransition {
     id: surfaceTransition
     requested: root.open
@@ -58,7 +64,10 @@ Scope {
     monthTransition.restart();
   }
 
-  function openCalendar() {
+  function openCalendar(screen) {
+    if (!placement.capture(screen))
+      return;
+    window.keyboardRequested = screen === undefined;
     resetToToday();
     open = true;
   }
@@ -67,11 +76,11 @@ Scope {
     open = false;
   }
 
-  function toggleCalendar() {
-    if (open)
+  function toggleCalendar(screen) {
+    if (open && placement.matches(screen))
       closeCalendar();
     else
-      openCalendar();
+      openCalendar(screen);
   }
 
   function refreshToday() {
@@ -147,6 +156,7 @@ Scope {
   BarOverlayWindow {
     id: window
     barSurface: root.barSurface
+    targetScreen: placement.screen
     requested: root.open
     presented: surfaceTransition.presented
     surfaceNamespace: "quickshell:calendar"

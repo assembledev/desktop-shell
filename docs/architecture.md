@@ -65,6 +65,20 @@ on `movewindowv2` events from the native event socket. Application dispatch and
 atomic launcher-history writes stay in QML; the latency-sensitive path does not
 spawn the command backend.
 
+### Output presentation
+
+`ShellConfig.qml` exposes available outputs, compositor focus and configured
+bar selection. `ScreenPlacement.qml` captures an output at invocation and
+invalidates it on removal. Keyboard controllers capture before queuing a
+presentation; bar menus receive their originating output explicitly.
+
+`src/shell.qml` creates per-output bars around one `BarState.qml` owner for
+telemetry, keyboard and battery sampling, network controls and bar commands.
+The control center retains one notification server and shared event models;
+output delegates present only their assigned notifications and OSD rows.
+Per-output views do not own independent polling or command endpoints. See
+[Multiple displays](configuration.md#multiple-displays) for placement behavior.
+
 ### Command backend
 
 `src/backend/desktop-shell.sh` is the stable command entry point used by

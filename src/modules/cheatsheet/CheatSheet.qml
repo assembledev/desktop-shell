@@ -1,14 +1,18 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../common"
 
 Scope {
   id: root
 
+  ShellConfig { id: shellConfig }
+  ScreenPlacement { id: commandPlacement; configuration: shellConfig }
+
   property var pendingCalls: []
 
   function enqueue(method) {
-    pendingCalls.push(method);
+    pendingCalls.push({ method: method, screen: commandPlacement.capture() });
     unloadTimer.stop();
     cheatsheetLoader.active = true;
     flushTimer.restart();
@@ -20,8 +24,8 @@ Scope {
 
     const calls = pendingCalls;
     pendingCalls = [];
-    for (const method of calls)
-      cheatsheetLoader.item[method]();
+    for (const call of calls)
+      cheatsheetLoader.item[call.method](call.screen);
   }
 
   function scheduleUnload() {

@@ -14,6 +14,11 @@ Scope {
   }
 
   ShellConfig { id: shellConfig }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: root.hide()
+  }
 
   property var currentTrack: null
   property bool revealed: false
@@ -63,6 +68,8 @@ Scope {
   }
 
   function showTrack(track) {
+    if (!placement.capture())
+      return;
     currentTrack = track;
     updateLength(track.length);
     revealed = true;
@@ -111,9 +118,9 @@ Scope {
   }
 
   PanelWindow {
-    screen: shellConfig.screen
+    screen: placement.screen
     id: nowPlayingWindow
-    visible: surfaceTransition.presented
+    visible: surfaceTransition.presented && placement.screen !== null
     color: "transparent"
     exclusiveZone: 0
     implicitWidth: 372

@@ -8,6 +8,11 @@ Scope {
   id: root
 
   ShellConfig { id: shellConfig }
+  ScreenPlacement {
+    id: placement
+    configuration: shellConfig
+    onRemoved: root.open = false
+  }
 
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
   property string defaultWallpaper: Quickshell.env("DESKTOP_SHELL_DEFAULT_WALLPAPER")
@@ -36,12 +41,15 @@ Scope {
     target: "lockPreview"
     function open(): void {
       root.updateClock();
-      root.open = true;
+      root.open = placement.capture() !== null;
     }
     function close(): void { root.open = false; }
     function toggle(): void {
       root.updateClock();
-      root.open = !root.open;
+      if (root.open && placement.matches())
+        root.open = false;
+      else
+        root.open = placement.capture() !== null;
     }
   }
 
@@ -63,9 +71,9 @@ Scope {
   }
 
   PanelWindow {
-    screen: shellConfig.screen
+    screen: placement.screen
     id: previewWindow
-    visible: root.open
+    visible: root.open && placement.screen !== null
     color: "transparent"
     WlrLayershell.namespace: "quickshell:lockPreview"
     WlrLayershell.layer: WlrLayer.Overlay
