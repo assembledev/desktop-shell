@@ -4,8 +4,15 @@
 opens shell surfaces, and provides the operations intended for Hyprland
 keybindings.
 
-Run `desktop-shell help` for the primary interface and
-`desktop-shell help-all` for integration commands.
+Run `desktop-shell help` for the primary interface, `desktop-shell <command>
+--help` or `desktop-shell help <command>` for a topic, and `desktop-shell
+help-all` for all topics. Help works without a valid configuration or running
+session.
+
+The `audio`, `wifi`, `media`, `dnd`, `notifications`, and profile-state commands
+return JSON through the running shell's native models. They require a running
+shell built from the matching package and do not start or restart it. An absent
+shell, missing command endpoint, or malformed IPC reply returns exit status 3.
 
 ## Lifecycle
 
@@ -98,7 +105,20 @@ enabled.
 ```console
 $ desktop-shell profile list-json
 $ desktop-shell profile apply <name>
+$ desktop-shell profile status-json <name>
+$ desktop-shell profile apply <name> --wait
 ```
+
+`apply` without `--wait` preserves asynchronous dispatch. `status-json` requests
+a fresh compositor snapshot and reports `open`, `placed`, `total`, `converged`,
+`entriesReady`, `applying`, `queued`, and `lastResult`. The last result describes
+the controller's dispatch, not completion of newly launched applications.
+
+`apply --wait` uses a 30-second verification budget and succeeds only after all
+configured applications have matching windows on their declared workspaces,
+with no pending apply for that profile. Missing windows, application startup
+failure, or placement that does not converge produce a nonzero exit status.
+Timing out does not cancel application launches or undo window moves.
 
 ### Window switcher
 
@@ -133,7 +153,98 @@ otherwise asks Hyprland to focus in that direction.
 | `desktop-shell bar show` | Reveal the bar |
 | `desktop-shell bar hide` | Conceal the bar |
 
-## Audio and brightness
+## Audio, Wi-Fi, media and notifications
+
+### Audio
+
+```console
+$ desktop-shell audio status-json
+$ desktop-shell audio devices-json
+$ desktop-shell audio streams-json
+$ desktop-shell audio volume 35
+$ desktop-shell audio mute on input
+$ desktop-shell audio volume 60 <node-name-or-id>
+$ desktop-shell audio default output <node-name-or-id>
+```
+
+The target defaults to `output`; `input` selects the default microphone. Exact
+node names and current PipeWire node IDs address other devices or application
+streams. IDs are session-local and names may change after device replacement;
+query the current nodes before targeting one. Missing or ambiguous targets fail.
+
+Volume uses percentages from 0 to 150 and preserves mute. `audio mute` accepts
+`on`, `off`, or `toggle`. Default-device selection accepts `output` or `input`
+and only a hardware/device node of that direction. It changes the PipeWire
+preference; it does not promise to reroute every existing application stream.
+
+Queries return defaults, devices and streams, including names, IDs, readiness,
+volume and mute. All-node inspection keeps the native tracker active for five
+seconds after the last request. Writes are issued once and succeed only after
+the requested state is observed, with a three-second observation budget after
+initial node synchronization. Success returns `{applied:true,node:...}`. A
+failure/timeout does not undo a request that may still take effect.
+
+### Wi-Fi
+
+```console
+$ desktop-shell wifi status-json
+$ desktop-shell wifi networks-json
+$ desktop-shell wifi scan
+$ desktop-shell wifi on
+$ desktop-shell wifi connect "Saved network"
+$ desktop-shell wifi disconnect "Saved network"
+```
+
+These commands use the control center's NetworkManager adapter and network
+model. `status-json` includes availability, hardware block, radio state, current
+SSID, signal, busy/scanning state and cached networks. Signals are percentages.
+`networks-json` returns the cached network list without starting a scan.
+
+`scan` enables discovery for 15 seconds, then releases it unless the Wi-Fi page
+still needs scanning. `connect` accepts a unique visible saved SSID; authenticate
+new networks through `wifi-page`. No password is accepted on the command line.
+`off` disables Wi-Fi and may disconnect this machine.
+
+Actions return `{accepted:true,...}` for the request. Connection, radio and
+scan completion are asynchronous; inspect `status-json` for the resulting state.
+A disabled, blocked, busy or unavailable adapter produces a clear error.
+
+### Media
+
+```console
+$ desktop-shell media status-json
+$ desktop-shell media players-json
+$ desktop-shell media pause
+$ desktop-shell media next org.mpris.MediaPlayer2.example
+```
+
+Controls are `play`, `pause`, `toggle`, `stop`, `next`, and `previous`. The
+optional player is its exact MPRIS D-Bus name; omission selects the same active
+player as the shell. Queries expose track metadata, playback, position/length
+in seconds when supported, and supported controls. Unsupported actions fail.
+Actions acknowledge the request with `{accepted:true,...}`; query playback
+state separately to observe completion.
+
+### DND and notification history
+
+```console
+$ desktop-shell dnd status-json
+$ desktop-shell dnd on
+$ desktop-shell dnd off
+$ desktop-shell dnd toggle
+$ desktop-shell notifications status-json
+$ desktop-shell notifications list-json
+$ desktop-shell notifications dismiss <id>
+$ desktop-shell notifications clear
+```
+
+DND commands share the UI's persisted preference and return `{dnd,count}`.
+Notification text is returned only by explicit `list-json`, with IDs, application,
+summary, body and capture time in epoch milliseconds. History excludes transient
+notifications. `dismiss` addresses a current ID and fails when it no longer
+exists. `clear` uses the UI's existing undo window and final-dismiss behavior.
+
+## Volume shortcuts and brightness
 
 The volume commands operate on the default PipeWire output through `pamixer`:
 
@@ -219,6 +330,8 @@ for installation and privacy details.
 ## Exit status
 
 Unknown public commands and invalid public arguments return `2` and print
-usage. Backend inspection and device commands return the underlying failure
+usage. Native-model command errors return `1`; unavailable or incompatible
+shell IPC returns `3`. Successful JSON writes explicitly distinguish observed
+`applied` state from asynchronously `accepted` requests. Backend inspection and device commands return the underlying failure
 status unless their contract explicitly treats an unavailable optional service
 as empty state.

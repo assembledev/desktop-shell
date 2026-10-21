@@ -55,6 +55,11 @@ Scope {
     function toggle(): void { root.enqueue("toggleLauncher"); }
     function profileReady(profile: string): bool { return root.profileReady(profile); }
     function applyProfile(profile: string): void { root.enqueue("applyProfile", profile); }
+    function profileStatus(profile: string, refresh: bool): string {
+      if (!launcherLoader.item)
+        return JSON.stringify({ error: { code: "not-ready", message: "Launcher model is not ready" } });
+      return JSON.stringify(launcherLoader.item.profileStatus(profile, refresh));
+    }
   }
 
   Connections {

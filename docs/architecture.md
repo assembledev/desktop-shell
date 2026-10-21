@@ -90,6 +90,17 @@ application, clipboard decoding, device commands, runtime environment
 discovery, and validated display transactions. JSON written for QML is an
 interface: change its producer, consumer, tests, and documentation together.
 
+Public native-model commands in `lib/commands.sh` call semantic JSON endpoints
+on the existing QML owners. PipeWire and NetworkManager stay native model
+sources; MPRIS commands use the existing active-player selection. Audio command
+logic also serves the mixer's volume setter, and DND writes share the UI's
+preference setter. Reads do not open panels or start the service.
+
+Profile inspection uses a separate on-demand authoritative client snapshot so
+it does not interfere with in-flight profile moves. Optional CLI verification
+checks actual window placement after dispatch; launch acceptance alone is not
+reported as convergence. See [Commands](commands.md) for results and timeouts.
+
 ### Nix package
 
 `nix/package.nix` assembles the immutable QML tree, backend, bundled defaults,

@@ -6,6 +6,7 @@ Scope {
   id: root
 
   property bool scannerActive: false
+  property bool commandScanActive: false
   property var scannerDevice: null
   property bool scanPending: false
 
@@ -66,7 +67,7 @@ Scope {
     if (!scannerDevice)
       return;
 
-    const shouldScan = scannerActive && enabled && hardwareEnabled;
+    const shouldScan = (scannerActive || commandScanActive) && enabled && hardwareEnabled;
     scannerDevice.scannerEnabled = shouldScan;
     if (scanPending && shouldScan) {
       scanPending = false;
@@ -93,13 +94,68 @@ Scope {
   }
 
   function requestScan() {
-    if (!scannerActive || !enabled || !hardwareEnabled || !device)
+    if ((!scannerActive && !commandScanActive) || !enabled || !hardwareEnabled || !device)
       return;
 
     device.scannerEnabled = false;
     scanRestartTimer.restart();
   }
 
+  function snapshot() {
+    return {
+      available: backendAvailable && device !== null, hardwareEnabled: hardwareEnabled,
+      enabled: enabled, connected: connected, busy: busy, ssid: ssid, signal: signal,
+      scanning: enabled && hardwareEnabled && (commandScanActive || scannerActive),
+      networks: networks.map(function(network) {
+        return { ssid: String(network.name || ""), known: Boolean(network.known),
+                 connected: Boolean(network.connected), busy: Boolean(network.stateChanging),
+                 signal: Math.round(Number(network.signalStrength || 0) * 100) };
+      })
+    };
+  }
+
+  function command(action, name) {
+    if (!backendAvailable || !device || !hardwareEnabled)
+      return { error: { code: "unavailable", message: "Wi-Fi adapter is unavailable or hardware-blocked" } };
+    if (action === "on" || action === "off") {
+      setEnabled(action === "on");
+      return { accepted: true, enabled: action === "on" };
+    }
+    if (!enabled)
+      return { error: { code: "unavailable", message: "Wi-Fi is disabled" } };
+    if (action === "scan") {
+      commandScanActive = true;
+      commandScanTimer.restart();
+      requestScan();
+      return { accepted: true, action: "scan" };
+    }
+    const matches = networks.filter(function(network) { return network.name === name; });
+    if (matches.length !== 1)
+      return { error: { code: "not-found", message: "No unique visible Wi-Fi network matches the SSID" } };
+    const network = matches[0];
+    if (busy || network.stateChanging)
+      return { error: { code: "busy", message: "A Wi-Fi operation is already in progress" } };
+    if (action === "connect") {
+      if (network.connected)
+        return { accepted: true, ssid: name, connected: true };
+      if (!network.known)
+        return { error: { code: "authentication-required", message: "Authenticate in the Wi-Fi panel first; CLI connects saved networks" } };
+      connectNetwork(network, "");
+    } else if (action === "disconnect") {
+      disconnectNetwork(network);
+    } else {
+      return { error: { code: "invalid-argument", message: "Unknown Wi-Fi operation" } };
+    }
+    return { accepted: true, ssid: name, action: action };
+  }
+
+  Timer {
+    id: commandScanTimer
+    interval: 15000
+    onTriggered: root.commandScanActive = false
+  }
+
+  onCommandScanActiveChanged: syncScanner()
   onDeviceChanged: syncScanner()
   onScannerActiveChanged: syncScanner()
   onEnabledChanged: {

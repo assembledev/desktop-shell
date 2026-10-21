@@ -14,6 +14,41 @@ Scope {
   required property var profiles
   required property var presentationWindows
 
+  property var commandWindows: []
+  property bool commandSnapshotReady: false
+  property string commandSnapshotError: ""
+  property var lastApplyResults: ({})
+
+  HyprlandClientSnapshot {
+    id: commandSnapshot
+    onSucceeded: function(clients) {
+      root.commandWindows = clients;
+      root.commandSnapshotReady = true;
+    }
+    onFailed: function(reason) { root.commandSnapshotError = reason; }
+  }
+
+  function commandStatus(profileId, refresh) {
+    if (profileApplications(profileId).length === 0)
+      return { error: { code: "not-found", message: "Unknown profile" } };
+    if (refresh) {
+      if (!commandSnapshot.request())
+        return { error: { code: "busy", message: "A profile inspection is already in progress" } };
+      commandSnapshotReady = false;
+      commandSnapshotError = "";
+    }
+    if (commandSnapshotError.length > 0)
+      return { error: { code: "unavailable", message: commandSnapshotError } };
+    const state = ProfileLogic.snapshot(profileApplications(profileId), applications, commandWindows);
+    return {
+      id: profileId, snapshotReady: commandSnapshotReady, entriesReady: profileReady(profileId),
+      open: state.open, placed: state.placed, total: state.total,
+      converged: commandSnapshotReady && state.total > 0 && state.placed === state.total,
+      applying: activeProfileId === profileId, queued: queuedProfileId === profileId,
+      lastResult: lastApplyResults[profileId] || null
+    };
+  }
+
   signal applyFinished(string profileId, bool success)
 
   // A launch request reserves its desktop entry briefly. This closes the gap
@@ -185,6 +220,9 @@ Scope {
     moveQueue = [];
     currentMove = null;
     pendingLaunches = [];
+    const results = Object.assign({}, lastApplyResults);
+    results[profileId] = { success: success, finishedAt: Date.now() };
+    lastApplyResults = results;
     applyFinished(profileId, success);
 
     const queued = queuedProfileId;

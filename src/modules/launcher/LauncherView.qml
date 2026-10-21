@@ -341,6 +341,10 @@ Scope {
     return (windowIndex.byApp[LauncherSearch.desktopEntryFileId(app)] || []).slice();
   }
 
+  function profileStatus(profileId, refresh) {
+    return profileController.commandStatus(profileId, refresh);
+  }
+
   function profileReady(profileId) {
     reloadApps();
     return profileController.profileReady(profileId);

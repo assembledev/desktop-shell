@@ -2,6 +2,34 @@
 
 set -eu
 
+# shellcheck source=lib/commands.sh
+source "${BASH_SOURCE[0]%/*}/lib/commands.sh"
+# Help works even when configuration is invalid or the graphical session is down.
+case "${1:-help}" in
+  help | -h | --help)
+    [ "$#" -le 2 ] || exit 2
+    cli_help "${2:-}"
+    exit
+    ;;
+  help-all)
+    [ "$#" -eq 1 ] || exit 2
+    cli_help_all
+    exit
+    ;;
+esac
+if [ "$#" -eq 2 ] && { [ "$2" = --help ] || [ "$2" = -h ]; }; then
+  cli_help "$1"
+  exit
+fi
+case "${1:-}" in
+  audio | wifi | media | dnd | notifications)
+    # shellcheck source=lib/hypr-environment.sh
+    source "${BASH_SOURCE[0]%/*}/lib/hypr-environment.sh"
+    runtime_command "$@"
+    exit
+    ;;
+esac
+
 desktop_shell_ipc_call() {
   target="$1"
   method="$2"
@@ -327,49 +355,6 @@ source "$backend_dir/lib/session.sh"
 # shellcheck source=lib/display.sh
 source "$backend_dir/lib/display.sh"
 
-print_help() {
-  cat <<'EOF'
-Usage: desktop-shell <command> [arguments]
-
-Lifecycle:
-  start [--foreground]  Start the user service, or run in the foreground
-  stop                  Stop the user service
-  restart               Restart the user service
-  status                Show user-service status
-  logs [--follow]       Show user-service logs
-  doctor                Check configuration and runtime dependencies
-
-Shell surfaces:
-  open | close | toggle
-  launcher <open|focus|close|toggle>
-  profile apply <id>    Reconcile a configured application layout
-  alttab <next|prev|commit|cancel>
-  direction <l|r|u|d>
-  cheatsheet <open|close|toggle>
-  pick
-  lock [lock|status|focus]
-  clipboard <open|close|toggle>
-
-Inspection:
-  config path | config show
-  ipc list | ipc call <target> <method> [arguments...]
-
-Run `desktop-shell help-all` for backend and integration commands.
-EOF
-}
-
-print_help_all() {
-  print_help
-  cat <<'EOF'
-
-Integration and backend commands:
-  browser-tabs, lock-preview, lock-keyboard, apply, current, list-json,
-  preview, set, notification-status, bluetooth, brightness, volume, power,
-  display, focus, profile, bar, network-control, cursor, hypr, metrics, sound, run,
-  lock-run, system status-json
-EOF
-}
-
 service_status() {
   if systemctl --user --quiet is-active desktop-shell.service; then
     printf 'desktop-shell.service: active\n'
@@ -414,10 +399,10 @@ doctor() {
 
 case "${1:-help}" in
   help | -h | --help)
-    print_help
+    cli_help
     ;;
   help-all)
-    print_help_all
+    cli_help_all
     ;;
   config)
     case "${2:-path}" in
@@ -529,7 +514,10 @@ case "${1:-help}" in
     case "$action" in
       apply)
         profile_id="${3:-}"
-        [ "$#" -eq 3 ] || exit 2
+        if [ "$#" -ne 3 ] && { [ "$#" -ne 4 ] || [ "$4" != --wait ]; }; then
+          cli_usage_error profile
+          exit 2
+        fi
         if ! jq -e --arg profile "$profile_id" \
           '.launcher.profiles[$profile].applications | type == "array" and length > 0' \
           "$desktop_shell_config" >/dev/null; then
@@ -537,14 +525,25 @@ case "${1:-help}" in
           exit 2
         fi
         desktop_shell_profile_wait_ready "$profile_id"
+        profile_started_at="$(date +%s%3N)"
         desktop_shell_ipc_call launcher applyProfile "$profile_id"
+        if [ "${4:-}" = --wait ]; then
+          profile_wait "$profile_id" "$profile_started_at"
+        fi
+        ;;
+      status-json)
+        [ "$#" -eq 3 ] && [ -n "$3" ] || {
+          cli_usage_error profile
+          exit 2
+        }
+        profile_snapshot "$3"
         ;;
       list-json)
         [ "$#" -le 2 ] || exit 2
         jq -c '.launcher.profiles // {}' "$desktop_shell_config"
         ;;
       *)
-        printf 'usage: desktop-shell profile [apply <id>|list-json]\n' >&2
+        cli_help profile >&2
         exit 2
         ;;
     esac

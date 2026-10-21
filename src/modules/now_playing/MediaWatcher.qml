@@ -5,6 +5,8 @@ import QtQml.Models
 import Quickshell
 import Quickshell.Services.Mpris
 import "MediaState.js" as MediaState
+import "MediaCommands.js" as MediaCommands
+import Quickshell.Io
 
 Scope {
   id: root
@@ -18,6 +20,16 @@ Scope {
   property string lastActiveFingerprint: ""
   property string pendingResumeSourceId: ""
   property string pendingResumeFingerprint: ""
+
+  IpcHandler {
+    target: "media"
+    function status(): string {
+      return JSON.stringify(MediaCommands.snapshot(Mpris.players.values, root.activePlayer));
+    }
+    function command(action: string, player: string): string {
+      return JSON.stringify(MediaCommands.command(Mpris.players.values, root.activePlayer, action, player));
+    }
+  }
 
   signal trackChanged(var track)
   signal trackResumed(var track)

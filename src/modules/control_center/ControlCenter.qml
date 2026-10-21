@@ -13,6 +13,7 @@ import Quickshell.Services.Notifications
 import "../common"
 import "../common/AudioStatus.js" as AudioStatus
 import "NotificationHistory.js" as History
+import "AudioCommands.js" as AudioCommands
 
 Scope {
   id: root
@@ -901,10 +902,7 @@ Scope {
   }
 
   function setNodeVolume(node, value) {
-    if (node?.ready && node?.audio) {
-      node.audio.volume = clamp(value, 0, 1.5);
-      node.audio.muted = false;
-    }
+    AudioCommands.setVolume(node, clamp(value, 0, 1.5), true);
   }
 
   function toggleNodeMute(node) {
@@ -1073,9 +1071,13 @@ Scope {
       focusBarOpen = false;
   }
 
-  function toggleDnd() {
-    dnd = !dnd;
+  function setDnd(enabled) {
+    dnd = enabled;
     dndFile.setText(dnd ? "1" : "0");
+  }
+
+  function toggleDnd() {
+    setDnd(!dnd);
   }
 
   // A page transition commits displayedPage after the exit animation. Choose
@@ -1838,8 +1840,59 @@ Scope {
     onTriggered: volumeReady = true
   }
 
+  // CLI inspection temporarily tracks all nodes without keeping the hidden mixer active.
+  Timer { id: audioInspection; interval: 5000 }
   PwObjectTracker {
-    objects: audioDetailsActive ? Pipewire.nodes.values : [sink, source]
+    objects: audioDetailsActive || audioInspection.running ? Pipewire.nodes.values : [sink, source]
+  }
+
+  IpcHandler {
+    target: "audio"
+    function status(): string {
+      audioInspection.restart();
+      return JSON.stringify(AudioCommands.snapshot(Pipewire));
+    }
+    function command(action: string, target: string, value: string): string {
+      audioInspection.restart();
+      return JSON.stringify(AudioCommands.command(Pipewire, action, target, value));
+    }
+  }
+
+  IpcHandler {
+    target: "wifi"
+    function status(): string { return JSON.stringify(wifi.snapshot()); }
+    function command(action: string, network: string): string {
+      return JSON.stringify(wifi.command(action, network));
+    }
+  }
+
+  IpcHandler {
+    target: "notifications"
+    function status(): string {
+      return JSON.stringify({ dnd: root.dnd, count: root.notifications.length });
+    }
+    function setDnd(enabled: bool): string {
+      root.setDnd(enabled);
+      return status();
+    }
+    function list(): string {
+      return JSON.stringify(root.notifications.map(function(item) {
+        return { id: String(item.id), app: String(item.notification?.appName || ""),
+                 summary: String(item.notification?.summary || ""), body: String(item.notification?.body || ""),
+                 time: Number(item.time || 0) };
+      }));
+    }
+    function dismiss(id: string): string {
+      const item = root.notifications.find(item => String(item.id) === id);
+      if (!item)
+        return JSON.stringify({ error: { code: "not-found", message: "Notification is not available" } });
+      root.dismissNotification(item.id);
+      return status();
+    }
+    function clear(): string {
+      root.clearNotifications();
+      return status();
+    }
   }
 
   Connections {

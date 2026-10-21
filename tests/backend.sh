@@ -135,7 +135,7 @@ export DESKTOP_SHELL_TEST_HYPRCTL_ARGS="$hyprctl_args"
 export DESKTOP_SHELL_TEST_HYPRCTL_EVAL="$hyprctl_eval"
 export DESKTOP_SHELL_TEST_MONITORS_JSON="$monitors_json"
 
-# Every regular backend command must parse the shared config only once.
+# Help must not need configuration or backend initialization.
 export DESKTOP_SHELL_TEST_REAL_JQ="$(command -v jq)"
 export DESKTOP_SHELL_TEST_JQ_CALLS="$test_root/jq-calls"
 printf '%s\n' \
@@ -143,10 +143,11 @@ printf '%s\n' \
   'printf "call\n" >>"$DESKTOP_SHELL_TEST_JQ_CALLS"' \
   'exec "$DESKTOP_SHELL_TEST_REAL_JQ" "$@"' >"$test_bin/jq"
 chmod +x "$test_bin/jq"
+: >"$DESKTOP_SHELL_TEST_JQ_CALLS"
 PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" help >/dev/null
 jq_calls="$(wc -l <"$DESKTOP_SHELL_TEST_JQ_CALLS")"
-if [ "$jq_calls" -ne 1 ]; then
-  printf 'shared backend setup invoked jq %s times; expected one\n' "$jq_calls" >&2
+if [ "$jq_calls" -ne 0 ]; then
+  printf 'help invoked jq %s times; expected zero\n' "$jq_calls" >&2
   exit 1
 fi
 rm "$test_bin/jq"
@@ -188,7 +189,7 @@ EOF
 for invalid_json in '{' '[]' 'null' '' '{"output":"a\u0000b"}'; do
   printf '%s' "$invalid_json" >"$config_fixture"
   if DESKTOP_SHELL_CONFIG="$config_fixture" \
-    bash "$source_root/src/backend/desktop-shell.sh" help >/dev/null 2>&1; then
+    bash "$source_root/src/backend/desktop-shell.sh" config show >/dev/null 2>&1; then
     printf 'backend must reject invalid configuration\n' >&2
     exit 1
   fi
@@ -690,3 +691,5 @@ grep -Fx reload "$hyprctl_eval" >/dev/null
 bash "$source_root/tests/system-status.sh" "$source_root"
 bash "$source_root/tests/telemetry.sh" "$source_root"
 bash "$source_root/tests/session.sh" "$source_root"
+
+bash "$source_root/tests/commands.sh" "$source_root" "$2"
