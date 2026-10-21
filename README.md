@@ -11,7 +11,7 @@ Desktop Shell is actively developed and used daily on NixOS with Hyprland.
 The public configuration and CLI may evolve as the standalone packaging is
 exercised across more systems.
 
-https://github.com/user-attachments/assets/37be8ef6-46ca-4fae-a065-6cc4470941c9
+https://github.com/user-attachments/assets/14bcbe04-3493-41c1-a380-b65dd58fe4a0
 
 ## Features
 
