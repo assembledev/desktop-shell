@@ -60,7 +60,7 @@ Scope {
     if (!detailsActive || !connected || publicProbe.running)
       return;
     publicProbe.requestEpoch = epoch;
-    publicProbe.exec(["timeout", "--kill-after=1s", "5s", backend, "network", "public-ip"]);
+    publicProbe.exec(["timeout", "--kill-after=1s", "10s", backend, "network", "public-ip"]);
   }
 
   function snapshot() {
@@ -171,8 +171,10 @@ Scope {
       try {
         result = exitCode === 0 ? JSON.parse(publicOutput.text) : null;
       } catch (error) { result = null; }
-      root.publicIp = result && result.state === "ready" && typeof result.address === "string" && result.address.length > 0
-        ? result : { state: "unavailable", address: "" };
+      if (result && result.state === "ready" && typeof result.address === "string" && result.address.length > 0)
+        root.publicIp = result;
+      else
+        root.publicIp = { state: "unavailable", address: "", error: exitCode === 124 ? "timeout" : result?.error || "connection" };
     }
   }
 }

@@ -195,7 +195,7 @@ Scope {
                 Layout.fillWidth: true
                 label: "Public IPv4"
                 value: root.model.publicIp.address
-                placeholder: root.model.publicIp.state === "unavailable" ? "Unavailable" : "…"
+                placeholder: root.model.publicIp.state === "unavailable" ? root.model.publicIp.error === "timeout" ? "Lookup timed out" : "Lookup failed" : "…"
                 copyable: true
               }
               Repeater {

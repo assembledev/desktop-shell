@@ -123,12 +123,16 @@ network_ping_json() {
 # Query the current IPv4 egress through normal routing, including VPNs. The
 # popover owns the lookup lifecycle; this helper does not cache or schedule it.
 network_public_ip_json() {
-  local address=''
-  address="$(curl --disable --fail --silent --proto '=https' --ipv4 --connect-timeout 2 --max-time 4 --max-filesize 64 https://ip.me 2>/dev/null)" || address=''
-  jq -nc --arg address "$address" '
+  local address='' status=0
+  address="$(curl --disable --fail --silent --proto '=https' --ipv4 --connect-timeout 2 --max-time 4 --retry 1 --retry-delay 1 --retry-max-time 8 --retry-connrefused --max-filesize 64 https://ip.me 2>/dev/null)" || status=$?
+  if [ "$status" -ne 0 ]; then address=''; fi
+  jq -nc --arg address "$address" --argjson status "$status" '
     ($address | gsub("^\\s+|\\s+$"; "")) as $ip |
     (if ($ip | test("^([0-9]{1,3}\\.){3}[0-9]{1,3}$")) then
       ($ip | split(".") | all(.[]; tonumber <= 255)) else false end) as $valid |
-    {state: (if $valid then "ready" else "unavailable" end), address: (if $valid then $ip else "" end)}
+    {state: (if $valid then "ready" else "unavailable" end), address: (if $valid then $ip else "" end),
+     error: (if $valid then null elif $status == 0 then "invalid-response"
+       elif $status == 28 then "timeout" elif $status == 6 then "dns"
+       elif $status == 60 then "tls" elif $status == 22 then "service" else "connection" end)}
   '
 }

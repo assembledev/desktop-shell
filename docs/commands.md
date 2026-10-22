@@ -102,7 +102,10 @@ that Wi-Fi or Ethernet is disconnected. Missing data is shown as unavailable.
 Public IPv4 is queried over HTTPS from `https://ip.me` on opening and every
 30 seconds while open, through normal routing including VPNs. This service
 sees the current public/VPN egress IP. The address is copyable and cleared on
-closing; failed lookups show unavailable. No speed test runs.
+closing. Transient request failures are retried once within a ten-second
+process deadline. A failed lookup is labelled separately from a disconnected
+link; `status-json` includes its error category (DNS, connection, TLS, service,
+timeout or invalid response). No speed test runs.
 
 ```console
 $ desktop-shell network open

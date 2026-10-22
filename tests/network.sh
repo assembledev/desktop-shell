@@ -56,7 +56,7 @@ network_ping_json | jq -e '.state == "unavailable" and .milliseconds == null' >/
 fixture_public_status=0
 fixture_public_ip='203.0.113.24'
 curl() {
-  [ "$*" = '--disable --fail --silent --proto =https --ipv4 --connect-timeout 2 --max-time 4 --max-filesize 64 https://ip.me' ] || return 2
+  [ "$*" = '--disable --fail --silent --proto =https --ipv4 --connect-timeout 2 --max-time 4 --retry 1 --retry-delay 1 --retry-max-time 8 --retry-connrefused --max-filesize 64 https://ip.me' ] || return 2
   printf '%s\n' "$fixture_public_ip"
   return "$fixture_public_status"
 }
@@ -64,8 +64,18 @@ network_public_ip_json | jq -e '.state == "ready" and .address == "203.0.113.24"
 fixture_public_ip=$'  198.51.100.5\r\n'
 network_public_ip_json | jq -e '.state == "ready" and .address == "198.51.100.5"' >/dev/null
 for fixture_public_ip in '999.0.0.1' '1.2.3' '1.2.3.4.5' '<html>oops</html>' '' '2001:db8::1'; do
-  network_public_ip_json | jq -e '.state == "unavailable" and .address == ""' >/dev/null
+  network_public_ip_json | jq -e '.state == "unavailable" and .address == "" and .error == "invalid-response"' >/dev/null
 done
 fixture_public_ip='203.0.113.24'
-fixture_public_status=28
-network_public_ip_json | jq -e '.state == "unavailable" and .address == ""' >/dev/null
+for fixture_public_status in 6 7 22 28 60; do
+  case "$fixture_public_status" in
+    6) expected_error=dns ;;
+    7) expected_error=connection ;;
+    22) expected_error=service ;;
+    28) expected_error=timeout ;;
+    60) expected_error=tls ;;
+  esac
+  network_public_ip_json | jq -e --arg error "$expected_error" '.state == "unavailable" and .address == "" and .error == $error' >/dev/null
+done
+fixture_public_status=0
+network_public_ip_json | jq -e '.state == "ready" and .address == "203.0.113.24" and .error == null' >/dev/null
