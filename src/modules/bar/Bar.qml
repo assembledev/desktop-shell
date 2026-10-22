@@ -702,9 +702,7 @@ Scope {
               spacing: barSpacing.itemGap
 
               BarSegment {
-                icon: ""
                 label: keyboardState.label
-                iconColor: theme.utility
               }
 
               NotificationSegment {
@@ -859,9 +857,7 @@ Scope {
 
             BarSegment {
               visible: !root.portraitNarrow
-              icon: ""
               label: keyboardState.label
-              iconColor: theme.utility
               targetHeight: root.portraitPrimaryHeight
             }
 
