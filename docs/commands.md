@@ -88,7 +88,8 @@ set before reloading Hyprland's declarative monitor rules.
 Click the network icon between the keyboard language and notification bell to
 open details on that output. It shows the active Wi-Fi or Ethernet uplink;
 Wi-Fi has four signal levels. The connection header opens the existing Wi-Fi
-selection page. Addresses, gateways and link DNS values copy when clicked.
+selection page. Addresses, gateways and link DNS values copy when clicked;
+confirmation appears inline beside the value, without a reserved footer.
 Global IPv6 addresses appear when assigned. Escape or clicking outside closes
 the popover.
 

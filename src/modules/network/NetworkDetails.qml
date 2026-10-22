@@ -16,6 +16,7 @@ Scope {
   required property var barSurface
   property bool open: false
   property string feedback: ""
+  property string copiedValue: ""
   readonly property var screen: placement.screen
   readonly property bool wifi: model.connected && model.data.type === "wifi"
   signal wifiRequested(var screen)
@@ -34,6 +35,7 @@ Scope {
     if (!placement.capture(screen))
       return;
     feedback = "";
+    copiedValue = "";
     window.keyboardRequested = true;
     open = true;
   }
@@ -53,6 +55,7 @@ Scope {
     if (!value)
       return;
     Quickshell.clipboardText = value;
+    copiedValue = value;
     feedback = label + " copied";
     feedbackTimer.restart();
   }
@@ -95,7 +98,7 @@ Scope {
     ? Number(model.ping.milliseconds).toFixed(0) + " ms" : model.ping.state === "timeout" ? "Timed out"
     : model.ping.state === "unavailable" ? "Unavailable" : "…"
 
-  Timer { id: feedbackTimer; interval: 1800; onTriggered: root.feedback = "" }
+  Timer { id: feedbackTimer; interval: 1800; onTriggered: { root.feedback = ""; root.copiedValue = ""; } }
   IpcHandler {
     target: "network"
     function status(): string { return JSON.stringify(root.model.snapshot()); }
@@ -217,15 +220,6 @@ Scope {
               font.pixelSize: 13
               wrapMode: Text.Wrap
             }
-            Text {
-              Layout.fillWidth: true
-              Layout.preferredHeight: 18
-              text: root.feedback
-              color: theme.success
-              horizontalAlignment: Text.AlignHCenter
-              font.family: theme.uiFontFamily
-              font.pixelSize: 12
-            }
           }
         }
       }
@@ -237,6 +231,7 @@ Scope {
     property string label: ""
     property string value: ""
     property bool copyable: false
+    readonly property bool copied: row.value.length > 0 && root.copiedValue === row.value
     implicitHeight: 34
     spacing: 10
     Text {
@@ -271,13 +266,13 @@ Scope {
         Text {
           Layout.fillWidth: true
           text: row.value || "—"
-          color: theme.textPrimary
+          color: row.copied ? theme.success : theme.textPrimary
           font.family: theme.uiFontFamily
           font.pixelSize: 13
           elide: Text.ElideMiddle
           horizontalAlignment: Text.AlignRight
         }
-        ShellSymbol { symbol: "copy"; tint: theme.textMuted; size: 14; visible: copyButton.enabled }
+        ShellSymbol { symbol: row.copied ? "check" : "copy"; tint: row.copied ? theme.success : theme.textMuted; size: 14; visible: copyButton.enabled }
       }
       background: Rectangle {
         radius: theme.controlRadius
@@ -286,7 +281,7 @@ Scope {
         border.color: theme.accent
       }
       ToolTip.visible: hovered
-      ToolTip.text: "Copy " + (row.label || "DNS address") + ": " + row.value
+      ToolTip.text: row.copied ? root.feedback : "Copy " + (row.label || "DNS address") + ": " + row.value
     }
   }
   component TrafficValue: RowLayout {
