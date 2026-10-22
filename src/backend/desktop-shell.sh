@@ -24,7 +24,7 @@ fi
 case "${1:-}" in
   audio | wifi | media | dnd | notifications | network)
     case "${1:-}:${2:-}" in
-      network:snapshot | network:ping) ;;
+      network:snapshot | network:ping | network:public-ip) ;;
       *)
         # shellcheck source=lib/hypr-environment.sh
         source "${BASH_SOURCE[0]%/*}/lib/hypr-environment.sh"
@@ -42,12 +42,13 @@ esac
 
 # Network sampling reads neither user configuration nor persistent state.
 case "${1:-}:${2:-}" in
-  network:snapshot | network:ping)
+  network:snapshot | network:ping | network:public-ip)
     # shellcheck source=lib/network.sh
     source "${BASH_SOURCE[0]%/*}/lib/network.sh"
     case "$2" in
       snapshot) network_snapshot_json "${3:-link}" ;;
       ping) network_ping_json ;;
+      public-ip) network_public_ip_json ;;
     esac
     exit
     ;;

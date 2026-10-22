@@ -14,6 +14,7 @@ Scope {
   property var receiveRate: null
   property var transmitRate: null
   property var ping: ({ target: "1.1.1.1", state: "idle", milliseconds: null })
+  property var publicIp: ({ state: "idle", address: "" })
   property int epoch: 0
   readonly property bool connected: Boolean(data.connected)
   readonly property var device: Networking.devices.values.find(candidate => candidate.name === root.data.interface) || null
@@ -55,9 +56,16 @@ Scope {
     probe.exec(["timeout", "--kill-after=1s", "3s", backend, "network", "ping"]);
   }
 
+  function refreshPublicIP() {
+    if (!detailsActive || !connected || publicProbe.running)
+      return;
+    publicProbe.requestEpoch = epoch;
+    publicProbe.exec(["timeout", "--kill-after=1s", "5s", backend, "network", "public-ip"]);
+  }
+
   function snapshot() {
     return Object.assign({}, data, { ssid: ssid, signal: signalStrength, security: security,
-      detailsActive: detailsActive, receiveBytesPerSecond: receiveRate, transmitBytesPerSecond: transmitRate, ping: ping });
+      detailsActive: detailsActive, receiveBytesPerSecond: receiveRate, transmitBytesPerSecond: transmitRate, ping: ping, publicIp: publicIp });
   }
 
   onNativeStateChanged: refresh()
@@ -65,12 +73,15 @@ Scope {
     epoch++;
     sample.running = false;
     probe.running = false;
+    publicProbe.running = false;
+    publicIp = { state: detailsActive ? "pending" : "idle", address: "" };
     previousCounters = null;
     receiveRate = null;
     transmitRate = null;
     ping = { target: "1.1.1.1", state: detailsActive ? "pending" : "idle", milliseconds: null };
     refresh();
     refreshPing();
+    refreshPublicIP();
   }
 
   Timer {
@@ -86,6 +97,13 @@ Scope {
     repeat: true
     triggeredOnStart: true
     onTriggered: root.refreshPing()
+  }
+  Timer {
+    interval: 30000
+    running: root.detailsActive && root.connected
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.refreshPublicIP()
   }
   Process {
     id: sample
@@ -116,10 +134,16 @@ Scope {
         root.transmitRate = traffic.transmit;
       }
       root.data = !detailed && !changed ? Object.assign({}, root.data, next) : next;
+      if (changed) {
+        root.refreshPing();
+        root.refreshPublicIP();
+      }
     }
   }
   function probeReset() {
     probe.running = false;
+    publicProbe.running = false;
+    publicIp = { state: detailsActive ? "pending" : "idle", address: "" };
     ping = { target: "1.1.1.1", state: detailsActive ? "pending" : "idle", milliseconds: null };
   }
   Process {
@@ -134,6 +158,21 @@ Scope {
       } catch (error) {
         root.ping = { target: "1.1.1.1", state: "unavailable", milliseconds: null };
       }
+    }
+  }
+  Process {
+    id: publicProbe
+    property int requestEpoch: 0
+    stdout: StdioCollector { id: publicOutput }
+    onExited: function(exitCode) {
+      if (requestEpoch !== root.epoch || !root.detailsActive || !root.connected)
+        return;
+      let result;
+      try {
+        result = exitCode === 0 ? JSON.parse(publicOutput.text) : null;
+      } catch (error) { result = null; }
+      root.publicIp = result && result.state === "ready" && typeof result.address === "string" && result.address.length > 0
+        ? result : { state: "unavailable", address: "" };
     }
   }
 }

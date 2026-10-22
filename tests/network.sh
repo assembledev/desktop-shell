@@ -52,3 +52,20 @@ fixture_ping_status=1
 network_ping_json | jq -e '.state == "timeout" and .milliseconds == null' >/dev/null
 fixture_ping_status=2
 network_ping_json | jq -e '.state == "unavailable" and .milliseconds == null' >/dev/null
+
+fixture_public_status=0
+fixture_public_ip='203.0.113.24'
+curl() {
+  [ "$*" = '--disable --fail --silent --proto =https --ipv4 --connect-timeout 2 --max-time 4 --max-filesize 64 https://ip.me' ] || return 2
+  printf '%s\n' "$fixture_public_ip"
+  return "$fixture_public_status"
+}
+network_public_ip_json | jq -e '.state == "ready" and .address == "203.0.113.24"' >/dev/null
+fixture_public_ip=$'  198.51.100.5\r\n'
+network_public_ip_json | jq -e '.state == "ready" and .address == "198.51.100.5"' >/dev/null
+for fixture_public_ip in '999.0.0.1' '1.2.3' '1.2.3.4.5' '<html>oops</html>' '' '2001:db8::1'; do
+  network_public_ip_json | jq -e '.state == "unavailable" and .address == ""' >/dev/null
+done
+fixture_public_ip='203.0.113.24'
+fixture_public_status=28
+network_public_ip_json | jq -e '.state == "unavailable" and .address == ""' >/dev/null

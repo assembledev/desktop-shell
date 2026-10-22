@@ -45,7 +45,7 @@ Query status-json afterwards for connected, busy and SSID; networks-json lists c
 HELP
       ;;
     network)
-      printf '%s\n' 'Usage: desktop-shell network [status-json|open|close|toggle]' 'Shows the active physical uplink, cached connection details, traffic and Internet ping.' 'open/close/toggle control the network popover. status-json never starts probes.' 'Address/link sampling and ping to 1.1.1.1 run while the popover is open; ping follows normal routing, including VPNs.'
+      printf '%s\n' 'Usage: desktop-shell network [status-json|open|close|toggle]' 'Shows the active physical uplink, cached connection details, traffic and Internet ping.' 'open/close/toggle control the network popover. status-json never starts probes.' 'Address/link sampling and ping to 1.1.1.1 run while the popover is open; ping follows normal routing, including VPNs.' 'Public IPv4 is queried from https://ip.me on opening and every 30 seconds while open; the service sees the current egress IP.'
       ;;
     media)
       cat <<'HELP'

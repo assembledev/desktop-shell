@@ -191,6 +191,13 @@ Scope {
                 label: "Ping · 1.1.1.1"
                 value: root.pingText
               }
+              DetailRow {
+                Layout.fillWidth: true
+                label: "Public IPv4"
+                value: root.model.publicIp.address
+                placeholder: root.model.publicIp.state === "unavailable" ? "Unavailable" : "…"
+                copyable: true
+              }
               Repeater {
                 model: root.addressRows()
                 DetailRow {
@@ -230,6 +237,7 @@ Scope {
     id: row
     property string label: ""
     property string value: ""
+    property string placeholder: "—"
     property bool copyable: false
     readonly property bool copied: row.value.length > 0 && root.copiedValue === row.value
     implicitHeight: 34
@@ -244,7 +252,7 @@ Scope {
     Item { Layout.fillWidth: true }
     Text {
       visible: !row.copyable
-      text: row.value || "—"
+      text: row.value || row.placeholder
       color: theme.textPrimary
       font.family: theme.uiFontFamily
       font.pixelSize: 13
@@ -265,7 +273,7 @@ Scope {
         spacing: 8
         Text {
           Layout.fillWidth: true
-          text: row.value || "—"
+          text: row.value || row.placeholder
           color: row.copied ? theme.success : theme.textPrimary
           font.family: theme.uiFontFamily
           font.pixelSize: 13

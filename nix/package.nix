@@ -68,6 +68,7 @@ let
         bluez
         cliphist
         coreutils
+        curl
         ddcutil
         findutils
         gawk

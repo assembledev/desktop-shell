@@ -99,7 +99,10 @@ and follows normal system routing, including VPNs. Details, traffic and ping
 refresh every two seconds while the popover is open; closing it stops probes
 and clears the traffic baseline. A timed-out or unavailable ping does not imply
 that Wi-Fi or Ethernet is disconnected. Missing data is shown as unavailable.
-No speed test or public-IP lookup runs.
+Public IPv4 is queried over HTTPS from `https://ip.me` on opening and every
+30 seconds while open, through normal routing including VPNs. This service
+sees the current public/VPN egress IP. The address is copyable and cleared on
+closing; failed lookups show unavailable. No speed test runs.
 
 ```console
 $ desktop-shell network open
