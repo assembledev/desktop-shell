@@ -7,6 +7,9 @@ Item {
   id: network
 
   required property var controller
+  property var tailscaleModel: null
+  property bool tailscaleDetailsOpen: false
+  signal tailscaleDetailsRequested()
   property bool compactLabels: false
   property int targetHeight: 37
   required property int itemPadding
@@ -26,7 +29,12 @@ Item {
   Layout.preferredHeight: targetHeight
 
   Theme { id: theme }
-  function status(control) { return controller.status(control); }
+  function status(control) {
+    const current = controller.status(control);
+    if (control.id !== "tailscale" || !tailscaleModel || !tailscaleModel.fresh) return current;
+    return Object.assign({}, current, {active:tailscaleModel.connected,
+      login:tailscaleModel.data.state === "NeedsLogin" || tailscaleModel.data.state === "NeedsMachineAuth"});
+  }
   function activate(control) { controller.activate(control); }
 
   RowLayout {
@@ -42,10 +50,13 @@ Item {
         required property int index
         required property var modelData
 
+        readonly property bool hasDetails: modelData.id === "tailscale"
+        readonly property int trailingPadding: hasDetails ? 2 : network.itemPadding
         readonly property real fullWidth: Math.ceil(18 + statusLabel.implicitWidth + 6
-          + network.contentGap * 2 + network.itemPadding * 2)
+          + network.contentGap * 2 + network.itemPadding + trailingPadding)
+          + (hasDetails ? 20 : 0)
           + (index < network.controls.length - 1 ? network.itemGap + 1 : 0)
-        spacing: network.itemGap
+        spacing: hasDetails ? 0 : network.itemGap
 
         Item {
           id: statusItem
@@ -55,7 +66,7 @@ Item {
           readonly property bool busy: Boolean(currentStatus.busy)
           readonly property bool failed: String(currentStatus.error || "").length > 0
 
-          Layout.preferredWidth: statusContent.implicitWidth + network.itemPadding * 2
+          Layout.preferredWidth: statusContent.implicitWidth + network.itemPadding + trailingPadding
           Layout.preferredHeight: network.targetHeight
           scale: itemMouse.pressed ? 0.94 : (itemMouse.containsMouse ? 1.025 : 1)
 
@@ -79,7 +90,9 @@ Item {
 
           Row {
             id: statusContent
-            anchors.centerIn: parent
+            anchors.left: parent.left
+            anchors.leftMargin: network.itemPadding
+            anchors.verticalCenter: parent.verticalCenter
             spacing: network.contentGap
 
             Image {
@@ -126,9 +139,23 @@ Item {
           }
         }
 
+        ShellButton {
+          visible: hasDetails
+          colors: theme
+          glyph: "down"
+          Accessible.name: "Tailscale peers"
+          Layout.preferredWidth: 20
+          Layout.preferredHeight: 28
+          horizontalPadding: 2
+          flatAction: true
+          accent: network.tailscaleDetailsOpen ? theme.info : theme.textPrimary
+          onClicked: network.tailscaleDetailsRequested()
+        }
+
         Rectangle {
           visible: index < network.controls.length - 1
           Layout.preferredWidth: visible ? 1 : 0
+          Layout.leftMargin: hasDetails && visible ? network.itemGap : 0
           Layout.preferredHeight: 14
           Layout.alignment: Qt.AlignVCenter
           color: Qt.alpha(theme.textMuted, 0.44)

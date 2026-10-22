@@ -78,6 +78,7 @@ let
         iputils
         iw
         jq
+        libnotify
         networkmanager
         pamixer
         pipewire

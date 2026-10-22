@@ -372,3 +372,50 @@ shell IPC returns `3`. Successful JSON writes explicitly distinguish observed
 `applied` state from asynchronously `accepted` requests. Backend inspection and device commands return the underlying failure
 status unless their contract explicitly treats an unavailable optional service
 as empty state.
+
+### Tailscale peers and Taildrop
+
+```console
+$ desktop-shell tailscale status-json
+$ desktop-shell tailscale open
+$ desktop-shell tailscale close
+$ desktop-shell tailscale toggle
+$ desktop-shell tailscale ping <peer-id>
+$ desktop-shell tailscale send <peer-id> <file> [files...]
+$ desktop-shell tailscale receive <inbox-name> <absolute-destination>
+```
+
+`status-json` reads fresh status, addresses, device tags, online state, route information, Taildrop
+eligibility and waiting files from the local daemon. Use its stable peer `id` for
+`ping` and `send`. Queries and transfers work without a running shell.
+`ping` actively probes that peer and returns its observed direct, DERP relay or
+peer-relay route and latency. Online means connected to Tailscale's control plane;
+a failed probe does not turn an online peer into an offline peer.
+
+The peer list and device details display the daemon's assigned tags when present.
+The popup samples peer status every two seconds while open, and every
+15 seconds while closed. It probes only the selected online peer every two
+seconds while open. Late results from another selection are discarded; expired
+results are unavailable rather than retained as a current route or latency.
+Idle peers are not inferred to be relayed from their assigned DERP region.
+
+Sending rechecks the daemon's eligibility before each file and prints one JSON
+result per completed file. Cancelling an upload cannot retract files already
+completed. The popup shows completed-file counts and an activity indicator;
+it does not estimate byte progress. Ineligible devices have no send action.
+The received-file entry appears only when the inbox contains files. Saving uses
+an explicit destination, refuses to overwrite an existing path, and removes the
+inbox copy only after the complete local file exists. If acknowledgement fails,
+the saved file remains and the inbox copy can be recovered separately.
+
+New completed Taildrop inbox entries emit normal Tailscale desktop notifications,
+including while the peer popup is closed. An empty inbox uses the daemon's
+blocking `AwaitWaitingFiles` LocalAPI request, which wakes on arrivals. While
+files await collection, the inbox is sampled every 15 seconds while closed, or
+two seconds while open, because the daemon's wait returns existing files
+immediately. Failed requests retry with delays from two to 30 seconds. Files
+found in the first successful inbox read establish a baseline without startup
+alerts. Repeated reads and temporary daemon/inbox failures do not repeat alerts;
+a file removed and later received again can alert again. Each response batches new
+files into one notification. Notifications follow the existing DND, sound and
+history policy. Files stay in the inbox until explicitly saved.

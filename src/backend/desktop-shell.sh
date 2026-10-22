@@ -54,6 +54,15 @@ case "${1:-}:${2:-}" in
     ;;
 esac
 
+# Tailscale LocalAPI commands do not load configuration or start the shell.
+if [ "${1:-}" = tailscale ] && [ "${2:-}" != open ] && [ "${2:-}" != close ] && [ "${2:-}" != toggle ]; then
+  # shellcheck source=lib/tailscale.sh
+  source "${BASH_SOURCE[0]%/*}/lib/tailscale.sh"
+  shift
+  tailscale_command "$@"
+  exit
+fi
+
 desktop_shell_ipc_call() {
   target="$1"
   method="$2"
@@ -204,6 +213,18 @@ fi
 # the backend libraries. Dispatch them before the heavyweight backend setup;
 # desktop_shell_ipc_call still starts the service and retries when necessary.
 case "${1:-}" in
+  tailscale)
+    if [ "$#" -eq 2 ]; then
+      case "$2" in
+        open | close | toggle)
+          desktop_shell_ipc_call tailscale "$2"
+          exit
+          ;;
+      esac
+    fi
+    cli_usage_error tailscale
+    exit 2
+    ;;
   network)
     if [ "$#" -eq 2 ]; then
       case "$2" in

@@ -177,6 +177,8 @@ local desktopShellBlurLayers = {
   "quickshell:powerMenu",
   "quickshell:launcher",
   "quickshell:controlCenter",
+  "quickshell:network",
+  "quickshell:tailscale",
   "quickshell:controlCenterOsd",
   "quickshell:notificationPopups",
   "quickshell:nowPlaying",

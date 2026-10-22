@@ -24,6 +24,8 @@ Scope {
   readonly property var keyboardState: sharedState.keyboardState
   signal calendarToggleRequested
   signal controlCenterToggleRequested
+  signal tailscaleToggleRequested
+  property bool tailscaleDetailsOpen: false
   signal networkToggleRequested
   property bool networkDetailsOpen: false
 
@@ -661,6 +663,9 @@ Scope {
                 id: desktopNetworkControls
                 compactLabels: root.desktopCompactNetwork
                 controller: root.sharedState.network
+                tailscaleModel: root.sharedState.tailscale
+                tailscaleDetailsOpen: root.tailscaleDetailsOpen
+                onTailscaleDetailsRequested: root.tailscaleToggleRequested()
                 itemPadding: barSpacing.itemPadding
                 itemGap: barSpacing.itemGap
                 contentGap: barSpacing.contentGap
@@ -991,6 +996,9 @@ Scope {
 
               NetworkControls {
                 controller: root.sharedState.network
+                tailscaleModel: root.sharedState.tailscale
+                tailscaleDetailsOpen: root.tailscaleDetailsOpen
+                onTailscaleDetailsRequested: root.tailscaleToggleRequested()
                 targetHeight: root.portraitSecondaryHeight
                 itemPadding: barSpacing.itemPadding
                 itemGap: barSpacing.itemGap

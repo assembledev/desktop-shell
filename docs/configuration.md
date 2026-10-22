@@ -284,6 +284,16 @@ in
 }
 ```
 
+A provider with the stable ID `tailscale` also gets a separate chevron for the
+built-in peer and Taildrop panel. Its existing status/toggle commands retain
+ownership of the provider toggle; the chevron only opens details. The panel
+requires access to the local tailscaled Unix socket, normally
+`/var/run/tailscale/tailscaled.sock`, with the user's existing daemon permissions.
+For a nonstandard socket, set `DESKTOP_SHELL_TAILSCALE_SOCKET` in the shell service
+environment. No daemon, authentication, sudo rule or persistent inbox is created
+by Desktop Shell. See [Tailscale commands](commands.md#tailscale-peers-and-taildrop)
+for refresh and transfer behavior.
+
 Desktop Shell does not add sudo policy for providers. Keep any elevated helper
 narrow and declare it in the surrounding NixOS configuration.
 

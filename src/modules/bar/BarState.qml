@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Services.Pipewire
 import "../common"
 import "../network"
+import "../tailscale"
 
 Scope {
   id: root
@@ -24,6 +25,7 @@ Scope {
   readonly property var keyboardState: keyboardSampler
   readonly property var network: networkState
   readonly property var connection: connectionState
+  readonly property var tailscale: tailscaleState
   readonly property var microphoneLinks: Pipewire.linkGroups.values.filter(link => Boolean(link.source?.audio && !link.source.isStream && !link.source.isSink))
   signal powerRequested(string action)
 
@@ -34,6 +36,11 @@ Scope {
   }
 
   NetworkModel { id: connectionState }
+  TailscaleModel { id: tailscaleState; enabled: networkState.controls.some(control => control.id === "tailscale") }
+  Connections {
+    target: networkState
+    function onStatusByIdChanged() { tailscaleState.refresh(); }
+  }
 
   IpcHandler {
     target: "desktopBar"

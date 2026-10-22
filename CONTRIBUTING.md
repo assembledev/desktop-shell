@@ -40,6 +40,16 @@ It checks pointer and keyboard invocation, closing and reopening against the
 real shared overlay with fixture network state. Also check consecutive clicks
 on the actual bar trigger while keeping the pointer stationary.
 
+For Tailscale inbox detection and notification delivery, run:
+
+```console
+$ nix develop --command bash tests/native/tailscale-model.sh
+$ nix develop --command bash tests/native/taildrop-notification.sh
+```
+
+These use offscreen fixtures and an isolated notification bus. They do not
+transfer files to peers or send notifications to the running desktop.
+
 ## Source layout
 
 - `src/` contains the Quickshell entry points, QML modules, and command backend.

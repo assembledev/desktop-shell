@@ -15,6 +15,8 @@ import "modules/launcher"
 import "modules/lock"
 import "modules/now_playing"
 import "modules/network"
+import "modules/tailscale"
+import "modules/tailscale/TailscaleStatus.js" as TailscaleStatus
 import "modules/wallpaper_picker"
 import "modules/window_switcher"
 
@@ -51,6 +53,8 @@ ShellRoot {
       required property var modelData
       screen: modelData
       sharedState: barState
+      tailscaleDetailsOpen: tailscaleDetails.open && tailscaleDetails.screen === screen
+      onTailscaleToggleRequested: tailscaleDetails.toggleDetails(screen)
       networkDetailsOpen: networkDetails.open && networkDetails.screen === screen
       onCalendarToggleRequested: calendar.toggleCalendar(screen)
       onControlCenterToggleRequested: controlCenter.toggleOpen(false, screen)
@@ -73,10 +77,34 @@ ShellRoot {
     barSurface: root.barFor(screen)?.surface || null
     onWifiRequested: screen => controlCenter.openWifiPage(false, screen)
   }
+  TailscaleDetails {
+    id: tailscaleDetails
+    model: barState.tailscale
+    networkController: barState.network
+    barSurface: root.barFor(screen)?.surface || null
+  }
+  Connections {
+    target: barState.tailscale
+    function onFilesReceived(files) {
+      const icon = barState.network.controls.find(control => control.id === "tailscale")?.icon || "";
+      Quickshell.execDetached(TailscaleStatus.receivedNotification(files, icon));
+    }
+  }
+  Connections {
+    target: tailscaleDetails
+    function onOpenChanged() {
+      if (tailscaleDetails.open) {
+        calendar.closeCalendar();
+        controlCenter.open = false;
+        networkDetails.closeDetails();
+      }
+    }
+  }
   Connections {
     target: networkDetails
     function onOpenChanged() {
       if (networkDetails.open) {
+        tailscaleDetails.closeDetails();
         calendar.closeCalendar();
         controlCenter.open = false;
       }
@@ -84,15 +112,15 @@ ShellRoot {
   }
   Connections {
     target: controlCenter
-    function onOpenChanged() { if (controlCenter.open) networkDetails.closeDetails(); }
+    function onOpenChanged() { if (controlCenter.open) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); } }
   }
   Connections {
     target: calendar
-    function onOpenChanged() { if (calendar.open) networkDetails.closeDetails(); }
+    function onOpenChanged() { if (calendar.open) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); } }
   }
   Connections {
     target: barState
-    function onBarOpenChanged() { if (!barState.barOpen) networkDetails.closeDetails(); }
+    function onBarOpenChanged() { if (!barState.barOpen) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); } }
   }
   Launcher {}
   LockPreview {}

@@ -288,9 +288,13 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
+              dbus
               deadnix
+              jq
               kdePackages.qtdeclarative
+              libnotify
               nixfmt
+              python3
               quickshell
               shellcheck
               shfmt
