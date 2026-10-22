@@ -27,7 +27,7 @@ Scope {
   readonly property real availableWidth: Number(menuWindow.width || shellScreen?.width || 0)
   readonly property real availableHeight: Number(menuWindow.height || shellScreen?.height || 0)
   readonly property int menuWidth: Math.max(180, Math.min(332, availableWidth - edgeMargin * 2))
-  readonly property real menuTop: Math.max(6, anchorBottomY + 7)
+  readonly property real menuTop: Math.max(theme.barPopoverGap, anchorBottomY + theme.barPopoverGap)
   readonly property int maximumListHeight: Math.max(38, availableHeight - menuTop - 82)
   readonly property int listHeight: Math.min(menuColumn.implicitHeight, maximumListHeight)
   readonly property int menuHeight: 70 + listHeight

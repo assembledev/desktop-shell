@@ -138,6 +138,7 @@ QtObject {
   readonly property string uiFontFamily: values.uiFontFamily
   readonly property int groupRadius: 14
   readonly property int controlRadius: 6
+  readonly property int barPopoverGap: 2
 
   // Runtime aliases keep direct QML consumers source-compatible while the
   // shell itself uses only semantic roles.

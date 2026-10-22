@@ -77,6 +77,8 @@ keep `keyboardRequested` false so a stationary bar trigger retains pointer
 focus; entering the overlay enables on-demand keyboard focus. Keyboard opens
 may request exclusive focus. Consumers must select this mode before presenting
 and preserve it when handing off to another surface.
+Floating card surfaces use `Theme.barPopoverGap` for separation from the bar
+or tray shelf.
 
 `src/shell.qml` creates per-output bars around one `BarState.qml` owner for
 telemetry, keyboard and battery sampling, network controls and bar commands.

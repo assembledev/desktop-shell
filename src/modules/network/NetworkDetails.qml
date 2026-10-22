@@ -128,7 +128,7 @@ Scope {
       Rectangle {
         id: panel
         anchors.top: parent.top
-        anchors.topMargin: 8
+        anchors.topMargin: theme.barPopoverGap
         anchors.right: parent.right
         anchors.rightMargin: 12
         width: Math.min(376, Math.max(1, window.width - 24))

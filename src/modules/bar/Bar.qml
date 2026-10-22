@@ -1062,7 +1062,7 @@ Scope {
       width: root.trayShelfWidth
       height: root.trayShelfHeight
       anchors.top: parent.top
-      anchors.topMargin: 2
+      anchors.topMargin: theme.barPopoverGap
       anchors.right: parent.right
       anchors.rightMargin: root.trayShelfRightMargin
       radius: 12
@@ -1130,7 +1130,7 @@ Scope {
       width: 232
       height: batteryAnalysisColumn.implicitHeight + 20
       anchors.top: parent.top
-      anchors.topMargin: 2
+      anchors.topMargin: theme.barPopoverGap
       anchors.right: parent.right
       anchors.rightMargin: 9
       radius: 12
@@ -1216,7 +1216,7 @@ Scope {
         width: 226
         height: powerMenuColumn.implicitHeight + 26
         anchors.top: parent.top
-        anchors.topMargin: 2
+        anchors.topMargin: theme.barPopoverGap
         anchors.right: parent.right
         anchors.rightMargin: 8
         radius: 12
@@ -1716,7 +1716,7 @@ Scope {
 
     function openMenu() {
       const point = trayIcon.mapToItem(null, trayIcon.width / 2, trayIcon.height);
-      const bottom = trayIcon.trackShelfMenu ? Math.max(point.y, root.trayShelfHeight + 2) : 0;
+      const bottom = trayIcon.trackShelfMenu ? Math.max(point.y, root.trayShelfHeight + theme.barPopoverGap) : 0;
       trayMenuPopup.openFor(trayIcon.item, point.x, bottom, trayIcon.trackShelfMenu);
     }
 

@@ -206,7 +206,7 @@ Scope {
           width: Math.min(390, window.width - 24)
           height: content.implicitHeight + 32
           anchors.top: parent.top
-          anchors.topMargin: 2
+          anchors.topMargin: theme.barPopoverGap
           anchors.horizontalCenter: parent.horizontalCenter
           radius: 14
           color: Qt.alpha(theme.bgSolid, 0.86)
