@@ -18,6 +18,7 @@ Scope {
   property string feedback: ""
   property string copiedValue: ""
   readonly property var screen: placement.screen
+  readonly property alias surface: window
   readonly property bool wifi: model.connected && model.data.type === "wifi"
   signal wifiRequested(var screen)
 
@@ -36,7 +37,7 @@ Scope {
       return;
     feedback = "";
     copiedValue = "";
-    window.keyboardRequested = true;
+    window.keyboardRequested = screen === undefined;
     open = true;
   }
   function closeDetails() { open = false; }

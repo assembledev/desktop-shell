@@ -15,6 +15,6 @@ Item {
     sourceSize.width: 48
     sourceSize.height: 48
     fillMode: Image.PreserveAspectFit
-    source: symbolItem.symbol.length === 0 ? "" : "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + symbolItem.tint.toString() + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + Symbols.backgroundPath(symbolItem.symbol) + '" opacity="0.3"/><path d="' + Symbols.path(symbolItem.symbol) + '"/></svg>')
+    source: symbolItem.symbol.length === 0 ? "" : "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="' + symbolItem.tint.toString() + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + (Symbols.backgroundPath(symbolItem.symbol) ? '<path d="' + Symbols.backgroundPath(symbolItem.symbol) + '" opacity="0.3"/>' : '') + '<path d="' + Symbols.path(symbolItem.symbol) + '"/></svg>')
   }
 }

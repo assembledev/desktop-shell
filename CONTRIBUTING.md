@@ -29,6 +29,17 @@ hardware-backed controls behave correctly. Test affected interactions in a
 nested or disposable Hyprland session when practical, and describe the manual
 test in the change.
 
+For network-popover focus changes, run the native component regression in a
+Wayland session:
+
+```console
+$ nix develop --command bash tests/native/network-popover-focus.sh
+```
+
+It checks pointer and keyboard invocation, closing and reopening against the
+real shared overlay with fixture network state. Also check consecutive clicks
+on the actual bar trigger while keeping the pointer stationary.
+
 ## Source layout
 
 - `src/` contains the Quickshell entry points, QML modules, and command backend.

@@ -72,6 +72,12 @@ bar selection. `ScreenPlacement.qml` captures an output at invocation and
 invalidates it on removal. Keyboard controllers capture before queuing a
 presentation; bar menus receive their originating output explicitly.
 
+`BarOverlayWindow.qml` owns geometry and focus for bar popovers. Mouse opens
+keep `keyboardRequested` false so a stationary bar trigger retains pointer
+focus; entering the overlay enables on-demand keyboard focus. Keyboard opens
+may request exclusive focus. Consumers must select this mode before presenting
+and preserve it when handing off to another surface.
+
 `src/shell.qml` creates per-output bars around one `BarState.qml` owner for
 telemetry, keyboard and battery sampling, network controls and bar commands.
 The control center retains one notification server and shared event models;
