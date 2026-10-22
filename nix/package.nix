@@ -73,7 +73,11 @@ let
         gawk
         gnugrep
         gnused
+        iproute2
+        iputils
+        iw
         jq
+        networkmanager
         pamixer
         pipewire
         procps

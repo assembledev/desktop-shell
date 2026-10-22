@@ -9,7 +9,7 @@ Usage: desktop-shell <command> [arguments]
 
 Lifecycle: start [--foreground], stop, restart, status, logs [--follow], doctor
 Surfaces: open, close, toggle, launcher, cheatsheet, pick, lock, clipboard, bar
-Desktop: audio, wifi, media, dnd, notifications, profile, display, focus
+Desktop: audio, wifi, network, media, dnd, notifications, profile, display, focus
 Devices: brightness, volume, bluetooth, power, network-control
 Inspection: config, metrics, system status-json, browser-tabs, ipc
 Wallpaper: list-json, current, set <path>, preview <path>, apply
@@ -43,6 +43,9 @@ scan requests discovery for 15 seconds, then stops unless the Wi-Fi page is open
 Actions return accepted requests, not completed connection/scan results.
 Query status-json afterwards for connected, busy and SSID; networks-json lists cached results.
 HELP
+      ;;
+    network)
+      printf '%s\n' 'Usage: desktop-shell network [status-json|open|close|toggle]' 'Shows the active physical uplink, cached connection details, traffic and Internet ping.' 'open/close/toggle control the network popover. status-json never starts probes.' 'Address/link sampling and ping to 1.1.1.1 run while the popover is open; ping follows normal routing, including VPNs.'
       ;;
     media)
       cat <<'HELP'
@@ -104,7 +107,7 @@ HELP
 
 cli_help_all() {
   cli_help
-  for topic in audio wifi media dnd notifications profile brightness bluetooth display clipboard volume power network-control config start launcher set; do
+  for topic in audio wifi network media dnd notifications profile brightness bluetooth display clipboard volume power network-control config start launcher set; do
     printf '\n'
     cli_help "$topic"
   done
@@ -227,7 +230,7 @@ runtime_command() {
       esac
       audio_command default "$3" "$2"
       ;;
-    wifi:status-json | wifi:networks-json | media:status-json | media:players-json | notifications:status-json)
+    wifi:status-json | wifi:networks-json | network:status-json | media:status-json | media:players-json | notifications:status-json)
       [ "$#" -le 1 ] || {
         cli_usage_error "$domain"
         return 2

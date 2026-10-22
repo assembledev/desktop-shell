@@ -89,6 +89,21 @@ TestCase {
     }
   }
   Component {
+    id: connectivityHeaderComponent
+    ControlCenter.ConnectivityRow {
+      colors: suite.colors
+      width: 340
+      height: 66
+      title: "Wi-Fi"
+      subtitle: "Connected network"
+      glyph: "wifi"
+      active: true
+      navigationOnly: true
+      onDetailRequested: suite.clicks++
+      onToggleRequested: suite.radioState = !suite.radioState
+    }
+  }
+  Component {
     id: pendingSwitchComponent
     Common.ShellSwitch {
       colors: suite.colors
@@ -216,6 +231,17 @@ TestCase {
     tryCompare(b.background, "color", colors.bgMuted, 250);
     keyClick(Qt.Key_Space);
     compare(clicks, 1);
+  }
+  function test_connectivityHeaderNavigatesWithoutTogglingRadio() {
+    const header = createTemporaryObject(connectivityHeaderComponent, suite);
+    verify(header);
+    mouseClick(header, 28, header.height / 2);
+    compare(clicks, 1);
+    compare(radioState, false);
+    header.forceActiveFocus(Qt.TabFocusReason);
+    keyClick(Qt.Key_Space);
+    compare(clicks, 2);
+    compare(radioState, false);
   }
   function test_iconAndHeaderCenters() {
     const icon = createTemporaryObject(iconComponent, suite);

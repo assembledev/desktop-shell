@@ -1111,6 +1111,14 @@ Scope {
       openPanel(keyboard, screen);
   }
 
+  function openWifiPage(keyboard = true, screen) {
+    const refresh = open && page === "wifi";
+    page = "wifi";
+    openPanel(keyboard, screen);
+    if (refresh)
+      scanWifi();
+  }
+
   function boundedBackendCommand(args, timeoutSeconds) {
     const seconds = timeoutSeconds || backendQueryTimeout;
     return ["timeout", "--kill-after=1s", String(seconds) + "s", backend].concat(args);
@@ -2375,11 +2383,7 @@ Scope {
       root.openPanel();
     }
     function wifiPage() {
-      const refresh = root.open && root.page === "wifi";
-      root.page = "wifi";
-      root.openPanel();
-      if (refresh)
-        root.scanWifi();
+      root.openWifiPage();
     }
     function bluetoothPage() {
       const refresh = root.open && root.page === "bluetooth";

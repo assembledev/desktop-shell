@@ -693,3 +693,5 @@ bash "$source_root/tests/telemetry.sh" "$source_root"
 bash "$source_root/tests/session.sh" "$source_root"
 
 bash "$source_root/tests/commands.sh" "$source_root" "$2"
+
+bash "$source_root/tests/network.sh" "$source_root"

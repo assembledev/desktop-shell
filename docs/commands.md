@@ -83,6 +83,36 @@ confirmed layout is saved for the same set of physical displays and restored
 when that set reconnects. **Reset layout** removes the saved profile for the connected display
 set before reloading Hyprland's declarative monitor rules.
 
+### Network
+
+Click the network icon between the keyboard language and notification bell to
+open details on that output. It shows the active Wi-Fi or Ethernet uplink;
+Wi-Fi has four signal levels. The connection header opens the existing Wi-Fi
+selection page. Addresses, gateways and link DNS values copy when clicked.
+Global IPv6 addresses appear when assigned. Escape or clicking outside closes
+the popover.
+
+Local details come from NetworkManager and the physical interface. Link rate
+is distinct from the current receive/send traffic rate. Ping targets `1.1.1.1`
+and follows normal system routing, including VPNs. Details, traffic and ping
+refresh every two seconds while the popover is open; closing it stops probes
+and clears the traffic baseline. A timed-out or unavailable ping does not imply
+that Wi-Fi or Ethernet is disconnected. Missing data is shown as unavailable.
+No speed test or public-IP lookup runs.
+
+```console
+$ desktop-shell network open
+$ desktop-shell network close
+$ desktop-shell network toggle
+$ desktop-shell network status-json
+```
+
+`status-json` reads the shared model without starting probes or the service.
+Connection details are cached and may be absent until the popover is opened.
+The bar's physical-uplink identity also refreshes when native device state
+changes and every ten seconds. Networking requires a running NetworkManager;
+the package supplies the read-only command-line tools used for details.
+
 ### Launcher
 
 ```console

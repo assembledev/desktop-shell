@@ -24,6 +24,8 @@ Scope {
   readonly property var keyboardState: sharedState.keyboardState
   signal calendarToggleRequested
   signal controlCenterToggleRequested
+  signal networkToggleRequested
+  property bool networkDetailsOpen: false
 
   Theme {
     id: theme
@@ -705,6 +707,8 @@ Scope {
                 label: keyboardState.label
               }
 
+              ConnectionSegment {}
+
               NotificationSegment {
                 icon: root.notificationStatus.text || ""
                 unread: root.notificationUnread
@@ -860,6 +864,8 @@ Scope {
               label: keyboardState.label
               targetHeight: root.portraitPrimaryHeight
             }
+
+            ConnectionSegment { targetHeight: root.portraitPrimaryHeight }
 
             NotificationSegment {
               icon: root.notificationStatus.text || ""
@@ -1359,6 +1365,19 @@ Scope {
       hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: wsButton.clicked()
+    }
+  }
+
+  component ConnectionSegment: BarSegment {
+    id: connectionSegment
+    symbol: root.sharedState.connection.icon
+    iconColor: root.networkDetailsOpen ? theme.info : root.sharedState.connection.connected ? theme.textPrimary : theme.textMuted
+    clickable: true
+    onClicked: root.networkToggleRequested()
+    ShellToolTip {
+      anchorItem: connectionSegment
+      text: root.sharedState.connection.tooltip
+      shown: connectionSegment.hovered && !root.networkDetailsOpen
     }
   }
 

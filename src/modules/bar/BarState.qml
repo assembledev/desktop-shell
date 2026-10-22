@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import "../common"
+import "../network"
 
 Scope {
   id: root
@@ -22,6 +23,7 @@ Scope {
   readonly property var batteryState: batterySampler
   readonly property var keyboardState: keyboardSampler
   readonly property var network: networkState
+  readonly property var connection: connectionState
   readonly property var microphoneLinks: Pipewire.linkGroups.values.filter(link => Boolean(link.source?.audio && !link.source.isStream && !link.source.isSink))
   signal powerRequested(string action)
 
@@ -30,6 +32,8 @@ Scope {
     backend: root.backend
     configPath: Quickshell.env("DESKTOP_SHELL_NETWORK_CONTROLS")
   }
+
+  NetworkModel { id: connectionState }
 
   IpcHandler {
     target: "desktopBar"

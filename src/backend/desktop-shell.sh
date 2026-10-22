@@ -22,10 +22,33 @@ if [ "$#" -eq 2 ] && { [ "$2" = --help ] || [ "$2" = -h ]; }; then
   exit
 fi
 case "${1:-}" in
-  audio | wifi | media | dnd | notifications)
-    # shellcheck source=lib/hypr-environment.sh
-    source "${BASH_SOURCE[0]%/*}/lib/hypr-environment.sh"
-    runtime_command "$@"
+  audio | wifi | media | dnd | notifications | network)
+    case "${1:-}:${2:-}" in
+      network:snapshot | network:ping) ;;
+      *)
+        # shellcheck source=lib/hypr-environment.sh
+        source "${BASH_SOURCE[0]%/*}/lib/hypr-environment.sh"
+        case "${1:-}:${2:-}" in
+          network:open | network:close | network:toggle) ;;
+          *)
+            runtime_command "$@"
+            exit
+            ;;
+        esac
+        ;;
+    esac
+    ;;
+esac
+
+# Network sampling reads neither user configuration nor persistent state.
+case "${1:-}:${2:-}" in
+  network:snapshot | network:ping)
+    # shellcheck source=lib/network.sh
+    source "${BASH_SOURCE[0]%/*}/lib/network.sh"
+    case "$2" in
+      snapshot) network_snapshot_json "${3:-link}" ;;
+      ping) network_ping_json ;;
+    esac
     exit
     ;;
 esac
@@ -180,6 +203,16 @@ fi
 # the backend libraries. Dispatch them before the heavyweight backend setup;
 # desktop_shell_ipc_call still starts the service and retries when necessary.
 case "${1:-}" in
+  network)
+    if [ "$#" -eq 2 ]; then
+      case "$2" in
+        open | close | toggle)
+          desktop_shell_ipc_call network "$2"
+          exit
+          ;;
+      esac
+    fi
+    ;;
   toggle | open | close)
     if [ "$#" -eq 1 ]; then
       desktop_shell_ipc_call controlCenter "$1"

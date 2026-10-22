@@ -5,6 +5,8 @@ import "../common"
 ShellTaskButton {
   id: row
   property bool toggleEnabled: true
+  // Details headers navigate as a single button; their radio icon is decorative.
+  property bool navigationOnly: false
   signal toggleRequested
   signal detailRequested
   accent: colors.info
@@ -25,7 +27,8 @@ ShellTaskButton {
     padding: 6
     focusPolicy: Qt.StrongFocus
     hoverEnabled: true
-    enabled: row.toggleEnabled
+    enabled: row.toggleEnabled && !row.navigationOnly
+    Accessible.ignored: row.navigationOnly
     Accessible.name: (row.active ? "Turn off " : "Turn on ") + row.title
     onClicked: row.toggleRequested()
     contentItem: ShellSymbol {
@@ -36,7 +39,7 @@ ShellTaskButton {
     background: Rectangle {
       radius: width / 2
       color: radio.down ? row.colors.accentHover : row.active ? row.accent : radio.hovered ? row.colors.bgHover : row.colors.bgMuted
-      opacity: radio.enabled ? 1 : .5
+      opacity: radio.enabled || row.navigationOnly ? 1 : .5
       Rectangle {
         anchors.fill: parent
         anchors.margins: -3
