@@ -100,3 +100,9 @@ var aliases = {
 };
 function path(symbol) { return paths[aliases[symbol] || symbol] || paths.control; }
 function name(symbol) { return aliases[symbol] || symbol; }
+
+// Partial signal glyphs retain the full silhouette at reduced contrast.
+function backgroundPath(symbol) {
+  var resolved = name(symbol);
+  return resolved === "wifi-medium" || resolved === "wifi-weak" || resolved === "wifi-minimal" ? paths.wifi : "";
+}
