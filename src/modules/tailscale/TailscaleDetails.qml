@@ -452,7 +452,11 @@ Scope {
       ShellSymbol { symbol: button.copied ? "check" : "copy"; tint: button.copied ? theme.success : theme.textMuted; size: 14; Layout.preferredWidth: 14; Layout.maximumWidth: 14 }
     }
     background: Rectangle { radius: theme.controlRadius; color: button.hovered || button.down ? theme.surfaceHover : "transparent"; border.width: button.visualFocus ? 2 : 0; border.color: theme.accent }
-    ToolTip.visible: hovered; ToolTip.text: copied ? "Copied" : "Copy " + value
+    ThemedToolTip {
+      colors: theme
+      visible: button.hovered
+      text: button.copied ? "Copied" : "Copy " + button.value
+    }
   }
   component DetailRow: Item {
     id: row

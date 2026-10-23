@@ -13,6 +13,7 @@ TestCase {
   when: windowShown
   readonly property var colors: ({
       bgSolid: "#151725",
+      bgToast: "#191c2b",
       bgRaised: "#23283b",
       bgMuted: "#1c2030",
       bgHover: "#303650",
@@ -217,6 +218,26 @@ TestCase {
     clicks = 0;
     mock.page = "main";
     mock.dnd = false;
+  }
+  function test_tooltipFollowsShellTheme() {
+    const button = createTemporaryObject(iconComponent, suite);
+    const tip = Array.from(button.data).find(item => item.text === button.tooltip && item.delay === 700);
+    verify(tip, "shared button tooltip exists");
+    compare(tip.background.color, colors.bgToast);
+    compare(tip.background.border.color, colors.borderMuted);
+    compare(tip.contentItem.color, colors.textPrimary);
+    compare(tip.font.family, colors.uiFontFamily);
+    mouseMove(button, button.width / 2, button.height / 2);
+    tryCompare(tip, "visible", true, 1500);
+    verify(tip.width > 0 && tip.height > 0);
+    tip.colors = Object.assign({}, colors, {
+      bgToast: "#20283a",
+      borderMuted: "#586080",
+      textPrimary: "#ccddee"
+    });
+    compare(tip.background.color, "#20283a");
+    compare(tip.background.border.color, "#586080");
+    compare(tip.contentItem.color, "#ccddee");
   }
   function test_nativeAction() {
     const b = createTemporaryObject(actionComponent, suite);

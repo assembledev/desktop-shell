@@ -289,8 +289,6 @@ Scope {
         border.width: copyButton.visualFocus ? 2 : 0
         border.color: theme.accent
       }
-      ToolTip.visible: hovered
-      ToolTip.text: row.copied ? root.feedback : "Copy " + (row.label || "DNS address") + ": " + row.value
     }
   }
   component TrafficValue: RowLayout {

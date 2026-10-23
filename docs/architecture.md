@@ -35,6 +35,11 @@ See [Session-lock security](lock-security.md) for guarantees and host prerequisi
 
 ### QML
 
+`ThemedToolTip.qml` owns Qt control tooltip appearance using the shell's
+`bgToast`, `textPrimary`, `borderMuted`, `controlRadius`, and `uiFontFamily`
+roles. `ShellToolTip.qml` provides a themed native popup for bar anchors that
+need a surface outside the bar window.
+
 `src/modules/` owns presentation, interaction state, and Quickshell-native
 models. Components consume configuration passed by the package; they do not
 select machine names, output identifiers, applications, or network providers.

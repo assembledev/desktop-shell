@@ -1498,11 +1498,11 @@ Scope {
     HoverHandler {
       id: microphoneHover
     }
-    ToolTip {
+    ThemedToolTip {
+      colors: theme
       visible: parent.visible && microphoneHover.hovered
       delay: 350
       text: root.microphoneTooltip
-      font.family: theme.uiFontFamily
     }
   }
 

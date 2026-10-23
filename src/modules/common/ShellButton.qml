@@ -84,10 +84,10 @@ Button {
       visible: button.visualFocus
     }
   }
-  ToolTip {
+  ThemedToolTip {
+    colors: button.colors
     visible: button.hovered && button.tooltip.length > 0
     text: button.tooltip
-    font.family: button.colors.uiFontFamily
     delay: 700
   }
 }
