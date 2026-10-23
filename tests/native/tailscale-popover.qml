@@ -58,7 +58,7 @@ ShellRoot {
         const received = suite.findText(suite.overlay.contentItem, "Received files");
         suite.verify(received && !received.visible, "empty inbox entry is visible");
         suite.verify(details.statusText() === "", "connected device retains redundant subtitle");
-        suite.verify(suite.findVisibleText(suite.overlay.contentItem, "tag:server"), "tagged peer missing tags in main list");
+        suite.verify(suite.findVisibleText(suite.overlay.contentItem, "server"), "tagged peer missing tags in main list");
         details.toggleDetails(Quickshell.screens[0]);
       } else if (suite.step === 2) {
         suite.verify(!details.open, "second click did not close");
@@ -72,7 +72,7 @@ ShellRoot {
       } else if (suite.step === 4) {
         const send = suite.findText(suite.overlay.contentItem, "Send files…");
         suite.verify(send && !send.visible, "ineligible peer has send button");
-        suite.verify(suite.findVisibleText(suite.overlay.contentItem, "tag:backup"), "tagged peer missing tags in details");
+        suite.verify(suite.findVisibleText(suite.overlay.contentItem, "backup"), "tagged peer missing tags in details");
         details.showPeer("a");
         details.chooseFiles();
         console.log("DIALOG_OPEN_REQUESTED");

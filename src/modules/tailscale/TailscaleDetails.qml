@@ -432,7 +432,7 @@ Scope {
         Text {
           id: tagLabel
           anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6
-          text: modelData; textFormat: Text.PlainText; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter
+          text: modelData.replace(/^tag:/, ""); textFormat: Text.PlainText; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter
           color: theme.textSecondary; font.family: theme.uiFontFamily; font.pixelSize: 10
         }
       }
