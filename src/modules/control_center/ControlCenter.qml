@@ -238,16 +238,6 @@ Scope {
     armOsdSweep();
   }
 
-  function osdRows(outputName) {
-    const rows = [];
-    for (let i = 0; i < osdEntries.length; i++) {
-      const row = osdEntries[i];
-      if (row.outputName === outputName)
-        rows.push(row);
-    }
-    return rows;
-  }
-
   function popupRows(outputName) {
     const rows = [];
     for (let i = 0; i < notificationPopupModel.count; i++) {
@@ -2527,10 +2517,14 @@ Scope {
     PanelWindow {
       id: osdWindow
       required property var modelData
-      readonly property var rows: root.osdRows(String(modelData.name))
+      OsdModel {
+        id: osdRows
+        entries: root.osdEntries
+        outputName: String(osdWindow.modelData.name)
+      }
       MotionTransition {
         id: osdSurfaceTransition
-        requested: rows.length > 0
+        requested: osdRows.count > 0
       }
       screen: modelData
       visible: osdSurfaceTransition.presented
@@ -2551,7 +2545,7 @@ Scope {
       Rectangle {
         id: osdBox
         width: 276
-        height: root.osdVerticalPadding + osdWindow.rows.length * root.osdRowHeight + Math.max(0, osdWindow.rows.length - 1) * root.osdRowSpacing
+        height: root.osdVerticalPadding + osdRows.count * root.osdRowHeight + Math.max(0, osdRows.count - 1) * root.osdRowSpacing
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: parent.height * 0.26
@@ -2576,7 +2570,7 @@ Scope {
           spacing: root.osdRowSpacing
 
           Repeater {
-            model: osdWindow.rows
+            model: osdRows
             delegate: OsdRow {
               required property var modelData
               Layout.fillWidth: true
