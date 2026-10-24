@@ -91,6 +91,8 @@ The control center retains one notification server and shared event models;
 output delegates present only their assigned notifications and OSD rows.
 `OsdModel.qml` preserves each output's OSD row identity across level updates
 so active bars animate from their current level.
+`NotificationPopupModel.qml` filters the shared popup model by output while
+preserving existing toast instances, animations, and lifetime state.
 Per-output views do not own independent polling or command endpoints. See
 [Multiple displays](configuration.md#multiple-displays) for placement behavior.
 

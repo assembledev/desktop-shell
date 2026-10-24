@@ -238,16 +238,6 @@ Scope {
     armOsdSweep();
   }
 
-  function popupRows(outputName) {
-    const rows = [];
-    for (let i = 0; i < notificationPopupModel.count; i++) {
-      const id = notificationPopupModel.get(i).popupId;
-      if (popupData(id).outputName === outputName)
-        rows.push(id);
-    }
-    return rows;
-  }
-
   function pruneOutputs() {
     const names = shellConfig.screens.map(screen => String(screen.name));
     osdEntries = osdEntries.filter(entry => names.indexOf(entry.outputName) >= 0);
@@ -1015,7 +1005,8 @@ Scope {
 
     setPopupData(popup);
     notificationPopupModel.insert(0, {
-      popupId: popup.id
+      popupId: popup.id,
+      outputName: popup.outputName
     });
 
     while (notificationPopupModel.count > 4) {
@@ -2591,10 +2582,14 @@ Scope {
     PanelWindow {
       id: popupWindow
       required property var modelData
-      readonly property var rows: root.popupRows(String(modelData.name))
+      NotificationPopupModel {
+        id: popupRows
+        model: notificationPopupModel
+        outputName: String(popupWindow.modelData.name)
+      }
       MotionTransition {
         id: popupSurfaceTransition
-        requested: rows.length > 0
+        requested: popupRepeater.count > 0
       }
       screen: modelData
       visible: popupSurfaceTransition.presented && !(root.open && root.screen === modelData)
@@ -2635,10 +2630,10 @@ Scope {
         }
 
         Repeater {
-          model: popupWindow.rows
+          id: popupRepeater
+          model: popupRows
           delegate: NotificationToast {
-            required property var modelData
-            readonly property int popupId: modelData
+            required property int popupId
             item: root.popupData(popupId)
             onDismiss: root.dismissNotification(popupId)
             onHide: root.hidePopup(popupId)
