@@ -404,8 +404,9 @@ result per completed file. Cancelling an upload cannot retract files already
 completed. The popup shows completed-file counts and an activity indicator;
 it does not estimate byte progress. Ineligible devices have no send action.
 The received-file entry appears only when the inbox contains files. Saving uses
-an explicit destination, refuses to overwrite an existing path, and removes the
-inbox copy only after the complete local file exists. If acknowledgement fails,
+an explicit destination and atomically replaces that path after a complete
+download. The file chooser owns overwrite confirmation. The inbox copy is
+removed only after the complete local file exists. If acknowledgement fails,
 the saved file remains and the inbox copy can be recovered separately.
 
 New completed Taildrop inbox entries emit normal Tailscale desktop notifications,

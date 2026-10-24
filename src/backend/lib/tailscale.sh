@@ -113,8 +113,8 @@ tailscale_file_info() (
   done | jq -s .
 )
 
-# Publish without replacing another file; acknowledge the inbox only after a
-# complete local copy exists. A failed download leaves the original untouched.
+# The chooser owns overwrite confirmation. Publish the complete file atomically,
+# then acknowledge the inbox; failed downloads leave the destination untouched.
 tailscale_receive_file() (
   local name="$1" target="$2" escaped temporary expected files removed=true
   case "$target" in /*) ;; *)
@@ -122,10 +122,6 @@ tailscale_receive_file() (
     return 2
     ;;
   esac
-  [ ! -e "$target" ] && [ ! -L "$target" ] || {
-    printf 'Destination already exists; choose another name\n' >&2
-    return 1
-  }
   files="$(tailscale_api http://local-tailscaled.sock/localapi/v0/files/)" || return 1
   expected="$(jq -er --arg name "$name" '.[]? | select(.Name == $name) | .Size' <<<"$files")" || return 1
   escaped="$(printf '%s' "$name" | jq -sRr '@uri')"
@@ -136,7 +132,7 @@ tailscale_receive_file() (
     printf 'Incomplete download; file remains in inbox\n' >&2
     return 1
   }
-  ln -T -- "$temporary" "$target" || return 1
+  mv -fT -- "$temporary" "$target" || return 1
   tailscale_api --request DELETE "http://local-tailscaled.sock/localapi/v0/files/$escaped" >/dev/null || removed=false
   jq -nc --arg path "$target" --argjson removed "$removed" '{saved:true,path:$path,inboxRemoved:$removed}'
 )

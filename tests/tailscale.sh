@@ -56,11 +56,26 @@ tailscale_receive_file '../odd name #.txt' "$test_root/saved" | jq -e '.saved an
 cmp "$test_root/source" "$test_root/saved"
 test -f "$test_root/deleted"
 rm "$test_root/deleted"
-if tailscale_receive_file '../odd name #.txt' "$test_root/saved" >/dev/null 2>&1; then exit 1; fi
-test ! -e "$test_root/deleted"
+# Save dialogs may create the selected file before returning its path.
+touch "$test_root/placeholder"
+tailscale_receive_file '../odd name #.txt' "$test_root/placeholder" | jq -e '.saved and .inboxRemoved' >/dev/null
+cmp "$test_root/source" "$test_root/placeholder"
+test -f "$test_root/deleted"
+rm "$test_root/deleted"
+# Overwrite confirmation belongs to the chooser; the backend honors its path.
+printf 'previous contents' >"$test_root/saved"
+tailscale_receive_file '../odd name #.txt' "$test_root/saved" | jq -e '.saved and .inboxRemoved' >/dev/null
+cmp "$test_root/source" "$test_root/saved"
+test -f "$test_root/deleted"
+rm "$test_root/deleted"
 printf '[{"Name":"wrong-size","Size":100}]' >"$test_root/files"
 if tailscale_receive_file wrong-size "$test_root/incomplete" >/dev/null 2>&1; then exit 1; fi
 test ! -e "$test_root/incomplete"
+test ! -e "$test_root/deleted"
+# Failed downloads must preserve an already selected destination and the inbox.
+printf 'previous contents' >"$test_root/saved"
+if tailscale_receive_file wrong-size "$test_root/saved" >/dev/null 2>&1; then exit 1; fi
+test "$(cat "$test_root/saved")" = 'previous contents'
 test ! -e "$test_root/deleted"
 test "$(find "$test_root" -name '.taildrop.*' | wc -l)" -eq 0
 tailscale_file_info "$test_root/source" | jq -e '.[0].size == 9' >/dev/null
