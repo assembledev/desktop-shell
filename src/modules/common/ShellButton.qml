@@ -84,6 +84,9 @@ Button {
       visible: button.visualFocus
     }
   }
+  HoverHandler {
+    cursorShape: button.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+  }
   ThemedToolTip {
     colors: button.colors
     visible: button.hovered && button.tooltip.length > 0
