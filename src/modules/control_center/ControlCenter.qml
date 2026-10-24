@@ -2601,22 +2601,23 @@ Scope {
 
       anchors {
         top: true
+        bottom: true
+        left: true
         right: true
       }
 
-      implicitWidth: popupColumn.width + 24
-      implicitHeight: popupColumn.implicitHeight + 28
+      // Keep the layer buffer stable when cards leave; resizing a blurred
+      // surface can briefly resample every surviving card.
       mask: Region {
         item: popupColumn
       }
 
-      ColumnLayout {
+      NotificationPopupStack {
         id: popupColumn
         width: Math.min(root.notificationPopupWidth(String(popupWindow.modelData.name)), Math.max(1, Number(popupWindow.modelData?.width || 0) - 28))
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.margins: 14
-        spacing: 10
         opacity: popupSurfaceTransition.progress
         transform: Translate {
           // Translate moves pixels without changing layout geometry.
@@ -2634,6 +2635,8 @@ Scope {
           model: popupRows
           delegate: NotificationToast {
             required property int popupId
+            width: popupColumn.width
+            height: implicitHeight
             item: root.popupData(popupId)
             onDismiss: root.dismissNotification(popupId)
             onHide: root.hidePopup(popupId)
@@ -4459,7 +4462,6 @@ Scope {
     property bool dismissOnClose: false
     signal dismiss
     signal hide
-    Layout.fillWidth: true
     implicitHeight: Math.max(86, toastColumn.implicitHeight + 22 + actionBottomGap)
     radius: 12
     color: theme.surfaceGlassStrong
@@ -4477,12 +4479,6 @@ Scope {
       dismissOnClose = removeNotification;
       lifetime.stop();
       hideAnim.start();
-    }
-
-    Behavior on y {
-      MotionNumberAnimation {
-        role: MotionNumberAnimation.FocusTravel
-      }
     }
 
     Component.onCompleted: {

@@ -93,6 +93,9 @@ output delegates present only their assigned notifications and OSD rows.
 so active bars animate from their current level.
 `NotificationPopupModel.qml` filters the shared popup model by output while
 preserving existing toast instances, animations, and lifetime state.
+Notification layers retain output-sized buffers with an input mask around the
+cards. `NotificationPopupStack.qml` owns animated repositioning; individual
+toasts own their entrance, exit, and lifetime animations.
 Per-output views do not own independent polling or command endpoints. See
 [Multiple displays](configuration.md#multiple-displays) for placement behavior.
 
