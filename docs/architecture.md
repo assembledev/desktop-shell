@@ -87,6 +87,9 @@ or tray shelf.
 
 `src/shell.qml` creates per-output bars around one `BarState.qml` owner for
 telemetry, keyboard and battery sampling, network controls and bar commands.
+One `BatteryNotifications.qml` consumes that shared battery sample and sends
+[battery warnings](commands.md#battery-warnings) through the notification server;
+bars and lock-screen samplers do not send their own warnings.
 The control center retains one notification server and shared event models;
 output delegates present only their assigned notifications and OSD rows.
 `OsdModel.qml` preserves each output's OSD row identity across level updates

@@ -70,6 +70,10 @@ ShellRoot {
     id: controlCenter
     barSurface: root.barFor(screen)?.surface || null
   }
+  BatteryNotifications {
+    data: barState.batteryState.data
+    onDismissRequested: id => controlCenter.dismissNotification(id)
+  }
   NetworkDetails {
     id: networkDetails
     model: barState.connection

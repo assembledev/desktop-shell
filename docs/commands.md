@@ -281,6 +281,19 @@ summary, body and capture time in epoch milliseconds. History excludes transient
 notifications. `dismiss` addresses a current ID and fails when it no longer
 exists. `clear` uses the UI's existing undo window and final-dismiss behavior.
 
+### Battery warnings
+
+While discharging, the battery turns yellow at 30% and red at 15%. Yellow
+produces a silent, low-urgency popup that expires normally. Red produces a
+critical notification with sound and a popup that stays until dismissed or
+charging starts. Both respect DND: they remain in history without a popup or
+sound while DND is on.
+
+Each level warns once per discharge cycle, including when the shell starts
+with a low battery. Starting at red skips the yellow warning. Charging rearms
+the warnings and removes the previous battery notification. Systems without a
+battery do not emit warnings.
+
 ## Volume shortcuts and brightness
 
 The volume commands operate on the default PipeWire output through `pamixer`:
