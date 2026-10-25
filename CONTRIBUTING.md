@@ -45,10 +45,11 @@ For Tailscale inbox detection and notification delivery, run:
 ```console
 $ nix develop --command bash tests/native/tailscale-model.sh
 $ nix develop --command bash tests/native/taildrop-notification.sh
+$ nix develop --command python3 tests/native/taildrop-save.py
 ```
 
-These use offscreen fixtures and an isolated notification bus. They do not
-transfer files to peers or send notifications to the running desktop.
+These use offscreen fixtures and isolated notification and portal buses. They
+do not transfer files to peers or send notifications to the running desktop.
 
 ## Source layout
 

@@ -5,7 +5,7 @@ command -v notify-send >/dev/null
 command -v dbus-run-session >/dev/null
 test_root="$(mktemp -d)"
 trap 'rm -rf -- "$test_root"' EXIT
-cp "$source_root/src/modules/tailscale/TailscaleStatus.js" "$test_root/TailscaleStatus.js"
+cp "$source_root/src/modules/tailscale/"{TailscaleStatus.js,TaildropNotifications.qml} "$test_root/"
 cp "$source_root/tests/native/taildrop-notification.qml" "$test_root/shell.qml"
 mkdir -m 700 "$test_root/runtime" "$test_root/data" "$test_root/user-data"
 # No service directories: host portals must never autostart on the test bus.

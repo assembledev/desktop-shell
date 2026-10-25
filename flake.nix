@@ -294,7 +294,10 @@
               kdePackages.qtdeclarative
               libnotify
               nixfmt
-              python3
+              (python3.withPackages (ps: [
+                ps.dbus-python
+                ps.pygobject3
+              ]))
               quickshell
               shellcheck
               shfmt

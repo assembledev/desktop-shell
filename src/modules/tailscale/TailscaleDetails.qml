@@ -79,11 +79,23 @@ Scope {
     Qt.callLater(() => fileDialog.open());
   }
   function chooseDestination(name) {
-    if (save.running) return;
+    if (save.running || dialogOpen) return;
     receivingName = name;
-    saveDialog.selectedFile = StandardPaths.writableLocation(StandardPaths.DownloadLocation) + "/" + encodeURIComponent(name);
     choosingDestination = true;
-    Qt.callLater(() => saveDialog.open());
+    Qt.callLater(() => saveDialog.item.open());
+  }
+  function saveReceived(files) {
+    if (save.running || dialogOpen) return;
+    openDetails();
+    page = model.data.files.length > 0 ? "received" : "peers";
+    if (files.length === 1) {
+      const file = files[0];
+      if (!model.data.files.some(waiting => waiting.name === file.name && waiting.size === file.size)) {
+        error = "This file is no longer waiting to be saved.";
+        return;
+      }
+      chooseDestination(file.name);
+    }
   }
   function startSend() {
     if (sending || uploadInFlight || !model.canSend || files.length === 0) return;
@@ -355,18 +367,25 @@ Scope {
       }
       onRejected: root.choosingFiles = false
     }
-    FileDialog {
+    // QTBUG-114662: Qt's portal helper retains selections across opens.
+    // A request owns one dialog so an earlier save cannot supply its filename.
+    Loader {
       id: saveDialog
-      title: "Save received file"
-      fileMode: FileDialog.SaveFile
-      onAccepted: {
-        root.choosingDestination = false;
-        const path = Status.localPath(selectedFile);
-        if (!path) { root.error = "Choose a local destination."; return; }
-        root.error = "";
-        save.exec([root.model.backend, "tailscale", "receive", root.receivingName, path]);
+      active: root.choosingDestination
+      sourceComponent: FileDialog {
+        title: "Save received file"
+        fileMode: FileDialog.SaveFile
+        currentFolder: StandardPaths.writableLocation(StandardPaths.DownloadLocation)
+        selectedFile: currentFolder + "/" + encodeURIComponent(root.receivingName)
+        onAccepted: {
+          const path = Status.localPath(selectedFile);
+          root.choosingDestination = false;
+          if (!path) { root.error = "Choose a local destination."; return; }
+          root.error = "";
+          save.exec([root.model.backend, "tailscale", "receive", root.receivingName, path]);
+        }
+        onRejected: root.choosingDestination = false
       }
-      onRejected: root.choosingDestination = false
     }
   }
   Process {

@@ -16,7 +16,6 @@ import "modules/lock"
 import "modules/now_playing"
 import "modules/network"
 import "modules/tailscale"
-import "modules/tailscale/TailscaleStatus.js" as TailscaleStatus
 import "modules/wallpaper_picker"
 import "modules/window_switcher"
 
@@ -83,11 +82,15 @@ ShellRoot {
     networkController: barState.network
     barSurface: root.barFor(screen)?.surface || null
   }
+  TaildropNotifications {
+    id: taildropNotifications
+    onSaveRequested: files => tailscaleDetails.saveReceived(files)
+  }
   Connections {
     target: barState.tailscale
     function onFilesReceived(files) {
       const icon = barState.network.controls.find(control => control.id === "tailscale")?.icon || "";
-      Quickshell.execDetached(TailscaleStatus.receivedNotification(files, icon));
+      taildropNotifications.notify(files, icon);
     }
   }
   Connections {

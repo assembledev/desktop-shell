@@ -59,13 +59,14 @@ TestCase {
     const command = Status.receivedNotification(files, "/icon.svg");
     compare(command[0], "notify-send");
     compare(command[3], "/icon.svg");
-    compare(command[4], "--");
-    compare(command[5], "4 files received");
-    verify(command[6].startsWith('&lt;a href="https://example.invalid"&gt;&amp;file&lt;/a&gt;'));
-    verify(command[6].endsWith("+2 more"));
-    compare(command[6].split("<br/>").length, 3);
-    verify(command[6].indexOf("four") < 0);
-    compare(Status.receivedNotification([{name:"--option",size:1}], "")[5], "File received");
+    compare(command[4], "--action=save=Save…");
+    compare(command[5], "--");
+    compare(command[6], "4 files received");
+    verify(command[7].startsWith('&lt;a href="https://example.invalid"&gt;&amp;file&lt;/a&gt;'));
+    verify(command[7].endsWith("+2 more"));
+    compare(command[7].split("<br/>").length, 3);
+    verify(command[7].indexOf("four") < 0);
+    compare(Status.receivedNotification([{name:"--option",size:1}], "")[6], "File received");
   }
 
 }

@@ -410,8 +410,10 @@ removed only after the complete local file exists. If acknowledgement fails,
 the saved file remains and the inbox copy can be recovered separately.
 
 New completed Taildrop inbox entries emit normal Tailscale desktop notifications,
-including while the peer popup is closed. An empty inbox uses the daemon's
-blocking `AwaitWaitingFiles` LocalAPI request, which wakes on arrivals. While
+including while the peer popup is closed. Their `Save…` action opens the same
+save chooser as the received-file list for a single file, or opens that list
+for a batch. An empty inbox uses the daemon's blocking `AwaitWaitingFiles`
+LocalAPI request, which wakes on arrivals. While
 files await collection, the inbox is sampled every 15 seconds while closed, or
 two seconds while open, because the daemon's wait returns existing files
 immediately. Failed requests retry with delays from two to 30 seconds. Files
