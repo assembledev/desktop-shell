@@ -59,6 +59,6 @@ function receivedNotification(files, icon) {
   const shown = files.length > 3 ? 2 : 3;
   let body = files.slice(0, shown).map(file => escape(file.name)).join("<br/>");
   if (files.length > shown) body += "<br/>+" + (files.length - shown) + " more";
-  return ["notify-send", "--app-name=Tailscale", "--icon", icon || "folder-download", "--action=save=Save…", "--",
+  return ["notify-send", "--app-name=Tailscale", "--icon", icon || "folder-download", "--action=save=Save", "--",
     files.length === 1 ? "File received" : files.length + " files received", body];
 }

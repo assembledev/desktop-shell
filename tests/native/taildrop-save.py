@@ -56,7 +56,7 @@ with open(os.environ["TEST_SAVE_LOG"], "a") as output:
 print('{"saved":true,"inboxRemoved":true}')
 """)
 backend.chmod(0o700)
-names = ["readme.md", "archive.tar.gz", "cancelled.txt", "résumé #%20 [draft].tar.gz"]
+names = ["readme.md", "archive.tar.gz", "cancelled.txt", "résumé #%20 [draft].tar.gz", "batch-one.tar.gz", "batch-two.md", "cancel-batch.txt"]
 seen = []
 failure = []
 DBusGMainLoop(set_as_default=True)
@@ -93,7 +93,7 @@ class Portal(dbus.service.Object):
         request = Request(bus, request_path)
         requests.append(request)
         result = dbus.Dictionary({"uris": dbus.Array([(root / "saved" / name).as_uri()], signature="s")}, signature="sv")
-        GLib.timeout_add(50, lambda: request.Response(1 if expected == "cancelled.txt" else 0, result))
+        GLib.timeout_add(50, lambda: request.Response(1 if expected in {"cancelled.txt", "cancel-batch.txt"} else 0, result))
         return request_path
 
 
@@ -131,6 +131,6 @@ assert not failure, "; ".join(failure)
 assert process.returncode == 0, f"Quickshell exited {process.returncode}; requests: {seen}"
 assert seen == names, seen
 commands = [json.loads(line) for line in (root / "save-log").read_text().splitlines()]
-accepted = [name for name in names if name != "cancelled.txt"]
+accepted = [name for name in names if name not in {"cancelled.txt", "cancel-batch.txt"}]
 assert commands == [["tailscale", "receive", name, str(root / "saved" / name)] for name in accepted], commands
 print("PASS real portal requests and receive destinations preserve each incoming filename")

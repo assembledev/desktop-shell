@@ -32,7 +32,7 @@ ShellRoot {
       suite.verify(Number(notification.urgency) === 1, "notification would bypass normal urgency policy");
       notification.tracked = true;
       suite.received = true;
-      suite.verify(notification.actions.length === 1 && notification.actions[0].identifier === "save" && notification.actions[0].text === "Save…", "missing matching Save action");
+      suite.verify(notification.actions.length === 1 && notification.actions[0].identifier === "save" && notification.actions[0].text === "Save", "missing matching Save action");
       Qt.callLater(() => {
         suite.verify(server.trackedNotifications.values.length === 1, "notification was not retained");
         notification.actions[0].invoke();

@@ -59,7 +59,7 @@ TestCase {
     const command = Status.receivedNotification(files, "/icon.svg");
     compare(command[0], "notify-send");
     compare(command[3], "/icon.svg");
-    compare(command[4], "--action=save=Save…");
+    compare(command[4], "--action=save=Save");
     compare(command[5], "--");
     compare(command[6], "4 files received");
     verify(command[7].startsWith('&lt;a href="https://example.invalid"&gt;&amp;file&lt;/a&gt;'));

@@ -22,6 +22,8 @@ Scope {
   property bool choosingFiles: false
   property bool choosingDestination: false
   property string receivingName: ""
+  property bool savingFromNotification: false
+  property var notificationSaves: []
   property var files: []
   property var queue: []
   property int sendIndex: 0
@@ -85,17 +87,30 @@ Scope {
     Qt.callLater(() => saveDialog.item.open());
   }
   function saveReceived(files) {
-    if (save.running || dialogOpen) return;
-    openDetails();
-    page = model.data.files.length > 0 ? "received" : "peers";
-    if (files.length === 1) {
-      const file = files[0];
-      if (!model.data.files.some(waiting => waiting.name === file.name && waiting.size === file.size)) {
-        error = "This file is no longer waiting to be saved.";
-        return;
-      }
-      chooseDestination(file.name);
+    if (save.running || dialogOpen || savingFromNotification) return;
+    closeDetails();
+    error = "";
+    savingFromNotification = true;
+    notificationSaves = files.slice();
+    nextNotificationSave();
+  }
+  function nextNotificationSave() {
+    if (!savingFromNotification) return;
+    if (notificationSaves.length === 0) { savingFromNotification = false; return; }
+    const file = notificationSaves[0];
+    notificationSaves = notificationSaves.slice(1);
+    if (!model.data.files.some(waiting => waiting.name === file.name && waiting.size === file.size)) {
+      receiveError("This file is no longer waiting to be saved.");
+      return;
     }
+    chooseDestination(file.name);
+  }
+  function receiveError(message) {
+    error = message;
+    if (!savingFromNotification) return;
+    notificationSaves = [];
+    savingFromNotification = false;
+    Quickshell.execDetached(["notify-send", "--app-name=Tailscale", "--icon", control?.icon || "folder-download", "--", message]);
   }
   function startSend() {
     if (sending || uploadInFlight || !model.canSend || files.length === 0) return;
@@ -380,11 +395,15 @@ Scope {
         onAccepted: {
           const path = Status.localPath(selectedFile);
           root.choosingDestination = false;
-          if (!path) { root.error = "Choose a local destination."; return; }
+          if (!path) { root.receiveError("Choose a local destination."); return; }
           root.error = "";
           save.exec([root.model.backend, "tailscale", "receive", root.receivingName, path]);
         }
-        onRejected: root.choosingDestination = false
+        onRejected: {
+          root.choosingDestination = false;
+          root.notificationSaves = [];
+          root.savingFromNotification = false;
+        }
       }
     }
   }
@@ -423,6 +442,10 @@ Scope {
       root.error = code !== 0 || !result?.saved ? saveError.text.trim() || "Could not save the file." : result.inboxRemoved ? "" : "File saved; could not remove the inbox copy.";
       root.model.refresh();
       root.model.refreshInbox();
+      if (root.savingFromNotification) {
+        if (root.error.length > 0) root.receiveError(root.error);
+        else Qt.callLater(root.nextNotificationSave);
+      }
     }
   }
   component SectionLabel: Text { color: theme.textMuted; font.family: theme.uiFontFamily; font.pixelSize: 11; Layout.fillWidth: true }
