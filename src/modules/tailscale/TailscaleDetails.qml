@@ -23,7 +23,7 @@ Scope {
   property bool choosingDestination: false
   property string receivingName: ""
   property bool savingFromNotification: false
-  property var notificationSaves: []
+  property var receiveQueue: []
   property var files: []
   property var queue: []
   property int sendIndex: 0
@@ -34,6 +34,7 @@ Scope {
   property string transferPeerName: ""
   property string transferError: ""
   readonly property bool sending: transferState === "sending"
+  readonly property bool receiving: receiveQueue.length > 0
   readonly property bool dialogOpen: choosingFiles || choosingDestination
   readonly property var screen: placement.screen
   readonly property var selected: model.selected
@@ -76,7 +77,7 @@ Scope {
   }
   function copy(value) { Quickshell.clipboardText = value; copied = value; feedback.restart(); }
   function chooseFiles() {
-    if (sending || uploadInFlight || !model.canSend) return;
+    if (sending || uploadInFlight || dialogOpen || receiving || !model.canSend) return;
     choosingFiles = true;
     Qt.callLater(() => fileDialog.open());
   }
@@ -86,19 +87,23 @@ Scope {
     choosingDestination = true;
     Qt.callLater(() => saveDialog.item.open());
   }
-  function saveReceived(files) {
-    if (save.running || dialogOpen || savingFromNotification) return;
-    closeDetails();
-    error = "";
-    savingFromNotification = true;
-    notificationSaves = files.slice();
-    nextNotificationSave();
+  function saveReceived(files, fromNotification = true) {
+    if (files.length === 0) return;
+    if (fromNotification) closeDetails();
+    if (!receiving) error = "";
+    savingFromNotification = savingFromNotification || fromNotification;
+    const pending = receiveQueue.slice();
+    for (const file of files) {
+      if (!pending.some(queued => queued.name === file.name && queued.size === file.size))
+        pending.push(file);
+    }
+    receiveQueue = pending;
+    nextReceive();
   }
-  function nextNotificationSave() {
-    if (!savingFromNotification) return;
-    if (notificationSaves.length === 0) { savingFromNotification = false; return; }
-    const file = notificationSaves[0];
-    notificationSaves = notificationSaves.slice(1);
+  function nextReceive() {
+    if (save.running || dialogOpen) return;
+    if (!receiving) { savingFromNotification = false; return; }
+    const file = receiveQueue[0];
     if (!model.data.files.some(waiting => waiting.name === file.name && waiting.size === file.size)) {
       receiveError("This file is no longer waiting to be saved.");
       return;
@@ -107,10 +112,15 @@ Scope {
   }
   function receiveError(message) {
     error = message;
-    if (!savingFromNotification) return;
-    notificationSaves = [];
+    const notify = savingFromNotification;
+    stopReceiving();
+    if (notify)
+      Quickshell.execDetached(["notify-send", "--app-name=Tailscale", "--icon", control?.icon || "folder-download", "--", message]);
+  }
+  function stopReceiving() {
+    receiveQueue = [];
+    receivingName = "";
     savingFromNotification = false;
-    Quickshell.execDetached(["notify-send", "--app-name=Tailscale", "--icon", control?.icon || "folder-download", "--", message]);
   }
   function startSend() {
     if (sending || uploadInFlight || !model.canSend || files.length === 0) return;
@@ -346,7 +356,11 @@ Scope {
             ColumnLayout {
               visible: root.page === "received" && root.model.data.files.length > 0
               Layout.fillWidth: true; spacing: 12
-              Text { text: "Waiting to be saved"; color: theme.textSecondary; font.family: theme.uiFontFamily; font.pixelSize: 12 }
+              RowLayout {
+                Layout.fillWidth: true; spacing: 8
+                Text { Layout.fillWidth: true; text: "Waiting to be saved"; color: theme.textSecondary; font.family: theme.uiFontFamily; font.pixelSize: 12 }
+                ShellButton { visible: root.model.data.files.length > 1; colors: theme; label: "Save all"; flatAction: true; accent: theme.info; onClicked: root.saveReceived(root.model.data.files, false) }
+              }
               ShellGroup {
                 colors: theme; Layout.fillWidth: true; implicitHeight: inboxList.implicitHeight + 24
                 ColumnLayout {
@@ -358,7 +372,7 @@ Scope {
                       required property var modelData
                       Layout.fillWidth: true; implicitHeight: 40
                       FileRow { anchors.left: parent.left; anchors.right: saveButton.left; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; name: modelData.name; subtitle: Status.bytes(modelData.size) }
-                      ShellButton { id: saveButton; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; colors: theme; label: save.running && root.receivingName === modelData.name ? "Saving…" : "Save…"; enabled: !save.running; flatAction: true; accent: theme.info; onClicked: root.chooseDestination(modelData.name) }
+                      ShellButton { id: saveButton; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; colors: theme; label: save.running && root.receivingName === modelData.name ? "Saving…" : "Save…"; enabled: !root.receiveQueue.some(file => file.name === modelData.name && file.size === modelData.size); flatAction: true; accent: theme.info; onClicked: root.saveReceived([modelData], false) }
                     }
                   }
                 }
@@ -376,11 +390,12 @@ Scope {
       currentFolder: StandardPaths.standardLocations(StandardPaths.HomeLocation)[0]
       onAccepted: {
         root.choosingFiles = false;
+        Qt.callLater(root.nextReceive);
         const paths = selectedFiles.map(value => Status.localPath(value));
         if (paths.length === 0 || paths.some(path => !path)) { root.error = "Choose local files."; return; }
         info.exec([root.model.backend, "tailscale", "file-info"].concat(paths));
       }
-      onRejected: root.choosingFiles = false
+      onRejected: { root.choosingFiles = false; Qt.callLater(root.nextReceive); }
     }
     // QTBUG-114662: Qt's portal helper retains selections across opens.
     // A request owns one dialog so an earlier save cannot supply its filename.
@@ -401,8 +416,7 @@ Scope {
         }
         onRejected: {
           root.choosingDestination = false;
-          root.notificationSaves = [];
-          root.savingFromNotification = false;
+          root.stopReceiving();
         }
       }
     }
@@ -442,9 +456,11 @@ Scope {
       root.error = code !== 0 || !result?.saved ? saveError.text.trim() || "Could not save the file." : result.inboxRemoved ? "" : "File saved; could not remove the inbox copy.";
       root.model.refresh();
       root.model.refreshInbox();
-      if (root.savingFromNotification) {
-        if (root.error.length > 0) root.receiveError(root.error);
-        else Qt.callLater(root.nextNotificationSave);
+      if (root.error.length > 0) root.receiveError(root.error);
+      else {
+        root.receiveQueue = root.receiveQueue.slice(1);
+        root.receivingName = "";
+        Qt.callLater(root.nextReceive);
       }
     }
   }

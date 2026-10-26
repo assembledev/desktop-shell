@@ -51,12 +51,18 @@ backend = root / "backend"
 backend.write_text(f"#!{sys.executable}\n" + """import json
 import os
 import sys
+import time
+if sys.argv[3] == "running-first.txt":
+    time.sleep(0.35)
 with open(os.environ["TEST_SAVE_LOG"], "a") as output:
     output.write(json.dumps(sys.argv[1:]) + "\\n")
+if sys.argv[3] == "failed.txt":
+    print("Synthetic save failure", file=sys.stderr)
+    sys.exit(1)
 print('{"saved":true,"inboxRemoved":true}')
 """)
 backend.chmod(0o700)
-names = ["readme.md", "archive.tar.gz", "cancelled.txt", "résumé #%20 [draft].tar.gz", "batch-one.tar.gz", "batch-two.md", "cancel-batch.txt"]
+names = ["readme.md", "archive.tar.gz", "cancelled.txt", "résumé #%20 [draft].tar.gz", "batch-one.tar.gz", "batch-two.md", "cancel-batch.txt", "queued-first.txt", "queued-second.md", "running-first.txt", "running-second.md", "inbox-one.txt", "inbox-two.md", "failed.txt", "cancel-appended.txt"]
 seen = []
 failure = []
 DBusGMainLoop(set_as_default=True)
@@ -85,7 +91,8 @@ class Portal(dbus.service.Object):
         expected = names[len(seen)]
         seen.append(name)
         folder = bytes(options.get("current_folder", [])).rstrip(b"\0").decode()
-        if folder != str(root / "home/Downloads"):
+        # The initial folder is a hint; the real backend owns directory history.
+        if len(seen) == 1 and folder != str(root / "home/Downloads"):
             failure.append(f"SaveFile {len(seen)} suggested the wrong directory: {folder!r}")
         if name != expected:
             failure.append(f"SaveFile {len(seen)} suggested {name!r}, expected {expected!r}")
@@ -93,7 +100,7 @@ class Portal(dbus.service.Object):
         request = Request(bus, request_path)
         requests.append(request)
         result = dbus.Dictionary({"uris": dbus.Array([(root / "saved" / name).as_uri()], signature="s")}, signature="sv")
-        GLib.timeout_add(50, lambda: request.Response(1 if expected in {"cancelled.txt", "cancel-batch.txt"} else 0, result))
+        GLib.timeout_add(50, lambda: request.Response(1 if expected in {"cancelled.txt", "cancel-batch.txt", "cancel-appended.txt"} else 0, result))
         return request_path
 
 
@@ -131,6 +138,6 @@ assert not failure, "; ".join(failure)
 assert process.returncode == 0, f"Quickshell exited {process.returncode}; requests: {seen}"
 assert seen == names, seen
 commands = [json.loads(line) for line in (root / "save-log").read_text().splitlines()]
-accepted = [name for name in names if name not in {"cancelled.txt", "cancel-batch.txt"}]
+accepted = [name for name in names if name not in {"cancelled.txt", "cancel-batch.txt", "cancel-appended.txt"}]
 assert commands == [["tailscale", "receive", name, str(root / "saved" / name)] for name in accepted], commands
-print("PASS real portal requests and receive destinations preserve each incoming filename")
+print("PASS real portal requests and queued receive destinations preserve each incoming filename")

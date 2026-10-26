@@ -416,8 +416,10 @@ Sending rechecks the daemon's eligibility before each file and prints one JSON
 result per completed file. Cancelling an upload cannot retract files already
 completed. The popup shows completed-file counts and an activity indicator;
 it does not estimate byte progress. Ineligible devices have no send action.
-The received-file entry appears only when the inbox contains files. Saving uses
-an explicit destination and atomically replaces that path after a complete
+The received-file entry appears only when the inbox contains files. Individual
+rows save one file; `Save all` queues a snapshot of the waiting inbox and prompts
+for each destination in order. Later arrivals require another explicit save.
+Saving uses an explicit destination and atomically replaces that path after a complete
 download. The file chooser owns overwrite confirmation. The inbox copy is
 removed only after the complete local file exists. If acknowledgement fails,
 the saved file remains and the inbox copy can be recovered separately.
@@ -425,7 +427,8 @@ the saved file remains and the inbox copy can be recovered separately.
 New completed Taildrop inbox entries emit normal Tailscale desktop notifications,
 including while the peer popup is closed. Their `Save` action opens the save
 chooser directly without opening the peer popup. A batch prompts for each file
-in order; cancellation or a save failure stops the remaining prompts. Save
+in order. Further Save requests join the same queue without duplicating active
+or queued files; cancellation or a save failure stops the remaining prompts. Save
 failures are reported by notification. An empty inbox uses the daemon's blocking `AwaitWaitingFiles`
 LocalAPI request, which wakes on arrivals. While
 files await collection, the inbox is sampled every 15 seconds while closed, or
