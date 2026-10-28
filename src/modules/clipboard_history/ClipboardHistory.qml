@@ -423,7 +423,7 @@ Scope {
           }
 
           highlight: Rectangle {
-            width: list.width
+            width: list.width - (scrollBar.visible ? scrollBar.width + 6 : 0)
             height: list.currentItem?.height || 0
             y: list.currentItem?.y || 0
             radius: 10
@@ -496,8 +496,23 @@ Scope {
           }
 
           ScrollBar.vertical: ScrollBar {
+            id: scrollBar
             policy: ScrollBar.AsNeeded
-            width: 4
+            width: 8
+            padding: 2
+            minimumSize: 0.1
+            z: 2
+
+            background: Rectangle {
+              color: "transparent"
+            }
+
+            contentItem: Rectangle {
+              implicitWidth: 4
+              radius: 2
+              color: theme.accent
+              opacity: scrollBar.pressed ? 1 : scrollBar.hovered ? 0.9 : 0.65
+            }
           }
 
           delegate: Rectangle {
@@ -519,7 +534,7 @@ Scope {
             readonly property string cleanLabel: root.displayLabel(item)
             readonly property string previewPath: root.previewPaths[entryId] || preview
 
-            width: ListView.view.width
+            width: list.width - (scrollBar.visible ? scrollBar.width + 6 : 0)
             height: image ? 112 : 64
             radius: 10
             color: !selected && inputIntent.pointerActive && rowMouse.containsMouse
