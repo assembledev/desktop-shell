@@ -131,9 +131,11 @@ normal floating toggle.
 
 ## Popup Escape
 
-While a control-center, power-menu or notification popup is mapped, the
-integration binds Escape to dismissal. The binding is disabled when those
-surfaces are absent, leaving applications' Escape handling available. Keep this
+While a control-center, power-menu, notification or Now Playing popup is
+mapped, the integration binds Escape to dismissal. Menus take priority; otherwise
+Escape dismisses visible notification and Now Playing toasts together. The
+binding is disabled when those surfaces are absent, leaving applications' Escape
+handling available. Keep this
 contextual binding in the product integration rather than duplicating it in
 the surrounding key map.
 

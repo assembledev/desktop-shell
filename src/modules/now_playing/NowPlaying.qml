@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Hyprland
 import Quickshell.Wayland
 import Quickshell.Widgets
 import "../common"
@@ -94,6 +95,14 @@ Scope {
       return;
     revealed = false;
     lifetime.stop();
+  }
+
+  Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "custom" && event.data === "desktop-shell:dismiss-now-playing")
+        root.hide();
+    }
   }
 
   MediaWatcher {

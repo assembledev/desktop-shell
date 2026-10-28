@@ -1,5 +1,7 @@
-local notificationPopupNamespace = "quickshell:notificationPopups"
-local notificationPopupDismissEvent = "desktop-shell:dismiss-notification-popups"
+local toastDismissEvents = {
+  ["quickshell:notificationPopups"] = "desktop-shell:dismiss-notification-popups",
+  ["quickshell:nowPlaying"] = "desktop-shell:dismiss-now-playing",
+}
 local shellPopupDismissEvent = "desktop-shell:dismiss-shell-popup"
 local shellPopupNamespaces = {
   ["quickshell:controlCenter"] = true,
@@ -7,8 +9,8 @@ local shellPopupNamespaces = {
 }
 local popupEscapeBind
 
-local function notificationPopupsMapped(excludedLayer)
-  for _, layer in ipairs(hl.get_layers({ namespace = notificationPopupNamespace })) do
+local function popupMapped(namespace, excludedLayer)
+  for _, layer in ipairs(hl.get_layers({ namespace = namespace })) do
     if layer ~= excludedLayer and layer.mapped then
       return true
     end
@@ -16,12 +18,10 @@ local function notificationPopupsMapped(excludedLayer)
   return false
 end
 
-local function shellPopupMapped(excludedLayer)
-  for namespace, _ in pairs(shellPopupNamespaces) do
-    for _, layer in ipairs(hl.get_layers({ namespace = namespace })) do
-      if layer ~= excludedLayer and layer.mapped then
-        return true
-      end
+local function anyPopupMapped(namespaces, excludedLayer)
+  for namespace, _ in pairs(namespaces) do
+    if popupMapped(namespace, excludedLayer) then
+      return true
     end
   end
 
@@ -29,16 +29,20 @@ local function shellPopupMapped(excludedLayer)
 end
 
 local function dismissPopup()
-  if shellPopupMapped() then
+  if anyPopupMapped(shellPopupNamespaces) then
     hl.dispatch(hl.dsp.event(shellPopupDismissEvent))
-  elseif notificationPopupsMapped() then
-    hl.dispatch(hl.dsp.event(notificationPopupDismissEvent))
+  else
+    for namespace, event in pairs(toastDismissEvents) do
+      if popupMapped(namespace) then
+        hl.dispatch(hl.dsp.event(event))
+      end
+    end
   end
 end
 
 local function syncPopupEscapeBind(excludedLayer)
   popupEscapeBind:set_enabled(
-    shellPopupMapped(excludedLayer) or notificationPopupsMapped(excludedLayer)
+    anyPopupMapped(shellPopupNamespaces, excludedLayer) or anyPopupMapped(toastDismissEvents, excludedLayer)
   )
 end
 
@@ -53,13 +57,13 @@ popupEscapeBind = hl.bind(
 )
 
 hl.on("layer.opened", function(layer)
-  if layer.namespace == notificationPopupNamespace or shellPopupNamespaces[layer.namespace] then
+  if toastDismissEvents[layer.namespace] or shellPopupNamespaces[layer.namespace] then
     popupEscapeBind:set_enabled(true)
   end
 end)
 
 hl.on("layer.closed", function(layer)
-  if layer.namespace == notificationPopupNamespace or shellPopupNamespaces[layer.namespace] then
+  if toastDismissEvents[layer.namespace] or shellPopupNamespaces[layer.namespace] then
     -- Hyprland emits layer.closed before marking the closing layer unmapped.
     syncPopupEscapeBind(layer)
   end
