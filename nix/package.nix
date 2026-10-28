@@ -42,6 +42,11 @@ let
           ${sources.qml}/src/shell.qml \
           "$out/share/desktop-shell/qml/"
       '';
+  hyprland = pkgs.runCommand "desktop-shell-hyprland" { nativeBuildInputs = [ pkgs.lua5_4 ]; } ''
+    for file in ${sources.hyprland}/src/hyprland/*.lua; do luac -p "$file"; done
+    mkdir -p "$out/share/desktop-shell/hyprland"
+    cp ${sources.hyprland}/src/hyprland/*.lua "$out/share/desktop-shell/hyprland/"
+  '';
   backend = pkgs.runCommand "desktop-shell-backend" { } ''
     mkdir -p "$out/libexec/desktop-shell"
     cp -R ${sources.backend}/src/backend/. "$out/libexec/desktop-shell/"
@@ -56,6 +61,7 @@ let
     paths = [
       qml
       backend
+      hyprland
       configPayload
     ];
   };
@@ -112,6 +118,7 @@ pkgs.symlinkJoin {
       backend
       browserTabBridge
       configPayload
+      hyprland
       payload
       qml
       ;

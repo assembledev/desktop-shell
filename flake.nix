@@ -98,6 +98,31 @@
               }
             ];
           };
+          hyprlandHomeConfiguration = homeConfiguration.extendModules {
+            modules = [
+              {
+                wayland.windowManager.hyprland = {
+                  enable = true;
+                  configType = "lua";
+                  package = null;
+                  portalPackage = null;
+                  systemd.enable = false;
+                };
+              }
+            ];
+          };
+          tailscaleHomeConfiguration = hyprlandHomeConfiguration.extendModules {
+            modules = [
+              {
+                programs.desktop-shell.bar.networkControls = [
+                  {
+                    id = "tailscale";
+                    label = "Tail";
+                  }
+                ];
+              }
+            ];
+          };
           nixosConfiguration = nixpkgs.lib.nixosSystem {
             inherit system;
             modules = [
@@ -121,6 +146,23 @@
         {
           package = desktopShell;
           home-manager =
+            assert homeConfiguration.config.programs.desktop-shell.bar.networkControls == [ ];
+            assert
+              !(builtins.elem (toString pkgs.tailscale) (map toString homeConfiguration.config.home.packages));
+            assert
+              !(builtins.elem (toString pkgs.tailscale) (
+                map toString hyprlandHomeConfiguration.config.home.packages
+              ));
+            assert builtins.elem (toString pkgs.tailscale) (
+              map toString tailscaleHomeConfiguration.config.home.packages
+            );
+            assert nixpkgs.lib.hasInfix "desktopShell = dofile"
+              hyprlandHomeConfiguration.config.wayland.windowManager.hyprland.extraConfig;
+            assert hyprlandHomeConfiguration.config.wayland.windowManager.hyprland.package == null;
+            assert !hyprlandHomeConfiguration.config.wayland.windowManager.hyprland.systemd.enable;
+            assert
+              (toString homeConfiguration.config.xdg.configFile."desktop-shell/hyprland".source)
+              == "${desktopShell}/share/desktop-shell/hyprland";
             assert builtins.elem "graphical-session.target"
               homeConfiguration.config.systemd.user.services.desktop-shell-launch-profile.Unit.After;
             assert builtins.elem "desktop-shell.service"
@@ -183,6 +225,14 @@
               '';
 
           qml = desktopShell.passthru.qml;
+
+          hyprland =
+            pkgs.runCommand "desktop-shell-hyprland-check" { nativeBuildInputs = [ pkgs.lua5_4 ]; }
+              ''
+                luac -p ${self}/tests/hyprland.lua
+                lua ${self}/tests/hyprland.lua ${self} ${desktopShell.passthru.hyprland}/share/desktop-shell/hyprland/init.lua
+                touch "$out"
+              '';
 
           qml-tests =
             pkgs.runCommand "desktop-shell-qml-tests"

@@ -90,11 +90,33 @@ let
       };
       statusCommand = mkOption {
         type = types.listOf types.str;
+        default = [ ];
         description = "Argv command returning a JSON status object.";
       };
       toggleCommand = mkOption {
         type = types.listOf types.str;
+        default = [ ];
         description = "Argv command toggling the provider.";
+      };
+      unit = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "System service whose state is displayed by this provider.";
+      };
+      startCommand = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        description = "Explicit argv used to start service provider.";
+      };
+      stopCommand = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        description = "Explicit argv used to stop service provider.";
+      };
+      retryCommand = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        description = "Explicit argv used to retry a failed service provider.";
       };
     };
   };
@@ -214,6 +236,7 @@ let
     };
     lock.keyboardLayoutIndex = cfg.lock.keyboardLayoutIndex;
     integrations = {
+      tailscaleCommand = if builtinTailscaleEnabled then lib.getExe cfg.tailscalePackage else null;
       inherit (cfg.integrations)
         hotkeys
         privilegedHelper
@@ -233,6 +256,33 @@ let
         source = ../.;
         inherit (cfg) hyprlandPackage;
       };
+  builtinTailscale =
+    provider:
+    provider.id == "tailscale"
+    && provider.unit == null
+    && provider.statusCommand == [ ]
+    && provider.toggleCommand == [ ]
+    && provider.startCommand == [ ]
+    && provider.stopCommand == [ ]
+    && provider.retryCommand == [ ];
+  commandProvider =
+    provider:
+    provider.unit == null
+    && provider.statusCommand != [ ]
+    && provider.toggleCommand != [ ]
+    && provider.startCommand == [ ]
+    && provider.stopCommand == [ ]
+    && provider.retryCommand == [ ];
+  serviceProvider =
+    provider:
+    provider.unit != null
+    && provider.unit != ""
+    && provider.statusCommand == [ ]
+    && provider.toggleCommand == [ ]
+    && provider.startCommand != [ ]
+    && provider.stopCommand != [ ]
+    && provider.retryCommand != [ ];
+  builtinTailscaleEnabled = lib.any builtinTailscale cfg.bar.networkControls;
   command = "${finalPackage}/bin/desktop-shell";
   serviceTarget = cfg.systemd.target;
 in
@@ -359,6 +409,13 @@ in
         default = null;
         description = "Wallpaper seeded and used when no choice has been saved.";
       };
+    };
+
+    tailscalePackage = mkOption {
+      type = types.package;
+      default = pkgs.tailscale;
+      defaultText = lib.literalExpression "pkgs.tailscale";
+      description = "Client installed only when the built-in Tailscale bar provider is configured.";
     };
 
     bar = {
@@ -494,9 +551,23 @@ in
       }
       {
         assertion = lib.all (
-          provider: provider.statusCommand != [ ] && provider.toggleCommand != [ ]
+          provider: builtinTailscale provider || commandProvider provider || serviceProvider provider
         ) cfg.bar.networkControls;
-        message = "Desktop Shell network provider commands must not be empty";
+        message = "Desktop Shell providers require a complete command pair, built-in Tailscale, or a unit with start/stop/retry commands";
+      }
+      {
+        assertion =
+          let
+            ids = map (provider: provider.id) cfg.bar.networkControls;
+          in
+          builtins.length ids == builtins.length (lib.unique ids);
+        message = "Desktop Shell network providers must use unique IDs";
+      }
+      {
+        assertion =
+          !config.wayland.windowManager.hyprland.enable
+          || config.wayland.windowManager.hyprland.configType == "lua";
+        message = "Desktop Shell's Hyprland integration requires wayland.windowManager.hyprland.configType = lua";
       }
       {
         assertion = lib.all (name: builtins.match launchProfileIdPattern name != null) (
@@ -536,7 +607,8 @@ in
       packages = [
         finalPackage
         pkgs.nerd-fonts.fira-code
-      ];
+      ]
+      ++ lib.optional builtinTailscaleEnabled cfg.tailscalePackage;
 
       activation.seedDesktopShellState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         $DRY_RUN_CMD mkdir -p "$HOME/.local/state/desktop-shell/wallpaper"
@@ -560,7 +632,24 @@ in
       );
     };
 
-    xdg.configFile."desktop-shell/config.json".source = configFile;
+    xdg.configFile = {
+      "desktop-shell/config.json".source = configFile;
+      "desktop-shell/hyprland".source = "${finalPackage}/share/desktop-shell/hyprland";
+      "autostart/blueman.desktop" = mkIf cfg.bluetooth.agent.enable {
+        text = ''
+          [Desktop Entry]
+          Type=Application
+          Hidden=true
+        '';
+      };
+    };
+    wayland.windowManager.hyprland.extraConfig = mkIf config.wayland.windowManager.hyprland.enable (
+      lib.mkAfter ''
+        desktopShell = dofile(${
+          lib.generators.toLua { } "${config.xdg.configHome}/desktop-shell/hyprland/init.lua"
+        })
+      ''
+    );
 
     systemd.user.services = {
       desktop-shell = mkIf cfg.systemd.enable {
@@ -681,13 +770,6 @@ in
       "!StatusIcon"
       "!StatusNotifierItem"
     ];
-    xdg.configFile."autostart/blueman.desktop" = mkIf cfg.bluetooth.agent.enable {
-      text = ''
-        [Desktop Entry]
-        Type=Application
-        Hidden=true
-      '';
-    };
 
   };
 }

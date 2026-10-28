@@ -70,6 +70,20 @@ on `movewindowv2` events from the native event socket. Application dispatch and
 atomic launcher-history writes stay in QML; the latency-sensitive path does not
 spawn the command backend.
 
+### Hyprland integration
+
+`src/hyprland/init.lua` loads the product's compositor helpers and registers blur
+for shell-owned layers. `popup-escape.lua` owns dismissal while its shell popups
+are mapped; `window-popout.lua` owns the `desktopShell.windowPopout` API. The
+package installs this tree under `share/desktop-shell/hyprland`.
+
+Home Manager exposes it under `$XDG_CONFIG_HOME/desktop-shell/hyprland` and
+loads it into enabled Hyprland Lua configuration. Externally managed compositor
+configuration loads the same entry point once. There is one supported compositor
+integration; application bindings, monitor rules, workspace placement and layout
+policy remain consumer-owned. See [Hyprland setup](installation.md#hyprland-integration)
+and [keybindings](keybindings.md#window-pop-outs).
+
 ### Output presentation
 
 `ShellConfig.qml` exposes available outputs, compositor focus and configured
@@ -124,19 +138,26 @@ it does not interfere with in-flight profile moves. Optional CLI verification
 checks actual window placement after dispatch; launch acceptance alone is not
 reported as convergence. See [Commands](commands.md) for results and timeouts.
 
+Network providers have three complete contracts: built-in Tailscale, a system
+unit with explicit actions, or a custom status/toggle argv pair. The backend
+owns status interpretation and action dispatch; the host owns daemon setup,
+operator rights, secrets and any privileged helper. Providers are loaded only
+when configured. See [network configuration](configuration.md#network-controls).
+
 ### Nix package
 
 `nix/package.nix` assembles the immutable QML tree, backend, bundled defaults,
-and runtime dependencies. It also provides the executable wrapper. A command
-used by the backend must be present here rather than assumed to exist in the
-interactive shell.
+Hyprland Lua files and runtime dependencies. It also provides the executable
+wrapper. A command used by the backend must be present here rather than assumed
+to exist in the interactive shell.
 
 ### Home Manager module
 
 The Home Manager module owns user policy, generated configuration, package
-installation, state directories, and the systemd user service. It does not own
-Hyprland keybindings. Bind commands from the compositor configuration so the
-same package remains usable with an existing Hyprland setup.
+installation, state directories, the systemd user service and loading the
+product's Hyprland integration. It installs and uses the selected Tailscale
+client only when the built-in provider is configured. Consumers own application and navigation bindings;
+the product owns its contextual popup Escape binding.
 
 ### NixOS module
 
@@ -166,6 +187,7 @@ maintaining a parallel state database:
 | `hyprpaper` | wallpaper application |
 | MPRIS | media state and track-change notifications |
 | systemd user services | lifecycle, status, and logs |
+| Tailscale LocalAPI and CLI, when selected | peer/Taildrop data, connection status and operator actions |
 
 Applications are launched with `uwsm app --`. They must not become children of
 the Quickshell process: restarting the shell must not terminate terminals,

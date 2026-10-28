@@ -137,6 +137,97 @@ tailscale_receive_file() (
   jq -nc --arg path "$target" --argjson removed "$removed" '{saved:true,path:$path,inboxRemoved:$removed}'
 )
 
+# Bar state and toggles share the same LocalAPI snapshot as peers and Taildrop.
+# Service-manager state distinguishes a stopped daemon from a failed/API error.
+tailscale_control_state() {
+  local daemon_state="$1" snapshot
+  case "$daemon_state" in
+    inactive)
+      printf 'Stopped\n'
+      return
+      ;;
+    deactivating)
+      printf 'Stopping\n'
+      return
+      ;;
+    activating)
+      printf 'Starting\n'
+      return
+      ;;
+    failed)
+      printf 'desktop-shell: tailscaled.service is failed\n' >&2
+      return 1
+      ;;
+    active) ;;
+    *)
+      printf 'desktop-shell: unsupported tailscaled.service state: %s\n' "$daemon_state" >&2
+      return 1
+      ;;
+  esac
+  snapshot="$(tailscale_snapshot_json false)" || return "$?"
+  if ! jq -er 'select(.available) | .state' <<<"$snapshot"; then
+    printf 'desktop-shell: Tailscale LocalAPI status is unavailable\n' >&2
+    return 1
+  fi
+}
+
+tailscale_control_command() {
+  local action="$1" state daemon_state text=Tail active=false login=false tooltip
+  local executable="${DESKTOP_SHELL_TAILSCALE_COMMAND:-tailscale}"
+  daemon_state="$(network_service_state tailscaled.service)" || return "$?"
+  state="$(tailscale_control_state "$daemon_state")" || return "$?"
+  case "$state" in
+    Running)
+      active=true
+      tooltip='Tailscale is running'
+      ;;
+    NeedsLogin | NeedsMachineAuth)
+      login=true
+      tooltip='Tailscale needs authentication'
+      ;;
+    NoState | Stopped) tooltip='Tailscale is stopped' ;;
+    Starting)
+      text='Tail…'
+      tooltip='Tailscale is starting'
+      ;;
+    Stopping)
+      text='Tail…'
+      tooltip='Tailscale is stopping'
+      ;;
+    InUseOtherUser)
+      printf 'desktop-shell: Tailscale is owned by another local user\n' >&2
+      return 1
+      ;;
+    *)
+      printf 'desktop-shell: unsupported Tailscale backend state: %s\n' "$state" >&2
+      return 1
+      ;;
+  esac
+  if [ "$action" = status ]; then
+    jq -nc --arg text "$text" --arg tooltip "$tooltip" --argjson active "$active" --argjson login "$login" \
+      '{text:$text, active:$active, login:$login, tooltip:$tooltip}'
+    return
+  fi
+  if [ "$state" = Starting ] || [ "$state" = Stopping ]; then
+    printf 'desktop-shell: Tailscale is already transitioning: %s\n' "$state" >&2
+    return 1
+  fi
+  if ! command -v "$executable" >/dev/null 2>&1; then
+    printf 'desktop-shell: the Tailscale CLI is required to toggle this provider\n' >&2
+    return 1
+  fi
+  if [ "$state" = Running ]; then
+    timeout --signal=TERM --kill-after=0.2s 10s "$executable" down
+  else
+    # Starting the daemon requires explicit host authority. A running daemon
+    # uses the existing user/operator permissions without elevation.
+    if [ "$daemon_state" = inactive ]; then
+      run_privileged tailscaled-start || return "$?"
+    fi
+    timeout --signal=TERM --kill-after=0.2s 20s "$executable" up
+  fi
+}
+
 tailscale_command() {
   local action="${1:-status-json}" id file
   if [ "$#" -gt 0 ]; then shift; fi

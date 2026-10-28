@@ -13,6 +13,7 @@ let
 in
 {
   backend = select (source + "/src/backend");
+  hyprland = select (source + "/src/hyprland");
   qml = select (
     lib.fileset.unions [
       (source + "/src/modules")

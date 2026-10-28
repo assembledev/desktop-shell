@@ -362,10 +362,13 @@ $ desktop-shell network-control status <id>
 $ desktop-shell network-control toggle <id>
 ```
 
-Each command executes the corresponding argv array from the generated
-configuration. Desktop Shell does not grant privileges to provider commands;
-the surrounding NixOS configuration must supply any narrowly scoped helper it
-requires.
+`status` reads the selected provider and `toggle` requests its state change.
+[Network controls](configuration.md#network-controls) supports built-in Tailscale,
+system-service providers and custom command pairs. Tailscale reads LocalAPI and
+uses the existing operator's CLI rights; an inactive daemon requires the configured
+`tailscaled-start` helper action. Service providers inspect system units and run
+their explicit start, stop or retry argv. Custom providers run the corresponding
+argv pair. Commands do not grant additional privileges.
 
 ## Browser bridge
 
@@ -406,9 +409,10 @@ peer-relay route and latency. Online means connected to Tailscale's control plan
 a failed probe does not turn an online peer into an offline peer.
 
 The peer list and device details display the daemon's assigned tags when present.
-The popup samples peer status every two seconds while open, and every
-15 seconds while closed. It probes only the selected online peer every two
-seconds while open. Late results from another selection are discarded; expired
+With a `tailscale` provider configured, the popup samples peer status every two
+seconds while open, and every 15 seconds while closed. Without that provider,
+the shell does not poll Tailscale. It probes only the selected online peer every
+two seconds while open. Late results from another selection are discarded; expired
 results are unavailable rather than retained as a current route or latency.
 Idle peers are not inferred to be relayed from their assigned DERP region.
 

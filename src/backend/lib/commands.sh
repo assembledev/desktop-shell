@@ -87,7 +87,7 @@ HELP
       printf '%s\n' 'Usage: desktop-shell power [status-json|set <profile>]' 'Queries ACPI platform power profiles. set requires a configured privileged helper.'
       ;;
     network-control)
-      printf '%s\n' 'Usage: desktop-shell network-control <status|toggle> <id>' 'Runs the configured provider command for a stable control ID; does not grant extra privileges.'
+      printf '%s\n' 'Usage: desktop-shell network-control <status|toggle> <id>' 'Inspects or toggles a configured custom, Tailscale or systemd-service provider; does not grant extra privileges.'
       ;;
     config | ipc | browser-tabs | metrics | system)
       printf '%s\n' 'Inspection commands:' '  config path | config show' '  ipc list | ipc call <target> <method> [arguments...]' '  browser-tabs state-path' '  metrics | system status-json' 'Raw IPC and browser-tabs activate are internal/debug interfaces; prefer named commands.'

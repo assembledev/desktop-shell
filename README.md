@@ -51,7 +51,9 @@ DDC/CI when the monitor and system expose it.
 
 Use the flake's Home Manager module for the user service and configuration. On
 NixOS, also import its NixOS module for the lock-screen PAM service and the
-optional greetd greeter.
+optional greetd greeter. Home Manager loads the product’s Hyprland Lua
+integration automatically when it manages Hyprland; other configurations load
+the same installed entry point.
 
 See [Installation](docs/installation.md) for a complete flake example and
 [Configuration](docs/configuration.md) for the option reference. Design
@@ -64,9 +66,10 @@ $ desktop-shell status
 $ desktop-shell doctor
 ```
 
-Desktop Shell deliberately does not install a keybinding policy. Connect its
-commands to the bindings already owned by your Hyprland configuration; a
-working set is documented in [Keybindings](docs/keybindings.md).
+Keep application and navigation bindings in your Hyprland configuration; a
+working set and the window pop-out API are documented in
+[Keybindings](docs/keybindings.md). The product handles Escape only while its
+relevant popups are mapped.
 
 ## Documentation
 

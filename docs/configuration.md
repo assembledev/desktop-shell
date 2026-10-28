@@ -22,7 +22,9 @@ the active path and JSON with `desktop-shell config path` and
 This installs the package, enables `desktop-shell.service`, starts clipboard
 watchers and the Blueman pairing agent, and uses the built-in five-workspace
 layout. The bar has no third-party network controls and browser-tab search is
-disabled.
+disabled. The module also installs its
+[Hyprland integration](installation.md#hyprland-integration); Home Manager-managed
+Hyprland must use Lua configuration.
 
 ## Module options
 
@@ -31,6 +33,7 @@ disabled.
 | `enable` | `false` | Install and configure Desktop Shell |
 | `package` | `null` | Package override; `null` builds the package from the module source |
 | `hyprlandPackage` | `pkgs.hyprland` | Package providing the `hyprctl` placed on the backend path |
+| `tailscalePackage` | `pkgs.tailscale` | Client installed and used for the built-in Tailscale network control |
 | `finalPackage` | read-only | Resolved package used by the module |
 | `systemd.enable` | `true` | Enable the user service |
 | `systemd.target` | `"graphical-session.target"` | User target that owns shell services |
@@ -225,77 +228,97 @@ programs.desktop-shell.keyboard.layoutLabels = [ "EN" ];
 
 ### Network controls
 
-A provider is trusted Nix configuration, not a plugin downloaded by the shell:
+`bar.networkControls` is an ordered list of trusted providers. The default `[]`
+creates no network controls and performs no Tailscale polling or backend calls;
+no Tailscale daemon or CLI is required in that configuration.
 
-| Field | Type | Meaning |
+Each provider has a unique `id` matching `[A-Za-z0-9_.-]+`, a `label` and an
+optional `icon` path or QML image URL. Select one complete mode:
+
+| Mode | Required fields | Status and toggle behavior |
 | --- | --- | --- |
-| `id` | string | Unique ID matching `[A-Za-z0-9_.-]+` |
-| `label` | string | Text used before the first status result |
-| `icon` | string | Optional local path or image URL understood by QML |
-| `statusCommand` | list of strings | Non-empty argv returning a JSON object |
-| `toggleCommand` | list of strings | Non-empty argv that toggles the provider |
+| Tailscale | `id = "tailscale"`, no command or unit fields | Built-in LocalAPI status and CLI up/down |
+| System service | `unit`, `startCommand`, `stopCommand`, `retryCommand` | Systemd status and the action selected for its state |
+| Custom commands | `statusCommand`, `toggleCommand` | Execute the supplied argv pair |
 
-The status object accepts `text`, `active`, and `login` fields:
+Do not mix modes or supply only half a command pair. Service actions are all
+required, even when they invoke the same command. Invalid configurations fail
+before executing provider commands.
 
-```json
-{"text":"VPN","active":true,"login":false}
+#### Tailscale
+
+```nix
+programs.desktop-shell.bar.networkControls = [
+  { id = "tailscale"; label = "Tail"; }
+];
 ```
 
-Commands are executed directly as argv; shell syntax is not interpreted. Use
-Nix store paths for reproducible providers:
+Home Manager installs and uses `tailscalePackage` for this built-in provider. Set it to
+the package used by the surrounding system when its Tailscale version is pinned.
+For configurations managed without Home Manager, make the CLI available on the
+shell service's PATH.
+
+The existing `tailscaled.service` and LocalAPI socket supply status. The socket
+is normally `/var/run/tailscale/tailscaled.sock`; set
+`DESKTOP_SHELL_TAILSCALE_SOCKET` in the service environment for another location.
+A running daemon uses the user's existing operator permissions for `tailscale up`
+and `down`, with bounded command timeouts. Starting an inactive daemon requires
+an explicitly configured `integrations.privilegedHelper` that permits the fixed
+`tailscaled-start` action. Without that authority, startup fails.
+
+Desktop Shell does not install or enable the daemon, enroll devices, configure
+routing or credentials, or grant sudo access. Those belong to the surrounding
+system. Authentication requirements are shown by the provider; complete enrollment
+through the system's Tailscale workflow.
+
+The `tailscale` ID also exposes the peer/Taildrop panel. An explicit custom
+`statusCommand` and `toggleCommand` pair may use that ID: the supplied commands
+control its toggle, while the peer panel still reads LocalAPI with the user's
+daemon permissions. See [Tailscale commands](commands.md#tailscale-peers-and-taildrop)
+for refresh and transfer behavior.
+
+#### System services
+
+Use a service provider when the connection is represented by a system unit:
 
 ```nix
 { pkgs, ... }:
-let
-  networkStatus = pkgs.writeShellApplication {
-    name = "example-network-status";
-    runtimeInputs = [ pkgs.jq pkgs.systemd ];
-    text = ''
-      if systemctl --user --quiet is-active example-tunnel.service; then
-        active=true
-      else
-        active=false
-      fi
-      jq -nc --argjson active "$active" \
-        '{ text: "Private", active: $active, login: false }'
-    '';
-  };
-  networkToggle = pkgs.writeShellApplication {
-    name = "example-network-toggle";
-    runtimeInputs = [ pkgs.systemd ];
-    text = ''
-      if systemctl --user --quiet is-active example-tunnel.service; then
-        systemctl --user stop example-tunnel.service
-      else
-        systemctl --user start example-tunnel.service
-      fi
-    '';
-  };
-in
 {
   programs.desktop-shell.bar.networkControls = [
     {
-      id = "private-network";
-      label = "Private";
-      statusCommand = [ "${networkStatus}/bin/example-network-status" ];
-      toggleCommand = [ "${networkToggle}/bin/example-network-toggle" ];
+      id = "work";
+      label = "Work";
+      unit = "example-vpn.service";
+      startCommand = [ "${pkgs.systemd}/bin/systemctl" "--no-ask-password" "start" "example-vpn.service" ];
+      stopCommand = [ "${pkgs.systemd}/bin/systemctl" "--no-ask-password" "stop" "example-vpn.service" ];
+      retryCommand = [ "${pkgs.systemd}/bin/systemctl" "--no-ask-password" "restart" "example-vpn.service" ];
     }
   ];
 }
 ```
 
-A provider with the stable ID `tailscale` also gets a separate chevron for the
-built-in peer and Taildrop panel. Its existing status/toggle commands retain
-ownership of the provider toggle; the chevron only opens details. The panel
-requires access to the local tailscaled Unix socket, normally
-`/var/run/tailscale/tailscaled.sock`, with the user's existing daemon permissions.
-For a nonstandard socket, set `DESKTOP_SHELL_TAILSCALE_SOCKET` in the shell service
-environment. No daemon, authentication, sudo rule or persistent inbox is created
-by Desktop Shell. See [Tailscale commands](commands.md#tailscale-peers-and-taildrop)
-for refresh and transfer behavior.
+The surrounding system must authorize those actions. Commands can instead call
+an existing fixed-purpose helper. Desktop Shell adds no privilege policy.
 
-Desktop Shell does not add sudo policy for providers. Keep any elevated helper
-narrow and declare it in the surrounding NixOS configuration.
+Status uses system scope and derives text/tooltips from the label and unit state.
+Clicking an active unit runs `stopCommand`, an inactive unit runs `startCommand`,
+and a failed unit runs `retryCommand`. Clicks during activation/deactivation are
+rejected. For a user service, use a custom command pair that explicitly selects
+`systemctl --user`.
+
+#### Custom commands
+
+`statusCommand` returns a JSON object; `toggleCommand` changes provider state.
+The status object accepts `text`, `active`, `login` and an optional `tooltip`:
+
+```json
+{"text":"Private","active":true,"login":false,"tooltip":"Private network connected"}
+```
+
+Every command is a literal argv list. Shell syntax is not interpreted; use Nix
+store paths for reproducible executables. The backend validates each complete
+argv list before execution. Commands own their own authentication and state
+semantics.
 
 ## Browser tabs
 

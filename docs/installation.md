@@ -31,7 +31,8 @@ For development against a local checkout, replace the input URL with
 ## NixOS with Home Manager
 
 Import both modules. The NixOS module creates the PAM service used by the lock;
-the Home Manager module installs and starts the user shell.
+the Home Manager module installs and starts the shell and loads its Hyprland
+integration when it manages the compositor configuration.
 
 ```nix
 {
@@ -60,6 +61,10 @@ the Home Manager module installs and starts the user shell.
 
               users.user = { pkgs, ... }: {
                 home.stateVersion = "26.05";
+                wayland.windowManager.hyprland = {
+                  enable = true;
+                  configType = "lua";
+                };
 
                 programs.desktop-shell = {
                   enable = true;
@@ -162,44 +167,38 @@ Manager module installs the default Fira Code Nerd Font. When overriding
 For DDC/CI brightness, enable I2C device access and DDC/CI in the monitor's
 on-screen settings. Systems with a kernel backlight do not need DDC/CI.
 
-## Hyprland layer rules
+## Hyprland integration
 
-Desktop Shell uses translucent layer surfaces. Add blur rules in the Hyprland
-Lua configuration for the intended appearance:
+Desktop Shell supports Hyprland with Lua configuration. When Home Manager
+manages an enabled Hyprland instance, set:
 
-```lua
-local desktopShellBlurLayers = {
-  "quickshell:bar",
-  "quickshell:batteryAnalysis",
-  "quickshell:calendar",
-  "quickshell:trayMenu",
-  "quickshell:trayShelf",
-  "quickshell:powerMenu",
-  "quickshell:launcher",
-  "quickshell:controlCenter",
-  "quickshell:network",
-  "quickshell:tailscale",
-  "quickshell:controlCenterOsd",
-  "quickshell:notificationPopups",
-  "quickshell:nowPlaying",
-  "quickshell:clipboardHistory",
-  "quickshell:cheatsheet",
-  "quickshell:windowSwitcher",
-}
-
-for _, namespace in ipairs(desktopShellBlurLayers) do
-  hl.layer_rule({
-    match = { namespace = namespace },
-    blur = true,
-    ignore_alpha = 0.5,
-  })
-end
+```nix
+wayland.windowManager.hyprland = {
+  enable = true;
+  configType = "lua";
+};
 ```
 
-The namespaces are stable integration points. Use `hyprctl layers` to inspect
-the surfaces currently mapped and the
-[Hyprland layer-rule reference](https://wiki.hypr.land/Configuring/Basics/Window-Rules/)
-for compositor-version details.
+The Desktop Shell module installs `$XDG_CONFIG_HOME/desktop-shell/hyprland/`
+and appends its loader to the compositor configuration automatically. The
+loader registers shell-layer blur, contextual popup Escape handling and the
+`desktopShell.windowPopout` API. Keep application bindings, workspace rules,
+layouts and monitors in your own configuration; see [Keybindings](keybindings.md).
+
+If Hyprland configuration is managed outside Home Manager, load the installed
+file once from that configuration:
+
+```lua
+local configHome = os.getenv("XDG_CONFIG_HOME")
+if not configHome or configHome == "" then
+  configHome = os.getenv("HOME") .. "/.config"
+end
+desktopShell = dofile(configHome .. "/desktop-shell/hyprland/init.lua")
+```
+
+Do not add this manual loader when Home Manager already loads it. The package
+also ships these files under `share/desktop-shell/hyprland` for installations
+that manage their own XDG links. Inspect mapped surfaces with `hyprctl layers`.
 
 ## First activation
 
@@ -219,7 +218,8 @@ $ desktop-shell start
 ```
 
 Connect commands to the compositor using [Keybindings](keybindings.md). The
-module intentionally leaves existing Hyprland binding policy unchanged.
+module leaves application and navigation bindings to your configuration.
+Contextual popup Escape handling is supplied by the Hyprland integration.
 
 ## Try from a checkout
 

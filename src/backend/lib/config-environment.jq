@@ -20,6 +20,7 @@ if type != "object" then error("configuration must be an object") else . end |
   DESKTOP_SHELL_LOCK_KEYBOARD_INDEX: (.lock.keyboardLayoutIndex | config_integer),
   DESKTOP_SHELL_LOGIN_WALLPAPER_SYNC: (.integrations.loginWallpaperSync | config_string),
   DESKTOP_SHELL_PRIVILEGED_HELPER: (.integrations.privilegedHelper | config_string),
+  DESKTOP_SHELL_TAILSCALE_COMMAND: (.integrations.tailscaleCommand | config_string),
   recording_state_file: (.integrations.recordingStateFile | config_string),
   wallpaper_dir: (.wallpaper.directory | config_string),
   default_wallpaper: (.wallpaper.default | config_string)

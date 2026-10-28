@@ -1,9 +1,10 @@
 # Keybindings
 
 Desktop Shell does not replace the keybinding policy in an existing Hyprland
-configuration. Bind the commands you use, then provide matching keybinding
-metadata to the Home Manager module if you want it shown in the built-in cheat
-sheet.
+configuration. Its [Hyprland integration](installation.md#hyprland-integration)
+provides contextual popup Escape handling. Bind the other commands you use,
+then provide matching keybinding metadata to the Home Manager module for the
+built-in cheat sheet.
 
 ## Suggested bindings
 
@@ -92,6 +93,49 @@ If the keyboard emits different key names, use `wev` and bind the reported
 symbols. See the current
 [Hyprland bind documentation](https://wiki.hypr.land/Configuring/Basics/Binds/)
 for additional flags and keycode bindings.
+
+## Window pop-outs
+
+The Hyprland integration exposes `desktopShell.windowPopout`. Bind it from the
+same Lua configuration:
+
+```lua
+hl.bind("SUPER + F", function()
+  desktopShell.windowPopout.toggleFloating()
+end)
+hl.bind("SUPER + SHIFT + F", function()
+  desktopShell.windowPopout.toggle()
+end)
+```
+
+`toggle()` makes the active window a centered, pinned floating pop-out. A tiled
+window returns to the current layout when toggled back; an originally floating
+window keeps its latest floating geometry. Grouped windows, special workspaces
+and fullscreen/maximized windows are not supported.
+
+Optional sizing values apply when entering the pop-out:
+
+```lua
+desktopShell.windowPopout.toggle({
+  widthFraction = 0.70,
+  maxHeightFraction = 0.75,
+  aspectRatio = 1.6,
+})
+```
+
+These are the defaults: the target width is 70% of the usable monitor area,
+capped at 75% of its height while preserving aspect ratio. After monitor-layout
+changes, managed pop-outs shrink and reposition to remain reachable. `toggleFloating()` unpins
+a managed pop-out and toggles its floating state; ordinary windows receive a
+normal floating toggle.
+
+## Popup Escape
+
+While a control-center, power-menu or notification popup is mapped, the
+integration binds Escape to dismissal. The binding is disabled when those
+surfaces are absent, leaving applications' Escape handling available. Keep this
+contextual binding in the product integration rather than duplicating it in
+the surrounding key map.
 
 ## Workspace bindings
 

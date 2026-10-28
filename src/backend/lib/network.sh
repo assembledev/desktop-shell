@@ -1,38 +1,108 @@
 #!/usr/bin/env bash
 
-network_control_command() {
-  local control_id="$1"
-  local action="$2"
-  local command_reader_pid
+network_control_run_argv() {
+  local provider="$1" key="$2" command_reader_pid
   local -a network_argv
-  case "$control_id:$action" in
-    *[!A-Za-z0-9_.:-]* | :* | *:) return 2 ;;
-  esac
-
-  # Validate the complete argv before emitting it; NUL preserves empty and
-  # multiline arguments without interpreting their contents as shell code.
-  mapfile -d '' -t network_argv < <(
-    jq -j \
-      --arg id "$control_id" \
-      --arg key "${action}Command" '
-        [.bar.networkControls[]? | select(.id == $id)]
-        | if length == 1 then .[0][$key] else null end
-        | if type != "array" then error("missing command")
-          elif length == 0 then error("empty command")
-          elif any(.[]; type != "string") then error("non-string argument")
-          elif any(.[]; contains("\u0000")) then error("NUL in argument")
-          elif .[0] == "" then error("empty executable")
-          else . end
-        | .[] + "\u0000"
-      ' "$desktop_shell_config"
-  )
+  # The provider was validated as a complete mode before any command runs.
+  # NUL preserves empty/multiline arguments without interpreting shell code.
+  mapfile -d '' -t network_argv < <(jq -j --arg key "$key" '.[$key][] + "\u0000"' <<<"$provider")
   command_reader_pid=$!
-  if ! wait "$command_reader_pid"; then
-    printf 'desktop-shell: network control %s has invalid %s command\n' "$control_id" "$action" >&2
-    return 2
-  fi
+  wait "$command_reader_pid" || return 2
   [ "${#network_argv[@]}" -gt 0 ] || return 2
   "${network_argv[@]}"
+}
+
+network_service_state() {
+  local unit="$1" state command_status
+  if state="$(timeout --signal=TERM --kill-after=0.2s 2s systemctl is-active -- "$unit" 2>&1)"; then
+    :
+  else
+    command_status=$?
+    case "$state" in
+      inactive | failed | activating | deactivating) ;;
+      *)
+        printf 'desktop-shell: could not read %s state: %s\n' "$unit" "${state:-exit $command_status}" >&2
+        return "$command_status"
+        ;;
+    esac
+  fi
+  printf '%s\n' "$state"
+}
+
+network_service_control() {
+  local provider="$1" action="$2" unit label state key
+  unit="$(jq -r '.unit' <<<"$provider")"
+  label="$(jq -r '.label // .id' <<<"$provider")"
+  state="$(network_service_state "$unit")" || return "$?"
+  if [ "$action" = status ]; then
+    jq -nc --arg state "$state" --arg label "$label" '
+      {text: ($label + (if $state == "failed" then "!"
+          elif $state == "activating" or $state == "deactivating" then "…" else "" end)),
+       active: ($state == "active"), login: ($state == "failed"),
+       tooltip: ($label + (if $state == "active" then " is active"
+          elif $state == "inactive" then " is inactive"
+          elif $state == "activating" then " is connecting"
+          elif $state == "deactivating" then " is disconnecting"
+          elif $state == "failed" then " failed; click to retry"
+          else error("unsupported service state: " + $state) end))}
+    '
+    return
+  fi
+  case "$state" in
+    active) key=stopCommand ;;
+    inactive) key=startCommand ;;
+    failed) key=retryCommand ;;
+    activating | deactivating)
+      printf 'desktop-shell: %s is already transitioning: %s\n' "$unit" "$state" >&2
+      return 1
+      ;;
+    *)
+      printf 'desktop-shell: unsupported %s state: %s\n' "$unit" "$state" >&2
+      return 1
+      ;;
+  esac
+  network_control_run_argv "$provider" "$key"
+}
+
+network_control_command() {
+  local control_id="$1" action="$2" provider mode
+  [[ "$control_id" =~ ^[A-Za-z0-9_.-]+$ ]] || return 2
+  case "$action" in status | toggle) ;; *) return 2 ;; esac
+  # Raw JSON and Home Manager configurations share the same complete modes.
+  # Validate every argv before executing anything, including an apparent prefix.
+  if ! provider="$(jq -ce --arg id "$control_id" '
+    def empty_command: . == null or . == [];
+    def argv:
+      type == "array" and length > 0 and all(.[]; type == "string" and (contains("\u0000") | not)) and .[0] != "";
+    [.bar.networkControls[]? | select(.id == $id)]
+    | if length == 1 then .[0] else error("missing or duplicate provider") end
+    | if (.statusCommand | argv) and (.toggleCommand | argv) and .unit == null
+         and (.startCommand | empty_command) and (.stopCommand | empty_command) and (.retryCommand | empty_command)
+      then . + {_mode: "command"}
+      elif (.statusCommand | empty_command) and (.toggleCommand | empty_command) then
+        if .id == "tailscale" and .unit == null
+           and (.startCommand | empty_command) and (.stopCommand | empty_command) and (.retryCommand | empty_command)
+        then . + {_mode: "tailscale"}
+        elif (.unit | type == "string" and length > 0 and (contains("\u0000") | not))
+           and (.startCommand | argv) and (.stopCommand | argv) and (.retryCommand | argv)
+        then . + {_mode: "service"}
+        else error("incomplete built-in provider") end
+      else error("incomplete custom provider") end
+  ' "$desktop_shell_config")"; then
+    printf 'desktop-shell: network control %s has invalid provider configuration\n' "$control_id" >&2
+    return 2
+  fi
+  mode="$(jq -r '._mode' <<<"$provider")"
+  case "$mode" in
+    command) network_control_run_argv "$provider" "${action}Command" ;;
+    service) network_service_control "$provider" "$action" ;;
+    tailscale)
+      # Load the existing LocalAPI owner only for an explicitly selected provider.
+      # shellcheck source=tailscale.sh
+      source "${BASH_SOURCE[0]%/*}/tailscale.sh"
+      tailscale_control_command "$action"
+      ;;
+  esac
 }
 
 # Choose a connected physical uplink from the main routing table. Policy-routed
