@@ -17,30 +17,27 @@ Scope {
   readonly property int timeoutMs: 500
 
   function request() {
-    if (pending || requestSocket.connected)
+    if (pending)
       return false;
 
-    pending = true;
     requestSent = false;
     response = "";
     requestTimeout.restart();
-    requestSocket.connected = true;
+    pending = true;
     return true;
   }
 
   function fail(reason) {
     if (!pending)
       return;
-    pending = false;
     requestTimeout.stop();
-    requestSocket.connected = false;
+    pending = false;
     failed(reason);
   }
 
   function complete(clients) {
-    pending = false;
     requestTimeout.stop();
-    requestSocket.connected = false;
+    pending = false;
     succeeded(clients);
   }
 
@@ -78,23 +75,27 @@ Scope {
     }
   }
 
-  Socket {
-    id: requestSocket
-    path: Hyprland.requestSocketPath
+  // A request owns its socket, including after an initial connection failure.
+  Loader {
+    active: root.pending
+    sourceComponent: Socket {
+      connected: true
+      path: Hyprland.requestSocketPath
 
-    // Decode the accumulated bytes so UTF-8 characters can span socket reads.
-    parser: StdioCollector {
-      waitForEnd: false
-      onTextChanged: root.consume(text)
-    }
+      // Decode the accumulated bytes so UTF-8 characters can span socket reads.
+      parser: StdioCollector {
+        waitForEnd: false
+        onTextChanged: root.consume(text)
+      }
 
-    onConnectionStateChanged: {
-      if (connected && root.pending) {
-        root.requestSent = true;
-        write("j/clients");
-        flush();
-      } else if (!connected && root.pending && root.requestSent) {
-        root.finish();
+      onConnectionStateChanged: {
+        if (connected && root.pending) {
+          root.requestSent = true;
+          write("j/clients");
+          flush();
+        } else if (!connected && root.pending && root.requestSent) {
+          root.finish();
+        }
       }
     }
   }

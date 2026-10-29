@@ -10,10 +10,11 @@ import time
 
 source = Path(__file__).resolve().parents[2] / "src/modules/common/HyprlandClientSnapshot.qml"
 first, second = [{"title": "Привет 😀"}], [{"title": "Второй 🦊"}]
-cases = [(json.dumps(value, ensure_ascii=False).encode(), value) for value in [first, second]]
+cases = [(None, "clients request timed out")]  # No listener for the first request.
+cases += [(json.dumps(value, ensure_ascii=False).encode(), value) for value in [first, second]]
 cases += [(b"garbage", "invalid clients response:"), (b"{}", "invalid clients response:"),
           (b"[{", "invalid clients response:"), (None, "clients request timed out")]
-cases += [(json.dumps(first, ensure_ascii=False).encode(), first), (b"[]", [])]
+cases += [(b"[]", []), (json.dumps(first, ensure_ascii=False).encode(), first)]
 
 with tempfile.TemporaryDirectory(prefix="snapshot-test-") as temporary:
     root = Path(temporary)
@@ -39,7 +40,7 @@ ShellRoot {
   function record(clients, reason) {
     console.log("SNAPSHOT_RESULT", JSON.stringify({clients, reason, pending: snapshot.pending}));
     if (++index === ''' + str(len(cases)) + ''') Qt.quit();
-    else Qt.callLater(next);
+    else next();
   }
   Snapshot {
     id: snapshot
@@ -51,13 +52,13 @@ ShellRoot {
 ''')
     failures = []
     listener = socket.socket(socket.AF_UNIX)
-    listener.bind(str(root / "socket"))
-    listener.listen(1)
     listener.settimeout(3)
+    ready = threading.Event()
 
     def serve():
         try:
-            for payload, expected in cases:
+            assert ready.wait(3), "missing-socket failure was not observed"
+            for payload, expected in cases[1:]:
                 connection, _ = listener.accept()
                 with connection:
                     connection.settimeout(2)
@@ -67,6 +68,9 @@ ShellRoot {
                         assert part, "client disconnected before sending its request"
                         request += part
                     assert request == b"j/clients", request
+                    if payload == b"[]":
+                        connection.sendall(payload)  # Also exercise immediate peer EOF.
+                        continue
                     if payload is not None:
                         # Deliver each byte separately, including within UTF-8 code points.
                         for byte in payload:
@@ -88,11 +92,28 @@ ShellRoot {
     env.update({"XDG_" + name + "_HOME": str(root / name.lower())
                 for name in ["CONFIG", "CACHE", "STATE", "DATA"]})
     env["XDG_RUNTIME_DIR"] = str(root / "runtime")
-    result = subprocess.run(["quickshell", "--no-color", "--path", str(root / "shell.qml")],
-                            env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=8)
+    lines = []
+    with subprocess.Popen(["quickshell", "--no-color", "--path", str(root / "shell.qml")],
+                          env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as process:
+        def read_output():
+            for line in process.stdout:
+                lines.append(line)
+                if "ServerNotFoundError" in line and not ready.is_set():
+                    # Only create the server after the first connection has failed.
+                    listener.bind(str(root / "socket"))
+                    listener.listen(1)
+                    ready.set()
+        reader = threading.Thread(target=read_output, daemon=True)
+        reader.start()
+        try:
+            process.wait(timeout=8)
+        finally:
+            if process.poll() is None:
+                process.kill()
+            reader.join(timeout=2)
     server.join(timeout=4)
-    output = result.stdout
-    assert result.returncode == 0 and not failures and not server.is_alive(), (failures, output)
+    output = "".join(lines)
+    assert process.returncode == 0 and not failures and not server.is_alive(), (failures, output)
     sections = output.split("SNAPSHOT_START ")[1:]
     assert len(sections) == len(cases), output
     for section, (_, expected) in zip(sections, cases):
@@ -106,4 +127,4 @@ ShellRoot {
             assert "PeerClosedError" not in section, section
         else:
             assert record["clients"] is None and record["reason"].startswith(expected), section
-    print("PASS snapshot: fragmented UTF-8, reset, EOF errors, timeout recovery, early close")
+    print("PASS snapshot: reconnect, fragmented UTF-8, immediate reuse, EOF errors, timeout recovery, early close")
