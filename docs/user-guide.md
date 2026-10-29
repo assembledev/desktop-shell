@@ -108,8 +108,8 @@ describes the Hypridle integration.
 
 ## Multiple displays
 
-By default, each connected display gets a bar. Keyboard actions open on the display that
-has Hyprland focus; clicking a bar opens its menus on that display.
+By default, each connected display gets a bar. Keyboard actions open on the
+display that has Hyprland focus; clicking a bar opens its menus on that display.
 Notifications appear once on the focused display and stay there until dismissed.
 
 The wallpaper choice is shared across displays. Configure workspace placement

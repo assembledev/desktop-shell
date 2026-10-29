@@ -30,8 +30,7 @@ shell, missing command endpoint, or malformed IPC reply returns exit status 3.
 `status` returns success only while the service is active; an inactive service
 returns status `3`. `doctor` reports each check separately and returns non-zero
 when a required command or the active Hyprland instance cannot be reached.
-`restart` restarts only the shell user service; it never reboots the session or
-machine.
+`restart` restarts the shell user service.
 
 `run` and `lock-run` are service implementation commands. Use
 `start --foreground` for interactive debugging instead of calling `run`
@@ -79,7 +78,7 @@ Details, traffic, and ping refresh every two seconds while open. Ping targets
 `https://ip.me` on opening and every 30 seconds while open; that service sees
 your public or VPN egress IP. Closing the popover stops probes and clears its
 public address and traffic baseline. Missing ping or public-address data is
-reported separately from link connectivity. No speed test runs.
+reported separately from link connectivity.
 
 ```console
 $ desktop-shell network open
@@ -186,7 +185,7 @@ query the current nodes before targeting one. Missing or ambiguous targets fail.
 Volume uses percentages from 0 to 150 and preserves mute. `audio mute` accepts
 `on`, `off`, or `toggle`. Default-device selection accepts `output` or `input`
 and only a hardware/device node of that direction. It changes the PipeWire
-preference; it does not promise to reroute every existing application stream.
+preference. Existing application streams may keep their current routing.
 
 Queries return defaults, devices and streams, including names, IDs, readiness,
 volume and mute. All-node inspection keeps the native tracker active for five
@@ -332,8 +331,8 @@ scripts.
 
 ## Configured network controls
 
-Bar network controls are trusted configuration records with a stable ID. QML
-uses:
+Each bar network control has a configured ID. Use it to query or toggle the
+provider:
 
 ```console
 $ desktop-shell network-control status <id>
@@ -346,7 +345,7 @@ system-service providers and custom command pairs. Tailscale reads LocalAPI and
 uses the existing operator's CLI rights; an inactive daemon requires the configured
 `tailscaled-start` helper action. Service providers inspect system units and run
 their explicit start, stop or retry argv. Custom providers run the corresponding
-argv pair. Commands do not grant additional privileges.
+argv pair. Configure the required permissions in NixOS.
 
 ## Browser bridge
 
@@ -358,16 +357,7 @@ This prints the runtime snapshot path. `browser-tabs activate ...` is an
 internal launcher-to-extension protocol. See [Browser tabs](browser-tabs.md)
 for installation and privacy details.
 
-## Exit status
-
-Unknown public commands and invalid public arguments return `2` and print
-usage. Native-model command errors return `1`; unavailable or incompatible
-shell IPC returns `3`. Successful JSON writes explicitly distinguish observed
-`applied` state from asynchronously `accepted` requests. Backend inspection and device commands return the underlying failure
-status unless their contract explicitly treats an unavailable optional service
-as empty state.
-
-### Tailscale peers and Taildrop
+## Tailscale peers and Taildrop
 
 ```console
 $ desktop-shell tailscale status-json
@@ -379,45 +369,57 @@ $ desktop-shell tailscale send <peer-id> <file> [files...]
 $ desktop-shell tailscale receive <inbox-name> <absolute-destination>
 ```
 
-`status-json` reads fresh status, addresses, device tags, online state, route information, Taildrop
-eligibility and waiting files from the local daemon. Use its stable peer `id` for
-`ping` and `send`. Queries and transfers work without a running shell.
-`ping` actively probes that peer and returns its observed direct, DERP relay or
-peer-relay route and latency. Online means connected to Tailscale's control plane;
-a failed probe does not turn an online peer into an offline peer.
+`status-json` reads daemon status, peer addresses, tags, routes, Taildrop
+eligibility, and waiting files. Use a peer's stable `id` for `ping` and `send`.
+Status queries and file transfers work without a running shell.
 
-The peer list and device details display the daemon's assigned tags when present.
-With a `tailscale` provider configured, the popup samples peer status every two
-seconds while open, and every 15 seconds while closed. Without that provider,
-the shell does not poll Tailscale. It probes only the selected online peer every
-two seconds while open. Late results from another selection are discarded; expired
-results are unavailable rather than retained as a current route or latency.
-Idle peers are not inferred to be relayed from their assigned DERP region.
+`ping` probes the peer and returns its route and latency: direct, DERP relay,
+or peer relay. A peer's online flag means it is connected to Tailscale's
+control plane; a failed probe leaves that flag unchanged.
 
-Sending rechecks the daemon's eligibility before each file and prints one JSON
-result per completed file. Cancelling an upload cannot retract files already
-completed. The popup shows completed-file counts and an activity indicator;
-it does not estimate byte progress. Ineligible devices have no send action.
-The received-file entry appears only when the inbox contains files. Individual
-rows save one file; `Save all` queues a snapshot of the waiting inbox and prompts
-for each destination in order. Later arrivals require another explicit save.
-Saving uses an explicit destination and atomically replaces that path after a complete
-download. The file chooser owns overwrite confirmation. The inbox copy is
-removed only after the complete local file exists. If acknowledgement fails,
-the saved file remains and the inbox copy can be recovered separately.
+The popup refreshes peers every two seconds while open. With a Tailscale
+provider configured, it also refreshes every 15 seconds while closed. Only the
+selected online peer is probed, every two seconds while open. Expired probe
+results appear as unavailable.
 
-New completed Taildrop inbox entries emit normal Tailscale desktop notifications,
-including while the peer popup is closed. Their `Save` action opens the save
-chooser directly without opening the peer popup. A batch prompts for each file
-in order. Further Save requests join the same queue without duplicating active
-or queued files; cancellation or a save failure stops the remaining prompts. Save
-failures are reported by notification. An empty inbox uses the daemon's blocking `AwaitWaitingFiles`
-LocalAPI request, which wakes on arrivals. While
-files await collection, the inbox is sampled every 15 seconds while closed, or
-two seconds while open, because the daemon's wait returns existing files
-immediately. Failed requests retry with delays from two to 30 seconds. Files
-found in the first successful inbox read establish a baseline without startup
-alerts. Repeated reads and temporary daemon/inbox failures do not repeat alerts;
-a file removed and later received again can alert again. Each response batches new
-files into one notification. Notifications follow the existing DND, sound and
-history policy. Files stay in the inbox until explicitly saved.
+### Send and receive files
+
+`send` checks eligibility before each file and prints one JSON result per
+completed upload. Cancelling stops the remaining uploads; completed files
+remain at the destination. The popup shows completed-file counts and an
+activity indicator. The send action is available for eligible devices.
+
+Received files appear in the popup's inbox. Select a file to choose its save
+location, or use **Save all** to save the current inbox in order. Each file gets
+a separate destination prompt. New arrivals can be saved afterward. Cancelling
+or a save failure stops the remaining prompts; failures produce a notification.
+Repeated Save requests join the queue without duplicating files.
+
+`receive` requires an absolute destination. It downloads to a temporary file,
+then replaces the destination atomically. The graphical chooser asks before
+overwriting an existing file. The inbox copy is removed after saving succeeds;
+if that acknowledgement fails, the saved file remains and the inbox may still
+contain a copy.
+
+### Inbox notifications
+
+New files produce Tailscale notifications even when the popup is closed.
+The **Save** action opens the destination chooser directly. A notification for
+several files saves them in order using the same queue. Notifications follow
+the shell's DND, sound, and history settings.
+
+An empty inbox uses the daemon's blocking `AwaitWaitingFiles` request. Once it
+contains files, the shell refreshes it every 15 seconds while closed and every
+two seconds while open. Failed reads retry with delays from two to 30 seconds.
+Files already present at startup produce no notification. Repeated reads and
+temporary daemon failures do not repeat alerts; removing and receiving a file
+again can produce a new alert. Files remain in the inbox until saved.
+
+## Exit status
+
+Unknown public commands and invalid public arguments return `2` and print
+usage. Native-model command errors return `1`; unavailable or incompatible
+shell IPC returns `3`. Successful JSON writes explicitly distinguish observed
+`applied` state from asynchronously `accepted` requests. Backend inspection
+and device commands return the underlying failure status, except where an
+unavailable optional service is reported as empty state.

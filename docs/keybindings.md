@@ -47,9 +47,8 @@ For the launcher, clipboard history, and control center, native events avoid
 starting a command process for each shortcut. These bindings require the shell
 service to be running; the CLI commands above can also start it when needed.
 
-This fragment is intentionally limited to Desktop Shell actions. Keep
-application, workspace, monitor, and layout policy in the surrounding Hyprland
-configuration.
+Add this fragment to your Hyprland configuration alongside your application
+and workspace bindings.
 
 ```lua
 local function shell(command)
@@ -137,8 +136,7 @@ together. The binding is inactive when none of these surfaces are mapped,
 leaving applications' Escape handling available. Control Center's back button
 returns to its overview; Escape closes the panel.
 
-Keep this contextual binding in the product integration rather than duplicating
-it in the surrounding key map.
+The Lua integration installs this binding automatically.
 
 ## Workspace bindings
 
@@ -156,5 +154,4 @@ hl.bind("SUPER + SHIFT + 1", hl.dsp.window.move({ workspace = 1, follow = false 
 hl.bind("SUPER + SHIFT + 2", hl.dsp.window.move({ workspace = 2, follow = false }))
 ```
 
-The shell reads live workspace state from Hyprland; it does not intercept these
-bindings.
+The shell reads the resulting workspace state from Hyprland.

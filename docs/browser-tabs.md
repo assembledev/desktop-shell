@@ -11,15 +11,11 @@ tabs. Active tabs stay represented by their browser window, avoiding duplicate
 results. Prefix a query with `!` to search tabs only; a bare `!` lists recent
 tabs.
 
-Selecting a tab asks the extension to activate the tab and focus its browser
-window. The launcher does not simulate clicks, guess a compositor window, or
-depend on a browser remote debugging port.
+Selecting a tab asks the extension to activate it and focus its browser
+window. Set the [browser options](configuration.md#browser-tabs) to match the
+desktop-entry ID, display name, and icon of the browser receiving the extension.
 
-Browser identity is configuration, not a built-in application choice. Set the
-desktop-entry ID, display name, and icon to match the Firefox-derived browser
-that receives the extension.
-
-## Data contract
+## Tab data
 
 The extension publishes the following fields for each non-private tab:
 
@@ -30,8 +26,7 @@ The extension publishes the following fields for each non-private tab:
 - active, focused, pinned, audible, and muted state;
 - the browser-provided last-access time.
 
-It does not publish the full URL. Incognito tabs are excluded and the extension
-is not allowed in private windows.
+Full URLs are omitted. The extension is disabled in private windows.
 
 The native host writes a mode-`0600` snapshot and Unix socket below:
 
@@ -50,9 +45,8 @@ stale launcher results cannot address a later browser session.
 Enable browser tabs in the Home Manager module and install both browser-side
 artifacts into the same Firefox-derived browser. The flake exposes
 `browser-native-host` for a Nix browser wrapper and
-`browser-extension-unsigned` as a development XPI. Normal Firefox release
-profiles require a signed extension; deploy it through a supported signing or
-policy channel rather than disabling signature checks in the everyday profile.
+`browser-extension-unsigned` as a development XPI. Firefox release profiles
+require a signed extension.
 
 Register the native host in the browser wrapper and enable the shell side:
 
@@ -85,8 +79,7 @@ for a native-host registration error.
 ## Compatibility
 
 The extension requires Firefox 140 or a compatible Gecko-derived browser. It
-uses Manifest V3 and Firefox `browser.*` APIs, including the optional tab-groups
-API. Browsers that remove native messaging, change the extension manifest
-contract, or do not provide Firefox-compatible APIs are not supported by this
-integration. The native host accepts one connected browser profile at a time;
-start a second profile after closing the first profile's bridge connection.
+uses Manifest V3, Firefox `browser.*` APIs, and native messaging. Tab groups are
+included when the browser provides them. The native host accepts one connected
+browser profile at a time; close the first profile's bridge connection before
+connecting another.

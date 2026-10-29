@@ -1,7 +1,7 @@
 # Contributing
 
-Desktop Shell is developed as one Nix flake. Shell sources, the command-line
-backend, packaging, and modules should continue to work as one coherent unit.
+The Nix flake packages the shell, command-line backend, and integration
+modules together.
 
 ## Development environment
 
@@ -23,11 +23,10 @@ Build the default package when a change affects packaging or runtime inputs:
 $ nix build --quiet
 ```
 
-The check set covers Nix, shell, QML, and the browser bridge. A successful
-evaluation alone does not prove that layer-shell geometry, focus handling, or
-hardware-backed controls behave correctly. Test affected interactions in a
-nested or disposable Hyprland session when practical, and describe the manual
-test in the change.
+The checks cover Nix, shell, QML, and the browser bridge. Test changes to
+geometry, focus, and device controls in a nested or disposable Hyprland
+session when practical. Include the result and any untested interactions in
+the change description.
 
 For network-popover focus changes, run the native component regression in a
 Wayland session:
@@ -77,8 +76,8 @@ these parts.
 - Declare every command used by the packaged backend as a runtime dependency.
 - Preserve stable JSON shapes consumed by QML. If a contract must change,
   update the producer, consumer, tests, and documentation together.
-- Prefer a narrow deterministic regression test when a bug exposes a fragile
-  command or parsing contract. Do not build a parallel mock desktop stack.
+- Add regression tests for command and parsing bugs. Keep fixtures focused on
+  the affected command or component.
 - Keep documentation practical. Document current behavior and supported
   configuration, not planned interfaces.
 

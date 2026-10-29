@@ -50,8 +50,8 @@ Keep your existing `home.stateVersion`.
 The [example](../examples/home.nix) enables the shell, loads its Hyprland Lua
 integration, starts hyprpaper, and supplies starter shell keybindings with
 matching cheat-sheet entries. It leaves applications, workspace bindings,
-layouts, and monitor rules to your Hyprland configuration. Review its shortcuts for conflicts before
-importing it.
+layouts, and monitor rules to your Hyprland configuration. Review its shortcuts
+for conflicts before importing it.
 
 For a smaller setup, import only `desktop-shell.homeManagerModules.default`,
 set `programs.desktop-shell.enable = true` in your user configuration, and add
@@ -81,8 +81,7 @@ text login, run `uwsm start hyprland.desktop`. See the
 [Hyprland UWSM guide](https://wiki.hypr.land/useful-utilities/uwsm/) for session
 setup.
 
-The shell uses existing desktop services. Enable the ones you need in the
-surrounding system:
+Enable the desktop services you need in your system configuration:
 
 | Feature | System service |
 | --- | --- |

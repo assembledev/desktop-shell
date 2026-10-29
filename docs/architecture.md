@@ -81,10 +81,10 @@ set and reloads Hyprland.
 
 ## Desktop services and commands
 
-The shell reads PipeWire, NetworkManager, BlueZ, MPRIS, and Hyprland rather than
-keeping a parallel desktop state database. hyprpaper applies wallpapers;
-cliphist stores clipboard content. Optional Tailscale controls use LocalAPI for
-status and peers and the CLI for supported actions.
+The shell reads current state from PipeWire, NetworkManager, BlueZ, MPRIS,
+and Hyprland. hyprpaper applies wallpapers; cliphist stores clipboard content.
+Optional Tailscale controls use LocalAPI for status and peers and the CLI for
+supported actions.
 
 `lib/commands.sh` exposes semantic JSON endpoints through the existing QML
 owners for audio, Wi-Fi, media, notifications, and profiles. Reads do not open
@@ -109,10 +109,11 @@ wrapper supplies runtime commands and immutable source paths. Backend commands
 must be packaged dependencies rather than assumptions about the interactive
 shell's PATH.
 
-The Home Manager module owns the shell service, clipboard watchers, optional
-pairing agent, generated configuration, and state directories. The NixOS module
-supplies PAM and the optional greeter. Neither module owns the user's full
-compositor configuration or desktop service policy.
+The Home Manager module configures the shell service, clipboard watchers,
+optional pairing agent, generated configuration, and initial state directories.
+Backend operations create their state directories when needed. The NixOS module supplies PAM and
+the optional greeter. The user's configuration supplies compositor settings
+and desktop services.
 
 ## State
 
