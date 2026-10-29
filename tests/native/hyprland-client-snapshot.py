@@ -9,7 +9,7 @@ import threading
 import time
 
 source = Path(__file__).resolve().parents[2] / "src/modules/common/HyprlandClientSnapshot.qml"
-first, second = [{"title": "Привет 😀"}], [{"title": "Второй 🦊"}]
+first, second = [{"address": "0x1", "title": "Привет 😀"}], [{"address": "0x2", "title": "Второй 🦊"}]
 cases = [(None, "clients request timed out")]  # No listener for the first request.
 cases += [(json.dumps(value, ensure_ascii=False).encode(), value) for value in [first, second]]
 cases += [(b"garbage", "invalid clients response:"), (b"{}", "invalid clients response:"),
@@ -26,8 +26,11 @@ with tempfile.TemporaryDirectory(prefix="snapshot-test-") as temporary:
     component = component.replace("Hyprland.requestSocketPath", 'Quickshell.env("TEST_SOCKET")')
     assert "Hyprland." not in component
     (root / "Snapshot.qml").write_text(component)
+    (root / "LauncherSearch.js").write_text(
+        (source.parent.parent / "launcher/LauncherSearch.js").read_text())
     (root / "shell.qml").write_text('''import QtQuick
 import Quickshell
+import "LauncherSearch.js" as Search
 ShellRoot {
   id: root
   property int index: 0
@@ -37,15 +40,16 @@ ShellRoot {
       console.error("request admission failed"); Qt.quit();
     }
   }
-  function record(clients, reason) {
-    console.log("SNAPSHOT_RESULT", JSON.stringify({clients, reason, pending: snapshot.pending}));
+  function record(clients, reason, manageable) {
+    console.log("SNAPSHOT_RESULT", JSON.stringify({clients, reason, pending: snapshot.pending,
+      manageable}));
     if (++index === ''' + str(len(cases)) + ''') Qt.quit();
     else next();
   }
   Snapshot {
     id: snapshot
-    onSucceeded: clients => root.record(clients, "")
-    onFailed: reason => root.record(null, reason)
+    onSucceeded: clients => root.record(clients, "", Search.manageableClients(clients))
+    onFailed: reason => root.record(null, reason, [])
   }
   Component.onCompleted: next()
 }
@@ -124,7 +128,8 @@ ShellRoot {
         assert record["pending"] is False, section
         if isinstance(expected, list):
             assert record["clients"] == expected and not record["reason"], section
+            assert record["manageable"] == expected, section
             assert "PeerClosedError" not in section, section
         else:
             assert record["clients"] is None and record["reason"].startswith(expected), section
-    print("PASS snapshot: reconnect, fragmented UTF-8, immediate reuse, EOF errors, timeout recovery, early close")
+    print("PASS snapshot: reconnect, fragmented UTF-8, immediate reuse, EOF errors, timeout recovery, early close, consumer handoff")

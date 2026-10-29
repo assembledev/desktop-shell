@@ -136,9 +136,9 @@ function appWindowIdentityScore(app, win) {
 }
 
 function manageableClients(clients) {
-  if (!Array.isArray(clients))
-    return [];
-  return clients.filter(function(win) {
+  // A QML var signal can deliver a Qt sequence rather than a JavaScript Array.
+  // Normalize it before filtering so authoritative snapshots keep their clients.
+  return Array.from(clients || []).filter(function(win) {
     return win
       && win.hidden !== true
       && win.mapped !== false

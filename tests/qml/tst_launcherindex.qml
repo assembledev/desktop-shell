@@ -5,6 +5,32 @@ import "../../src/modules/launcher/LauncherSearch.js" as Search
 TestCase {
   name: "LauncherWindowIndex"
 
+  QtObject {
+    id: snapshot
+    signal succeeded(var clients)
+    property list<var> clients: []
+    property var manageable: []
+    onSucceeded: function(clients) { manageable = Search.manageableClients(clients); }
+  }
+
+  function test_snapshot_signal_preserves_manageable_clients() {
+    const clients = [
+      { address: "0x1", mapped: true, hidden: false },
+      { address: "0x2", hidden: true },
+      { address: "0x3", mapped: false },
+      { address: "" },
+      null,
+      { address: "0x4" }
+    ];
+    snapshot.clients = clients;
+    compare(Search.manageableClients(snapshot.clients), [clients[0], clients[5]]);
+    snapshot.succeeded(snapshot.clients);
+    compare(snapshot.manageable, [clients[0], clients[5]]);
+    snapshot.succeeded([]);
+    compare(snapshot.manageable, []);
+    compare(Search.manageableClients(null), []);
+  }
+
   function test_all_matching_apps_keep_counts_but_focus_uses_strongest_identity() {
     const apps = [
       { id: "by-exec", execString: "env FLAG=1 /bin/editor %U" },
