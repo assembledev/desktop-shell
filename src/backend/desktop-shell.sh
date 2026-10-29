@@ -491,8 +491,6 @@ source "$backend_dir/lib/network.sh"
 source "$backend_dir/lib/bluetooth.sh"
 # shellcheck source=lib/session.sh
 source "$backend_dir/lib/session.sh"
-# shellcheck source=lib/display.sh
-source "$backend_dir/lib/display.sh"
 
 case "${1:-help}" in
   help | -h | --help)
@@ -537,6 +535,7 @@ case "${1:-help}" in
     esac
     ;;
   run)
+    mkdir -p "$preferences_state_dir"
     export CONTROL_CENTER_BACKEND="$desktop_shell_executable"
     export WALLPAPER_PICKER_BACKEND="$desktop_shell_executable"
     export DESKTOP_SHELL_BACKEND="$desktop_shell_executable"
@@ -821,6 +820,8 @@ case "${1:-help}" in
     esac
     ;;
   display)
+    # shellcheck source=lib/display.sh
+    source "$backend_dir/lib/display.sh"
     case "${2:-status-json}" in
       status-json)
         [ "$#" -le 2 ] || exit 2

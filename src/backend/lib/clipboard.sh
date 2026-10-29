@@ -104,7 +104,9 @@ clipboard_wipe() (
   clipboard_age_lock
   cliphist wipe
   rm -f -- "$ages"
-  find "$clipboard_preview_dir" -mindepth 1 -maxdepth 1 -delete
+  if [ -d "$clipboard_preview_dir" ]; then
+    find "$clipboard_preview_dir" -mindepth 1 -maxdepth 1 -delete
+  fi
 )
 
 clipboard_preview() {
@@ -114,6 +116,7 @@ clipboard_preview() {
   [ -n "$record" ] || exit 0
   preview_path="$(clipboard_preview_path "$id" "$kind")"
   if [ ! -s "$preview_path" ]; then
+    mkdir -p "$clipboard_preview_dir" || return 1
     clipboard_record_to_stdout "$record" | cliphist decode >"$preview_path" 2>/dev/null || rm -f "$preview_path"
   fi
   [ -s "$preview_path" ] && printf '%s\n' "$preview_path"

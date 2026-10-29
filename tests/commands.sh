@@ -129,4 +129,21 @@ expect_exit 1 cli profile apply demo --wait
 expect_exit 3 env COMMAND_TEST_FAILURE=down bash "$source_root/src/backend/desktop-shell.sh" audio status-json
 expect_exit 3 env COMMAND_TEST_FAILURE=malformed bash "$source_root/src/backend/desktop-shell.sh" media status-json
 expect_exit 1 env COMMAND_TEST_FAILURE=error bash "$source_root/src/backend/desktop-shell.sh" wifi on
+# Reading a provider must not initialize storage for unrelated features.
+printf 'not a directory' >"$command_test_root/blocked"
+jq --arg directory "$command_test_root/blocked/wallpapers" '
+  .wallpaper.directory = $directory |
+  .bar.networkControls = [{id:"fixture", statusCommand:["printf", "%s\\n", "{\"active\":true}"], toggleCommand:["true"]}]
+' "$DESKTOP_SHELL_CONFIG" >"$command_test_root/provider.json"
+DESKTOP_SHELL_CONFIG="$command_test_root/provider.json" \
+  XDG_STATE_HOME="$command_test_root/unused-state" \
+  XDG_RUNTIME_DIR="$command_test_root/blocked" \
+  cli network-control status fixture | jq -e '.active' >/dev/null
+test ! -e "$command_test_root/unused-state"
+# A first-run wallpaper folder can be absent; listing it is an empty result.
+jq --arg directory "$command_test_root/missing/wallpapers" '.wallpaper.directory = $directory' \
+  "$DESKTOP_SHELL_CONFIG" >"$command_test_root/empty-wallpapers.json"
+DESKTOP_SHELL_CONFIG="$command_test_root/empty-wallpapers.json" \
+  cli list-json | jq -e '. == []' >/dev/null
+test ! -e "$command_test_root/missing"
 printf 'Public CLI command contracts passed\n'

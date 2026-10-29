@@ -13,6 +13,7 @@ display_confirm_seconds="${DESKTOP_SHELL_DISPLAY_CONFIRM_SECONDS:-20}"
 mkdir -p "$display_runtime_dir"
 
 display_profiles_init() {
+  mkdir -p "$display_state_dir"
   if [ ! -r "$display_profiles_file" ] || ! jq -e '.version == 1 and (.profiles | type == "array")' "$display_profiles_file" >/dev/null 2>&1; then
     printf '%s\n' '{"version":1,"profiles":[]}' >"$display_profiles_file"
   fi

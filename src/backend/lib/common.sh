@@ -48,11 +48,6 @@ privileged_helper="$DESKTOP_SHELL_PRIVILEGED_HELPER"
 desktop_shell_executable="${DESKTOP_SHELL_EXECUTABLE:-$0}"
 system_sys_root="${DESKTOP_SHELL_SYS_ROOT:-/sys}"
 system_proc_root="${DESKTOP_SHELL_PROC_ROOT:-/proc}"
-mkdir -p "$desktop_shell_state_dir" "$state_dir" "$preferences_state_dir" "$wallpaper_state_dir" "$display_state_dir" "$wallpaper_dir" "$clipboard_preview_dir"
-
-[ -f "$state_dir/count" ] || printf '0\n' >"$state_dir/count"
-[ -f "$preferences_state_dir/dnd" ] || printf '0\n' >"$preferences_state_dir/dnd"
-[ -f "$preferences_state_dir/focus" ] || printf '0\n' >"$preferences_state_dir/focus"
 
 write_preference() {
   local preference_name="$1"
@@ -66,6 +61,7 @@ write_preference() {
       ;;
   esac
 
+  mkdir -p "$preferences_state_dir"
   preference_tmp="$(mktemp "$preferences_state_dir/.${preference_name}.XXXXXX")"
   if ! printf '%s\n' "$preference_value" >"$preference_tmp" || ! mv -f "$preference_tmp" "$preferences_state_dir/$preference_name"; then
     rm -f "$preference_tmp"

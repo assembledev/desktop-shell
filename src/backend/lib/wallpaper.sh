@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 find_wallpapers() {
+  [ -d "$wallpaper_dir" ] || return 0
   find "$wallpaper_dir" \
     -type f \
     \( -iname '*.avif' -o -iname '*.bmp' -o -iname '*.gif' -o -iname '*.heic' -o -iname '*.jpeg' -o -iname '*.jpg' -o -iname '*.jxl' -o -iname '*.png' -o -iname '*.svg' -o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.webp' \) \
@@ -59,6 +60,7 @@ preview_wallpaper() {
 
 apply_wallpaper() {
   local path="$1"
+  mkdir -p "$wallpaper_state_dir" || return 1
   preview_wallpaper "$path" || return 1
   printf '%s\n' "$path" >"$current_wallpaper_file" || return 1
   if [ -n "$login_wallpaper_sync" ]; then
