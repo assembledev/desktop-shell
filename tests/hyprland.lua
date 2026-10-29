@@ -331,4 +331,23 @@ test("Escape follows mapped shell surfaces and prioritizes shell popups", functi
   equal(s.escape.enabled, false)
 end)
 
+test("every bar popup takes Escape before toasts", function()
+  for _, namespace in ipairs({ "calendar", "controlCenter", "network", "tailscale", "powerMenu" }) do
+    local toast = { namespace = "quickshell:notificationPopups", mapped = true }
+    local popup = { namespace = "quickshell:" .. namespace, mapped = true }
+    local s = setup({ toast, popup })
+    equal(s.escape.enabled, true, namespace)
+    s.escape.callback()
+    equal(s.events[1], "desktop-shell:dismiss-shell-popup", namespace)
+    equal(#s.events, 1, "toast must remain visible while " .. namespace .. " is open")
+    s.emit("layer.closed", popup)
+    popup.mapped = false
+    equal(s.escape.enabled, true, "toast keeps Escape active after " .. namespace .. " closes")
+    s.escape.callback()
+    equal(s.events[2], "desktop-shell:dismiss-notification-popups", namespace)
+    s.emit("layer.closed", toast)
+    equal(s.escape.enabled, false, "Escape returns to applications after " .. namespace)
+  end
+end)
+
 print("Hyprland Lua: " .. tests .. " tests passed")

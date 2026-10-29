@@ -74,9 +74,10 @@ bring back a hidden bar from a terminal:
 $ desktop-shell focus off
 ```
 
-**Escape** dismisses control-center and power popups. When neither menu is
-open, it dismisses notification and Now Playing popups. This binding is active
-only while those surfaces are visible.
+Opening a bar popup closes the previous one. **Escape** closes the calendar,
+Control Center, network, Tailscale, or power popup before dismissing toasts.
+With no bar popup open, it dismisses notification and Now Playing popups.
+Use Control Center's back button to return from a detail page to the overview.
 
 ## Clipboard and wallpapers
 

@@ -5,6 +5,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import "modules/common"
 import "modules/bar"
 import "modules/calendar"
@@ -28,6 +29,21 @@ ShellRoot {
     return bars.instances.find(bar => bar.screen === screen) || null;
   }
 
+  function closeBarPopups(except) {
+    if (except !== calendar)
+      calendar.closeCalendar();
+    if (except !== controlCenter)
+      controlCenter.open = false;
+    if (except !== networkDetails)
+      networkDetails.closeDetails();
+    if (except !== tailscaleDetails)
+      tailscaleDetails.closeDetails();
+    for (const bar of bars.instances) {
+      if (bar !== except)
+        bar.power("close");
+    }
+  }
+
   IpcHandler {
     target: "desktopShell"
     function ping(): bool { return true; }
@@ -49,6 +65,7 @@ ShellRoot {
     id: bars
     model: shellConfig.barScreens
     Bar {
+      id: bar
       required property var modelData
       screen: modelData
       sharedState: barState
@@ -58,6 +75,10 @@ ShellRoot {
       onCalendarToggleRequested: calendar.toggleCalendar(screen)
       onControlCenterToggleRequested: controlCenter.toggleOpen(false, screen)
       onNetworkToggleRequested: networkDetails.toggleDetails(screen)
+      onPowerMenuOpenChanged: {
+        if (powerMenuOpen)
+          root.closeBarPopups(bar);
+      }
     }
   }
   CalendarPopup {
@@ -98,32 +119,39 @@ ShellRoot {
     }
   }
   Connections {
+    target: Hyprland
+    function onRawEvent(event) {
+      if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup")
+        root.closeBarPopups();
+    }
+  }
+  Connections {
     target: tailscaleDetails
     function onOpenChanged() {
-      if (tailscaleDetails.open) {
-        calendar.closeCalendar();
-        controlCenter.open = false;
-        networkDetails.closeDetails();
-      }
+      if (tailscaleDetails.open)
+        root.closeBarPopups(tailscaleDetails);
     }
   }
   Connections {
     target: networkDetails
     function onOpenChanged() {
-      if (networkDetails.open) {
-        tailscaleDetails.closeDetails();
-        calendar.closeCalendar();
-        controlCenter.open = false;
-      }
+      if (networkDetails.open)
+        root.closeBarPopups(networkDetails);
     }
   }
   Connections {
     target: controlCenter
-    function onOpenChanged() { if (controlCenter.open) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); } }
+    function onOpenChanged() {
+      if (controlCenter.open)
+        root.closeBarPopups(controlCenter);
+    }
   }
   Connections {
     target: calendar
-    function onOpenChanged() { if (calendar.open) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); } }
+    function onOpenChanged() {
+      if (calendar.open)
+        root.closeBarPopups(calendar);
+    }
   }
   Connections {
     target: barState

@@ -2395,8 +2395,6 @@ Scope {
     function onRawEvent(event) {
       if (event.name === "custom" && event.data === "desktop-shell:dismiss-notification-popups")
         root.notificationPopupsCloseRequested();
-      else if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup")
-        root.open = false;
       else if (event.name === "custom" && event.data === "desktop-shell:control-center:toggle")
         root.toggleOpen();
     }
@@ -2494,12 +2492,7 @@ Scope {
 
     Shortcut {
       sequence: "Esc"
-      onActivated: {
-        if (root.page !== "main")
-          root.page = "main";
-        else
-          root.open = false;
-      }
+      onActivated: root.open = false;
     }
   }
 

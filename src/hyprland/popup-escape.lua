@@ -4,6 +4,9 @@ local toastDismissEvents = {
 }
 local shellPopupDismissEvent = "desktop-shell:dismiss-shell-popup"
 local shellPopupNamespaces = {
+  ["quickshell:calendar"] = true,
+  ["quickshell:network"] = true,
+  ["quickshell:tailscale"] = true,
   ["quickshell:controlCenter"] = true,
   ["quickshell:powerMenu"] = true,
 }

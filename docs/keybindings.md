@@ -130,13 +130,15 @@ normal floating toggle.
 
 ## Popup Escape
 
-While a control-center, power-menu, notification or Now Playing popup is
-mapped, the integration binds Escape to dismissal. Menus take priority; otherwise
-Escape dismisses visible notification and Now Playing toasts together. The
-binding is disabled when those surfaces are absent, leaving applications' Escape
-handling available. Keep this
-contextual binding in the product integration rather than duplicating it in
-the surrounding key map.
+Opening a calendar, Control Center, network, Tailscale, or power popup closes
+the previous bar popup. Escape dismisses that popup before notification or Now
+Playing toasts. With no bar popup open, Escape dismisses the visible toasts
+together. The binding is inactive when none of these surfaces are mapped,
+leaving applications' Escape handling available. Control Center's back button
+returns to its overview; Escape closes the panel.
+
+Keep this contextual binding in the product integration rather than duplicating
+it in the surrounding key map.
 
 ## Workspace bindings
 
