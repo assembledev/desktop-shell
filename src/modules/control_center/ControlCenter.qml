@@ -3398,8 +3398,8 @@ Scope {
           visible: !wifiScroll.visible
           glyph: "wifi"
           accent: theme.info
-          title: !wifi.backendAvailable ? "Network service unavailable" : !wifi.hardwareEnabled || !wifi.device ? "Wi-Fi is unavailable" : !root.wifiEnabled ? "Wi-Fi is off" : "Looking for networks"
-          message: !wifi.backendAvailable ? "NetworkManager did not provide a networking backend." : !wifi.hardwareEnabled || !wifi.device ? "No wireless adapter is ready." : !root.wifiEnabled ? "Turn it on to discover nearby networks." : "Nearby networks will appear automatically."
+          title: !wifi.backendAvailable ? "Network service unavailable" : !wifi.hardwareEnabled || !wifi.device ? "Wi-Fi is unavailable" : !root.wifiEnabled ? "Wi-Fi is off" : "No nearby networks"
+          message: !wifi.backendAvailable ? "NetworkManager did not provide a networking backend." : !wifi.hardwareEnabled || !wifi.device ? "No wireless adapter is ready." : !root.wifiEnabled ? "Turn it on to discover nearby networks." : "Refresh to look for nearby networks."
           showAction: wifi.backendAvailable && wifi.hardwareEnabled && wifi.device !== null
           actionLabel: root.wifiEnabled ? "Refresh scan" : "Turn on Wi-Fi"
           actionGlyph: root.wifiEnabled ? "refresh" : "wifi"
