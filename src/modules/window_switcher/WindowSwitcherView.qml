@@ -405,7 +405,7 @@ Scope {
     }
 
     const activeAddress = addressOf(activeWindow);
-    if (activeAddress.length > 0)
+    if (valid[activeAddress])
       order = [activeAddress].concat(order.filter(function(address) { return address !== activeAddress; }));
     replaceFocusOrder(order);
   }
@@ -602,12 +602,13 @@ Scope {
     }
 
     function onRawEvent(event) {
-      if (!root.sessionActive)
-        return;
       if (event.name === "closewindow") {
         const address = HyprlandWindow.normalizedAddress(event.data);
-        root.windows = root.windows.filter(win => root.addressOf(win) !== address);
-        root.repairSelection();
+        root.replaceFocusOrder(root.focusOrder.filter(item => item !== address));
+        if (root.sessionActive) {
+          root.windows = root.windows.filter(win => root.addressOf(win) !== address);
+          root.repairSelection();
+        }
       }
       if (root.open && ["openwindow", "closewindow", "movewindowv2", "windowtitlev2", "changefloatingmode"].indexOf(event.name) >= 0) {
         if (clientSnapshot.pending)
