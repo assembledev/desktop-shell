@@ -26,6 +26,9 @@ printf '%s\n' "$5/$6" >>"$COMMAND_TEST_CALLS"
 case "${COMMAND_TEST_FAILURE:-}" in
   down) exit 1 ;;
   malformed) printf 'Function not found.\n'; exit ;;
+  multiple) printf '{}\n{}\n'; exit ;;
+  scalar) printf 'true\n'; exit ;;
+  missing) exit ;;
   error) printf '{"error":{"code":"unsupported","message":"Not supported"}}\n'; exit ;;
 esac
 case "$5/$6" in
@@ -146,4 +149,18 @@ jq --arg directory "$command_test_root/missing/wallpapers" '.wallpaper.directory
 DESKTOP_SHELL_CONFIG="$command_test_root/empty-wallpapers.json" \
   cli list-json | jq -e '. == []' >/dev/null
 test ! -e "$command_test_root/missing"
+# Validation and formatting share one parse of each IPC response.
+(
+  source "$source_root/src/backend/lib/commands.sh"
+  ensure_hypr_env() { :; }
+  jq() {
+    printf 'parse\n' >>"$command_test_root/parsers"
+    command jq "$@"
+  }
+  runtime_json media status >"$command_test_root/snapshot"
+  test "$(wc -l <"$command_test_root/parsers")" -eq 1
+)
+for failure in multiple scalar missing; do
+  expect_exit 3 env COMMAND_TEST_FAILURE="$failure" bash "$source_root/src/backend/desktop-shell.sh" media status-json
+done
 printf 'Public CLI command contracts passed\n'

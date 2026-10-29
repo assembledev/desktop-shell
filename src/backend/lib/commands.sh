@@ -126,15 +126,14 @@ runtime_json() {
     printf 'desktop-shell: shell IPC unavailable or timed out (exit %s); start the matching shell package first\n' "$code" >&2
     return 3
   fi
-  if ! jq -e 'type == "object" or type == "array"' >/dev/null 2>&1 <<<"$reply"; then
-    printf 'desktop-shell: running shell does not provide this command or returned invalid JSON\n' >&2
-    return 3
-  fi
-  if jq -e 'type == "object" and has("error")' >/dev/null <<<"$reply"; then
-    jq -r '"desktop-shell: " + .error.code + ": " + .error.message' <<<"$reply" >&2
-    return 1
-  fi
-  jq -c . <<<"$reply"
+  jq -Rsr '
+    try fromjson catch null
+    | if type != "object" and type != "array" then
+        "desktop-shell: running shell does not provide this command or returned invalid JSON\n" | halt_error(3)
+      elif type == "object" and has("error") then
+        "desktop-shell: " + .error.code + ": " + .error.message + "\n" | halt_error(1)
+      else tojson end
+  ' <<<"$reply"
 }
 
 cli_usage_error() {
@@ -171,8 +170,9 @@ audio_command() {
         elif $action == "default" and
           (if $request.direction == "output" then .defaultOutput.id else .defaultInput.id end) == $request.target then $node
         else empty end
+      | {applied:true,node:.}
     ' <<<"$state")"; then
-      jq -nc --argjson node "$observed" '{applied:true,node:$node}'
+      printf '%s\n' "$observed"
       return 0
     fi
     sleep 0.1
