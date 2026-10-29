@@ -251,7 +251,7 @@ Scope {
         height: root.menuHeight
         radius: 14
         color: theme.surfaceGlassStrong
-        border.color: Qt.alpha(theme.borderSubtle, 0.78)
+        border.color: theme.borderSubtle
         border.width: 1
         clip: true
         opacity: surfaceTransition.progress
@@ -339,7 +339,7 @@ Scope {
             color: backMouse.containsMouse ? theme.surfaceHover : theme.surfaceAccent
             border.color: backMouse.containsMouse
               ? Qt.alpha(theme.accent, 0.6)
-              : Qt.alpha(theme.borderSubtle, 0.55)
+              : theme.borderSubtle
             border.width: 1
             scale: backMouse.pressed ? 0.88 : (backMouse.containsMouse ? 1.04 : 1)
 
@@ -379,7 +379,7 @@ Scope {
           y: 55
           width: parent.width - 24
           height: 1
-          color: Qt.alpha(theme.borderSubtle, 0.68)
+          color: theme.borderSubtle
         }
 
         Item {
@@ -445,7 +445,7 @@ Scope {
                     width: parent.width - 16
                     height: 1
                     anchors.verticalCenter: parent.verticalCenter
-                    color: Qt.alpha(theme.borderSubtle, 0.55)
+                    color: theme.borderSubtle
                   }
 
                   Rectangle {
@@ -458,7 +458,7 @@ Scope {
                     radius: 9
                     color: entryMouse.containsMouse ? theme.surfaceHover : "transparent"
                     border.color: entryMouse.containsMouse
-                      ? Qt.alpha(theme.borderSubtle, 0.52)
+                      ? theme.borderSubtle
                       : "transparent"
                     border.width: 1
 

@@ -304,7 +304,7 @@ Scope {
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         duration: root.displayTimeout
-        trackColor: Qt.alpha(theme.surfaceMuted, 0.72)
+        trackColor: theme.surfaceMuted
         accentColor: Qt.alpha(root.artworkTone, 0.86)
         hoverAccentColor: theme.special
         onExpired: root.hide()

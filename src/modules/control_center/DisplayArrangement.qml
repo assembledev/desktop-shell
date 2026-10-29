@@ -22,7 +22,7 @@ Rectangle {
   radius: colors.groupRadius
   clip: true
   color: colors.bgRaised
-  border.color: Qt.alpha(colors.borderSubtle, 0.66)
+  border.color: colors.borderSubtle
   border.width: 1
 
   Repeater {
@@ -61,10 +61,10 @@ Rectangle {
       radius: 6
       color: arrangement.selectedName === String(output.name)
         ? Qt.alpha(colors.info, 0.22)
-        : Qt.alpha(colors.surfaceRaised, 0.92)
+        : colors.surfaceRaised
       border.color: activeFocus ? colors.accent : arrangement.selectedName === String(output.name)
         ? colors.info
-        : Qt.alpha(colors.borderSubtle, 0.88)
+        : colors.borderSubtle
       border.width: activeFocus || arrangement.selectedName === String(output.name) ? 2 : 1
       z: dragging ? 4 : (arrangement.selectedName === String(output.name) ? 2 : 1)
 

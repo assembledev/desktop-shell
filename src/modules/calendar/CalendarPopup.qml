@@ -216,7 +216,7 @@ Scope {
           anchors.horizontalCenter: parent.horizontalCenter
           radius: 14
           color: Qt.alpha(theme.bgSolid, 0.86)
-          border.color: Qt.alpha(theme.borderSubtle, 0.72)
+          border.color: theme.borderSubtle
           border.width: 1
           clip: true
           opacity: surfaceTransition.progress
@@ -271,7 +271,7 @@ Scope {
             Rectangle {
               Layout.fillWidth: true
               Layout.preferredHeight: 1
-              color: Qt.alpha(theme.borderSubtle, 0.72)
+              color: theme.borderSubtle
             }
 
             RowLayout {

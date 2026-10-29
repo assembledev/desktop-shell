@@ -855,7 +855,7 @@ Scope {
       anchors.verticalCenterOffset: 24
       radius: 14
       color: theme.surfaceGlassStrong
-      border.color: Qt.alpha(theme.borderSubtle, 0.58)
+      border.color: theme.borderSubtle
       border.width: 1
       clip: true
 
@@ -885,8 +885,8 @@ Scope {
           Layout.fillWidth: true
           Layout.preferredHeight: 56
           radius: 10
-          color: Qt.alpha(theme.surfaceGlass, 0.78)
-          border.color: search.activeFocus ? root.accent : Qt.alpha(theme.borderSubtle, 0.52)
+          color: theme.surfaceGlass
+          border.color: search.activeFocus ? root.accent : theme.borderSubtle
           border.width: 1
 
           Text {
@@ -1128,7 +1128,7 @@ Scope {
             anchors.right: parent.right
             anchors.top: parent.top
             height: 1
-            color: Qt.alpha(theme.borderSubtle, 0.42)
+            color: theme.borderSubtle
           }
 
           RowLayout {

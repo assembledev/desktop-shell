@@ -4809,7 +4809,7 @@ Scope {
       anchors.bottomMargin: 7
       duration: root.notificationPopupDuration(toast.notification)
       persistent: toast.persistent
-      trackColor: Qt.alpha(theme.surfaceMuted, 0.72)
+      trackColor: theme.surfaceMuted
       accentColor: theme.info
       hoverAccentColor: theme.special
       onExpired: {

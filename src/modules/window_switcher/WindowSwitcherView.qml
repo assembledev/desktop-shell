@@ -696,7 +696,7 @@ Scope {
         anchors.centerIn: parent
         radius: 14
         color: theme.surfaceGlassStrong
-        border.color: Qt.alpha(theme.borderSubtle, 0.58)
+        border.color: theme.borderSubtle
         border.width: 1
         clip: true
         scale: 0.965 + surfaceTransition.progress * 0.035
@@ -875,8 +875,8 @@ Scope {
     Layout.fillWidth: true
     Layout.preferredHeight: titleHeight + contentHeight + previewPadding
     radius: 11
-    color: active ? Qt.alpha(theme.info, 0.08) : Qt.alpha(theme.surfaceGlass, occupied ? 0.72 : 0.38)
-    border.color: moveTarget ? theme.special : active ? Qt.alpha(theme.info, 0.78) : Qt.alpha(theme.borderSubtle, occupied ? 0.54 : 0.26)
+    color: active ? Qt.alpha(theme.info, 0.08) : theme.surfaceGlass
+    border.color: moveTarget ? theme.special : active ? Qt.alpha(theme.info, 0.78) : theme.borderSubtle
     border.width: 1
     clip: !dragSource
     z: dragSource ? 100 : 0
@@ -910,7 +910,7 @@ Scope {
       height: ws.contentHeight
       radius: 8
       color: theme.bgSolid
-      border.color: Qt.alpha(theme.borderSubtle, 0.48)
+      border.color: theme.borderSubtle
       border.width: 1
       opacity: ws.active ? 0.82 : 0.68
     }
@@ -992,7 +992,7 @@ Scope {
       radius: screenFrame.radius
       visible: root.draggingAddress.length > 0
       color: ws.moveTarget && !ws.dragSource ? Qt.alpha(theme.special, 0.2) : Qt.alpha(theme.bgSolid, 0.32)
-      border.color: ws.moveTarget && !ws.dragSource ? theme.special : Qt.alpha(theme.borderSubtle, 0.42)
+      border.color: ws.moveTarget && !ws.dragSource ? theme.special : theme.borderSubtle
       border.width: ws.moveTarget && !ws.dragSource ? 2 : 1
       z: 45
 
@@ -1053,7 +1053,7 @@ Scope {
     height: Math.min(availableHeight, Math.max(20, (windowData?.size?.[1] || 300) * scaleFactorY))
     radius: Math.min(7, Math.max(4, height * 0.08))
     color: selected ? Qt.alpha(theme.info, 0.16) : theme.surfaceRaised
-    border.color: selected ? theme.info : (root.dropWindow === address ? theme.special : Qt.alpha(theme.borderSubtle, 0.78))
+    border.color: selected ? theme.info : (root.dropWindow === address ? theme.special : theme.borderSubtle)
     border.width: 1
     z: dragging ? 60 : (selected ? 10 : 2)
     scale: dragging ? 1.04 : (selected ? 1.018 : 1)

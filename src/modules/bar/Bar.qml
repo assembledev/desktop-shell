@@ -770,7 +770,7 @@ Scope {
             anchors.rightMargin: barSpacing.portraitEdgeInset
             y: root.portraitPrimaryHeight
             height: 1
-            color: Qt.alpha(theme.borderSubtle, 0.68)
+            color: theme.borderSubtle
           }
 
           RowLayout {
@@ -1075,7 +1075,7 @@ Scope {
       anchors.rightMargin: root.trayShelfRightMargin
       radius: 12
       color: theme.surfaceGlassStrong
-      border.color: Qt.alpha(theme.borderSubtle, 0.68)
+      border.color: theme.borderSubtle
       border.width: 1
       opacity: trayShelfTransition.progress
       scale: 0.9 + trayShelfTransition.progress * 0.1
@@ -1143,7 +1143,7 @@ Scope {
       anchors.rightMargin: 9
       radius: 12
       color: theme.surfaceGlassStrong
-      border.color: Qt.alpha(theme.borderSubtle, 0.68)
+      border.color: theme.borderSubtle
       border.width: 1
       opacity: batteryAnalysisTransition.progress
       scale: 0.9 + batteryAnalysisTransition.progress * 0.1
@@ -1229,7 +1229,7 @@ Scope {
         anchors.rightMargin: 8
         radius: 12
         color: theme.surfaceGlassStrong
-        border.color: Qt.alpha(theme.borderSubtle, 0.62)
+        border.color: theme.borderSubtle
         border.width: 1
         opacity: powerMenuTransition.progress
         scale: 0.9 + powerMenuTransition.progress * 0.1
@@ -1812,7 +1812,7 @@ Scope {
         anchors.rightMargin: 1
         anchors.verticalCenter: parent.verticalCenter
         color: theme.surfaceBar
-        border.color: Qt.alpha(theme.borderSubtle, 0.72)
+        border.color: theme.borderSubtle
         border.width: 1
 
         Text {
