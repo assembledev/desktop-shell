@@ -355,10 +355,22 @@ brightness_idle_restore() {
 }
 
 brightness_watch_backlight() {
+  local monitor_fd monitor_pid last next event
   last="$(brightness_get)" || return 1
   printf '%s\n' "$last"
 
-  while IFS= read -r event; do
+  exec {monitor_fd}< <(exec udevadm monitor --udev --kernel --subsystem-match=backlight 2>/dev/null)
+  monitor_pid=$!
+  brightness_watch_backlight_cleanup() {
+    trap - EXIT HUP INT TERM
+    exec {monitor_fd}<&-
+    kill "$monitor_pid" 2>/dev/null || true
+    wait "$monitor_pid" 2>/dev/null || true
+  }
+  trap brightness_watch_backlight_cleanup EXIT
+  trap 'exit 0' HUP INT TERM
+
+  while IFS= read -r event <&"$monitor_fd"; do
     case "$event" in
       KERNEL*change*backlight* | UDEV*change*backlight*)
         next="$(brightness_get)" || continue
@@ -368,7 +380,8 @@ brightness_watch_backlight() {
         fi
         ;;
     esac
-  done < <(udevadm monitor --udev --kernel --subsystem-match=backlight 2>/dev/null)
+  done
+  brightness_watch_backlight_cleanup
 }
 
 brightness_watch_ddc() {

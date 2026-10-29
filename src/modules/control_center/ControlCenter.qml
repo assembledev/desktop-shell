@@ -34,6 +34,10 @@ Scope {
     id: placement
     configuration: shellConfig
     onRemoved: root.open = false
+    onScreenChanged: {
+      if (root.open && screen !== null)
+        root.refreshBrightnessCapabilities();
+    }
   }
   MotionTransition {
     id: mainSurfaceTransition
@@ -1405,8 +1409,7 @@ Scope {
   function refreshAll() {
     refreshSystemInfo();
     refreshBluetoothForPage();
-    if (brightnessSupported)
-      refreshBrightness();
+    refreshBrightnessCapabilities();
   }
 
   function refreshSystemInfo() {
@@ -1479,6 +1482,48 @@ Scope {
     refreshBluetooth();
   }
 
+  function refreshBrightnessCapabilities() {
+    if (brightnessBackendProc.running) {
+      brightnessBackendProc.refreshPending = true;
+      return;
+    }
+    brightnessBackendProc.output = "";
+    brightnessBackendProc.requested = true;
+    brightnessBackendProc.running = true;
+  }
+
+  function finishBrightnessCapabilities(capabilities) {
+    if (brightnessBackendProc.refreshPending) {
+      brightnessBackendProc.refreshPending = false;
+      Qt.callLater(root.refreshBrightnessCapabilities);
+      return;
+    }
+    const backend = String(capabilities?.backend || "");
+    const supported = Boolean(capabilities?.supported) && (backend === "backlight" || backend === "ddc");
+    if (!supported || backend !== brightnessBackend)
+      brightnessActionError = "";
+    brightnessSupported = supported;
+    brightnessWritable = supported && Boolean(capabilities.writable);
+    brightnessBackend = supported ? backend : "";
+    brightnessValuePath = supported && backend === "ddc" ? String(capabilities.valuePath || "") : "";
+    brightnessReady = false;
+    if (!supported) {
+      brightness = 0;
+      brightnessPending = false;
+      brightnessSetTimer.stop();
+      brightnessReadError = capabilities === null ? "Could not detect brightness controls" : "";
+    }
+    if (brightnessBackend !== "backlight") {
+      brightnessWatchRestartTimer.stop();
+      brightnessWatchProc.running = false;
+    }
+    if (supported) {
+      refreshBrightness();
+      if (backend === "backlight" && !brightnessWatchProc.running)
+        brightnessWatchProc.running = true;
+    }
+  }
+
   function refreshBrightness() {
     if (brightnessProc.running) {
       brightnessProc.refreshPending = true;
@@ -1490,6 +1535,8 @@ Scope {
   }
 
   function updateBrightness(value, readback = false) {
+    if (!brightnessSupported)
+      return;
     if (!readback && brightnessBackend === "ddc" && brightnessBusy)
       return;
     const raw = String(value).trim();
@@ -1725,6 +1772,7 @@ Scope {
     interval: 280
     repeat: false
     onTriggered: {
+      root.refreshBrightnessCapabilities();
       if (root.displayPendingToken.length > 0 || root.displayOperation.length > 0)
         root.refreshDisplays();
       else
@@ -2262,7 +2310,8 @@ Scope {
       if (!running && requested) {
         requested = false;
         refreshPending = false;
-        root.brightnessReadError = "Could not start brightness command";
+        if (root.brightnessSupported)
+          root.brightnessReadError = "Could not start brightness command";
         if (!setBrightnessProc.running && !brightnessSetTimer.running)
           root.brightnessPending = false;
       }
@@ -2271,12 +2320,14 @@ Scope {
       requested = false;
       const raw = output.trim();
       const finished = !refreshPending && !setBrightnessProc.running && !brightnessSetTimer.running;
-      if (exitCode !== 0 || exitStatus !== 0 || raw.length === 0 || !isFinite(Number(raw))) {
-        root.brightnessReadError = "Could not read brightness";
-      } else {
-        root.brightnessReadError = "";
-        if (finished)
-          root.updateBrightness(raw, true);
+      if (root.brightnessSupported) {
+        if (exitCode !== 0 || exitStatus !== 0 || raw.length === 0 || !isFinite(Number(raw))) {
+          root.brightnessReadError = "Could not read brightness";
+        } else {
+          root.brightnessReadError = "";
+          if (finished)
+            root.updateBrightness(raw, true);
+        }
       }
       if (finished)
         root.brightnessPending = false;
@@ -2311,31 +2362,30 @@ Scope {
     preload: path.length > 0
     watchChanges: path.length > 0
     onFileChanged: reload()
-    onLoaded: root.updateBrightness(text())
+    onLoaded: {
+      if (root.brightnessSupported && root.brightnessBackend === "ddc")
+        root.updateBrightness(text());
+    }
   }
 
   Process {
     id: brightnessBackendProc
+    property string output: ""
+    property bool requested: false
+    property bool refreshPending: false
     command: [backend, "brightness", "capabilities-json"]
-    running: true
     stdout: StdioCollector {
-      onStreamFinished: {
-        const capabilities = root.parseJson(text, {
-          supported: false,
-          backend: "",
-          writable: false
-        });
-        root.brightnessSupported = Boolean(capabilities.supported);
-        root.brightnessWritable = Boolean(capabilities.writable);
-        root.brightnessValuePath = String(capabilities.valuePath || "");
-        if (capabilities.backend === "backlight" || capabilities.backend === "ddc")
-          root.brightnessBackend = capabilities.backend;
-        if (root.brightnessSupported) {
-          root.refreshBrightness();
-          if (root.brightnessBackend === "backlight")
-            brightnessWatchProc.running = true;
-        }
+      onStreamFinished: brightnessBackendProc.output = text
+    }
+    onRunningChanged: {
+      if (!running && requested) {
+        requested = false;
+        root.finishBrightnessCapabilities(null);
       }
+    }
+    onExited: function (exitCode, exitStatus) {
+      requested = false;
+      root.finishBrightnessCapabilities(exitCode === 0 && exitStatus === 0 ? root.parseJson(output, null) : null);
     }
   }
 
@@ -2345,7 +2395,8 @@ Scope {
     stdout: SplitParser {
       splitMarker: "\n"
       onRead: function (data) {
-        root.updateBrightness(data);
+        if (root.brightnessBackend === "backlight")
+          root.updateBrightness(data);
       }
     }
     onExited: function (exitCode) {
@@ -2378,6 +2429,10 @@ Scope {
     onExited: function (exitCode, exitStatus) {
       const requested = requestedPercent;
       requestedPercent = -1;
+      if (!root.brightnessSupported) {
+        root.brightnessPending = false;
+        return;
+      }
       if (exitCode !== 0 || exitStatus !== 0)
         root.brightnessActionError = "Could not change brightness";
       if (root.pendingBrightnessPercent !== requested) {
