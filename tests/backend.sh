@@ -165,52 +165,60 @@ printf '100\n' >"$backlight/max_brightness"
 brightness_capabilities_json | jq -e '.supported == true and .backend == "backlight" and .writable == true' >/dev/null
 test "$(brightness_get)" = 50
 
-# Stopping a backlight watcher must reap its monitor process, even while no
-# device events arrive. The fake monitor blocks in a builtin read, with no child.
-(
-  monitor_dir="$test_root/backlight-monitor"
-  mkdir -p "$monitor_dir/bin"
-  mkfifo "$monitor_dir/feed"
-  exec {monitor_feed}<>"$monitor_dir/feed"
-  export DESKTOP_SHELL_TEST_MONITOR_DIR="$monitor_dir"
-  printf '#!%s\n' "$(command -v bash)" >"$monitor_dir/bin/udevadm"
-  cat >>"$monitor_dir/bin/udevadm" <<'MONITOR'
+# Both normal cancellation and owner destruction must stop a quiet monitor.
+# Quickshell sends SIGKILL when it destroys a running Process during reload.
+for signal in TERM KILL; do
+  (
+    monitor_dir="$test_root/backlight-monitor-$signal"
+    mkdir -p "$monitor_dir/bin"
+    mkfifo "$monitor_dir/feed"
+    exec {monitor_feed}<>"$monitor_dir/feed"
+    export DESKTOP_SHELL_TEST_MONITOR_DIR="$monitor_dir"
+    printf '#!%s\n' "$(command -v bash)" >"$monitor_dir/bin/udevadm"
+    cat >>"$monitor_dir/bin/udevadm" <<'MONITOR'
 printf '%s\n' "$$" >"$DESKTOP_SHELL_TEST_MONITOR_DIR/pid"
 trap 'exit 0' HUP INT TERM
 while IFS= read -r _; do :; done <"$DESKTOP_SHELL_TEST_MONITOR_DIR/feed"
 MONITOR
-  chmod +x "$monitor_dir/bin/udevadm"
-  watcher_pid=
-  monitor_pid=
-  stop_monitor_fixture() {
-    trap - EXIT
-    [ -z "$watcher_pid" ] || kill "$watcher_pid" 2>/dev/null || true
-    [ -z "$monitor_pid" ] || kill "$monitor_pid" 2>/dev/null || true
-    [ -z "$watcher_pid" ] || wait "$watcher_pid" 2>/dev/null || true
-    exec {monitor_feed}>&-
-  }
-  trap stop_monitor_fixture EXIT
-  PATH="$monitor_dir/bin:$PATH" bash -euo pipefail -c '
+    chmod +x "$monitor_dir/bin/udevadm"
+    watcher_pid=
+    monitor_pid=
+    stop_monitor_fixture() {
+      trap - EXIT
+      [ -z "$watcher_pid" ] || kill "$watcher_pid" 2>/dev/null || true
+      [ -z "$monitor_pid" ] || kill "$monitor_pid" 2>/dev/null || true
+      [ -z "$watcher_pid" ] || wait "$watcher_pid" 2>/dev/null || true
+      exec {monitor_feed}>&-
+    }
+    trap stop_monitor_fixture EXIT
+    PATH="$monitor_dir/bin:$PATH" bash -euo pipefail -c '
     source "$1/src/backend/lib/brightness.sh"
     brightness_get() { printf "50\n"; }
     brightness_watch_backlight
   ' bash "$source_root" >"$monitor_dir/output" &
-  watcher_pid=$!
-  for ((attempt = 0; attempt < 200; attempt++)); do
-    [ ! -s "$monitor_dir/pid" ] || break
-    sleep 0.01
-  done
-  test -s "$monitor_dir/pid"
-  read -r monitor_pid <"$monitor_dir/pid"
-  kill "$watcher_pid"
-  wait "$watcher_pid" || true
-  watcher_pid=
-  if kill -0 "$monitor_pid" 2>/dev/null; then
-    printf 'terminated brightness watcher left its monitor running\n' >&2
-    exit 1
-  fi
-  monitor_pid=
-)
+    watcher_pid=$!
+    for ((attempt = 0; attempt < 200; attempt++)); do
+      [ ! -s "$monitor_dir/pid" ] || break
+      sleep 0.01
+    done
+    test -s "$monitor_dir/pid"
+    read -r monitor_pid <"$monitor_dir/pid"
+    kill -"$signal" "$watcher_pid"
+    wait "$watcher_pid" 2>/dev/null || true
+    watcher_pid=
+    for ((attempt = 0; attempt < 200; attempt++)); do
+      if ! kill -0 "$monitor_pid" 2>/dev/null; then break; fi
+      read -r _ _ monitor_state _ <"/proc/$monitor_pid/stat" || break
+      [ "$monitor_state" != Z ] || break
+      sleep 0.01
+    done
+    if kill -0 "$monitor_pid" 2>/dev/null && [ "${monitor_state:-}" != Z ]; then
+      printf '%s stopped watcher left its monitor running\n' "$signal" >&2
+      exit 1
+    fi
+    monitor_pid=
+  )
+done
 
 # Cached DDC targets follow focus without rescanning an unchanged output.
 (

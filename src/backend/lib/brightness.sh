@@ -359,7 +359,9 @@ brightness_watch_backlight() {
   last="$(brightness_get)" || return 1
   printf '%s\n' "$last"
 
-  exec {monitor_fd}< <(exec udevadm monitor --udev --kernel --subsystem-match=backlight 2>/dev/null)
+  # Quickshell destroys Process owners with SIGKILL, which bypasses our traps.
+  # Have the kernel stop the monitor when its watching shell dies as well.
+  exec {monitor_fd}< <(exec setpriv --pdeathsig TERM udevadm monitor --udev --kernel --subsystem-match=backlight 2>/dev/null)
   monitor_pid=$!
   brightness_watch_backlight_cleanup() {
     trap - EXIT HUP INT TERM
