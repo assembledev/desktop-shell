@@ -14,8 +14,6 @@ Scope {
 
   function enqueue(method, argument) {
     pendingCalls.push({ method: method, argument: argument, screen: commandPlacement.capture() });
-    unloadTimer.stop();
-    launcherLoader.active = true;
     flushTimer.restart();
   }
 
@@ -33,11 +31,6 @@ Scope {
     }
   }
 
-  function scheduleUnload() {
-    // Keep the launcher view warm so DesktopEntries is populated before the
-    // first visible open after boot or a shell restart.
-  }
-
   function profileReady(profile) {
     return launcherLoader.item ? launcherLoader.item.profileReady(profile) : false;
   }
@@ -46,12 +39,7 @@ Scope {
     target: "launcher"
     function open(): void { root.enqueue("openLauncher"); }
     function focus(): void { root.enqueue("openFocusLauncher"); }
-    function close(): void {
-      if (!launcherLoader.active && root.pendingCalls.length === 0)
-        return;
-      root.enqueue("closeLauncher");
-      root.scheduleUnload();
-    }
+    function close(): void { root.enqueue("closeLauncher"); }
     function toggle(): void { root.enqueue("toggleLauncher"); }
     function profileReady(profile: string): bool { return root.profileReady(profile); }
     function applyProfile(profile: string): void { root.enqueue("applyProfile", profile); }
@@ -72,6 +60,7 @@ Scope {
 
   Loader {
     id: launcherLoader
+    // Keep DesktopEntries warm before the first visible open.
     active: true
     asynchronous: false
     sourceComponent: LauncherView {}
@@ -85,26 +74,4 @@ Scope {
     onTriggered: root.flushPending()
   }
 
-  Timer {
-    id: unloadTimer
-    interval: 1200
-    repeat: false
-    onTriggered: {
-      if (!launcherLoader.item)
-        return;
-      if (!launcherLoader.item.open)
-        launcherLoader.active = false;
-      else
-        restart();
-    }
-  }
-
-  Connections {
-    target: launcherLoader.item
-    ignoreUnknownSignals: true
-    function onOpenChanged() {
-      if (!launcherLoader.item.open)
-        root.scheduleUnload();
-    }
-  }
 }
