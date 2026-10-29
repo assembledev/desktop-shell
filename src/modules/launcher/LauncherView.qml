@@ -938,7 +938,7 @@ Scope {
             height: parent.height - 12
             background: null
             color: root.textPrimary
-            selectedTextColor: theme.bgSolid
+            selectedTextColor: theme.textOnAccent
             selectionColor: root.accent
             placeholderText: root.mode === "focus"
               ? "Search open windows and tabs"

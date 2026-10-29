@@ -4415,6 +4415,8 @@ Scope {
       implicitHeight: 34
       placeholderText: String(inlineReply.notification?.inlineReplyPlaceholder || "Reply")
       color: theme.textSecondary
+      selectionColor: theme.accent
+      selectedTextColor: theme.textOnAccent
       placeholderTextColor: theme.textMuted
       font.family: theme.uiFontFamily
       font.pixelSize: 11
@@ -5009,6 +5011,8 @@ Scope {
           onTextEdited: root.pendingPassword = text
           enabled: !root.wifiBusy
           color: theme.textSecondary
+          selectionColor: theme.accent
+          selectedTextColor: theme.textOnAccent
           font.family: theme.uiFontFamily
           font.pixelSize: 12
           background: Rectangle {
