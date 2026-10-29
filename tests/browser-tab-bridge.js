@@ -2,7 +2,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { spawnSync } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
+const { once } = require("node:events");
 const vm = require("node:vm");
 
 const sourceRoot = process.argv[2];
@@ -92,3 +93,49 @@ try {
 } finally {
   fs.rmSync(runtimeRoot, { recursive: true, force: true });
 }
+
+async function checkHostTermination(signal, partialMessage) {
+  const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "browser-bridge-signal-"));
+  const host = spawn("python3", [path.join(sourceRoot, "browser-extension/native-host.py")], {
+    env: { ...process.env, XDG_RUNTIME_DIR: runtimeRoot }
+  });
+  const exited = once(host, "exit");
+  const timeout = setTimeout(() => host.kill("SIGKILL"), 3000);
+  let stderr = "";
+  host.stderr.on("data", data => { stderr += data; });
+  try {
+    await once(host.stdout, "data");
+    if (partialMessage.length)
+      host.stdin.write(partialMessage);
+    host.kill(signal);
+    const [code, exitSignal] = await exited;
+    assert.equal(exitSignal, null, `host did not handle ${signal}: ${stderr}`);
+    assert.equal(code, 0, stderr);
+    assert.equal(fs.existsSync(path.join(runtimeRoot, "desktop-shell/browser-tabs.sock")), false);
+    assert.equal(fs.existsSync(path.join(runtimeRoot, "desktop-shell/browser-tabs.json")), false);
+  } finally {
+    clearTimeout(timeout);
+    host.stdin.destroy();
+    host.kill("SIGKILL");
+    await exited;
+    fs.rmSync(runtimeRoot, { recursive: true, force: true });
+  }
+}
+
+async function checkSignalCleanup() {
+  const header = Buffer.alloc(4);
+  if (os.endianness() === "LE")
+    header.writeUInt32LE(32);
+  else
+    header.writeUInt32BE(32);
+  for (const signal of ["SIGTERM", "SIGINT"]) {
+    await checkHostTermination(signal, Buffer.alloc(0));
+    await checkHostTermination(signal, header.subarray(0, 2));
+    await checkHostTermination(signal, Buffer.concat([header, Buffer.from("{")]));
+  }
+}
+
+checkSignalCleanup().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

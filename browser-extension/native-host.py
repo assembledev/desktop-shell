@@ -39,11 +39,11 @@ def encode_json(value: object) -> bytes:
     return json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
-def read_exact(stream, length: int) -> bytes | None:
+def read_exact(length: int) -> bytes | None:
     chunks: list[bytes] = []
     remaining = length
     while remaining > 0:
-        chunk = stream.read(remaining)
+        chunk = os.read(sys.stdin.fileno(), remaining)
         if not chunk:
             return None
         chunks.append(chunk)
@@ -52,7 +52,7 @@ def read_exact(stream, length: int) -> bytes | None:
 
 
 def read_native_message() -> dict | None:
-    header = read_exact(sys.stdin.buffer, 4)
+    header = read_exact(4)
     if header is None:
         return None
 
@@ -60,7 +60,7 @@ def read_native_message() -> dict | None:
     if length > MAX_NATIVE_MESSAGE_BYTES:
         raise RuntimeError(f"native message is too large: {length} bytes")
 
-    payload = read_exact(sys.stdin.buffer, length)
+    payload = read_exact(length)
     if payload is None:
         raise RuntimeError("native message ended before its declared length")
     value = json.loads(payload.decode("utf-8"))
@@ -331,7 +331,7 @@ def main() -> int:
     bridge = BrowserTabBridge()
 
     def stop_bridge(_signal_number, _frame) -> None:
-        bridge.stop_event.set()
+        raise SystemExit(0)
 
     signal.signal(signal.SIGTERM, stop_bridge)
     signal.signal(signal.SIGINT, stop_bridge)
