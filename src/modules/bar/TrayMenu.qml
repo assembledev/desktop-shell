@@ -14,6 +14,7 @@ Scope {
   property bool barVisible: true
 
   property SystemTrayItem trayItem: null
+  property int openRequest: 0
   property bool rendered: false
   property bool expanded: false
   property bool sourceFromShelf: false
@@ -92,11 +93,12 @@ Scope {
     menuPage.opacity = 1;
     menuPage.x = 0;
 
+    const request = ++openRequest;
     const wasRendered = rendered;
     rendered = true;
     expanded = false;
     Qt.callLater(function() {
-      if (!root.rendered || root.trayItem !== item)
+      if (request !== root.openRequest || !root.rendered || root.trayItem !== item)
         return;
       root.expanded = true;
       if (!wasRendered)
@@ -105,6 +107,11 @@ Scope {
   }
 
   function closeMenu() {
+    openRequest++;
+    if (!expanded) {
+      closeImmediately();
+      return;
+    }
     if (!rendered)
       return;
     pageTransition.stop();
@@ -113,6 +120,7 @@ Scope {
   }
 
   function closeImmediately() {
+    openRequest++;
     if (!rendered)
       return;
     const fromShelf = sourceFromShelf;
