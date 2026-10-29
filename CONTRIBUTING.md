@@ -5,6 +5,11 @@ modules together.
 
 ## Development environment
 
+The standalone flake tracks NixOS unstable and the matching Home Manager branch
+so development and CI use current Quickshell and Hyprland packages. System
+integrations follow the consuming system’s inputs as described in
+[Installation](docs/installation.md).
+
 Enter the repository environment before running project tools:
 
 ```console
