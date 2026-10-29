@@ -21,6 +21,90 @@ if [ "$#" -eq 2 ] && { [ "$2" = --help ] || [ "$2" = -h ]; }; then
   cli_help "$1"
   exit
 fi
+service_status() {
+  if systemctl --user --quiet is-active desktop-shell.service; then
+    printf 'desktop-shell.service: active\n'
+    return 0
+  fi
+
+  state="$(systemctl --user is-active desktop-shell.service 2>/dev/null || true)"
+  printf 'desktop-shell.service: %s\n' "${state:-unknown}"
+  return 3
+}
+
+doctor() {
+  # shellcheck source=lib/hypr-environment.sh
+  source "${BASH_SOURCE[0]%/*}/lib/hypr-environment.sh"
+  failures=0
+  desktop_shell_config="${DESKTOP_SHELL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/desktop-shell/config.json}"
+  if [ ! -r "$desktop_shell_config" ]; then
+    desktop_shell_config="${DESKTOP_SHELL_DEFAULT_CONFIG:?DESKTOP_SHELL_DEFAULT_CONFIG is not set}"
+  fi
+  if jq -je -f "${BASH_SOURCE[0]%/*}/lib/config-environment.jq" "$desktop_shell_config" >/dev/null 2>&1; then
+    printf 'config: ok (%s)\n' "$desktop_shell_config"
+  else
+    printf 'config: invalid (%s)\n' "$desktop_shell_config"
+    failures=$((failures + 1))
+  fi
+
+  for command in quickshell hyprctl jq systemctl; do
+    if command -v "$command" >/dev/null 2>&1; then
+      printf '%s: ok\n' "$command"
+    else
+      printf '%s: missing\n' "$command"
+      failures=$((failures + 1))
+    fi
+  done
+
+  ensure_hypr_env
+  if hyprctl version >/dev/null 2>&1; then
+    printf 'hyprland: reachable\n'
+  else
+    printf 'hyprland: not reachable\n'
+    failures=$((failures + 1))
+  fi
+
+  if systemctl --user --quiet is-active desktop-shell.service; then
+    printf 'service: active\n'
+  else
+    printf 'service: inactive\n'
+  fi
+
+  [ "$failures" -eq 0 ]
+}
+
+# Service recovery and diagnostics remain usable when configuration is broken.
+case "${1:-}" in
+  doctor)
+    doctor
+    exit
+    ;;
+  stop | restart)
+    systemctl --user "$1" desktop-shell.service
+    exit
+    ;;
+  start)
+    if [ "$#" -eq 1 ]; then
+      systemctl --user start desktop-shell.service
+      exit
+    fi
+    ;;
+  status)
+    service_status
+    exit
+    ;;
+  logs)
+    case "${2:-}" in
+      "") exec journalctl --user-unit desktop-shell.service --no-pager -n 200 ;;
+      --follow | -f) exec journalctl --user-unit desktop-shell.service --follow ;;
+      *)
+        printf 'usage: desktop-shell logs [--follow]\n' >&2
+        exit 2
+        ;;
+    esac
+    ;;
+esac
+
 case "${1:-}" in
   audio | wifi | media | dnd | notifications | network)
     case "${1:-}:${2:-}" in
@@ -410,48 +494,6 @@ source "$backend_dir/lib/session.sh"
 # shellcheck source=lib/display.sh
 source "$backend_dir/lib/display.sh"
 
-service_status() {
-  if systemctl --user --quiet is-active desktop-shell.service; then
-    printf 'desktop-shell.service: active\n'
-    return 0
-  fi
-
-  state="$(systemctl --user is-active desktop-shell.service 2>/dev/null || true)"
-  printf 'desktop-shell.service: %s\n' "${state:-unknown}"
-  return 3
-}
-
-doctor() {
-  failures=0
-  printf 'config: %s\n' "$desktop_shell_config"
-  jq -e 'type == "object"' "$desktop_shell_config" >/dev/null || failures=$((failures + 1))
-
-  for command in quickshell hyprctl jq systemctl; do
-    if command -v "$command" >/dev/null 2>&1; then
-      printf '%s: ok\n' "$command"
-    else
-      printf '%s: missing\n' "$command"
-      failures=$((failures + 1))
-    fi
-  done
-
-  ensure_hypr_env
-  if hyprctl version >/dev/null 2>&1; then
-    printf 'hyprland: reachable\n'
-  else
-    printf 'hyprland: not reachable\n'
-    failures=$((failures + 1))
-  fi
-
-  if systemctl --user --quiet is-active desktop-shell.service; then
-    printf 'service: active\n'
-  else
-    printf 'service: inactive\n'
-  fi
-
-  [ "$failures" -eq 0 ]
-}
-
 case "${1:-help}" in
   help | -h | --help)
     cli_help
@@ -469,28 +511,6 @@ case "${1:-help}" in
         ;;
       *)
         printf 'usage: desktop-shell config [path|show]\n' >&2
-        exit 2
-        ;;
-    esac
-    ;;
-  doctor)
-    doctor
-    ;;
-  stop)
-    systemctl --user stop desktop-shell.service
-    ;;
-  restart)
-    systemctl --user restart desktop-shell.service
-    ;;
-  status)
-    service_status
-    ;;
-  logs)
-    case "${2:-}" in
-      "") exec journalctl --user-unit desktop-shell.service --no-pager -n 200 ;;
-      --follow | -f) exec journalctl --user-unit desktop-shell.service --follow ;;
-      *)
-        printf 'usage: desktop-shell logs [--follow]\n' >&2
         exit 2
         ;;
     esac
@@ -533,7 +553,6 @@ case "${1:-help}" in
     ;;
   start)
     case "${2:-}" in
-      "") systemctl --user start desktop-shell.service ;;
       --foreground) exec "$desktop_shell_executable" run ;;
       *)
         printf 'usage: desktop-shell start [--foreground]\n' >&2

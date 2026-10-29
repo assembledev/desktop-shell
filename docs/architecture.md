@@ -1,262 +1,139 @@
 # Architecture
 
-Desktop Shell is a Quickshell process with a packaged command backend. Nix
-builds both from the same source tree and supplies immutable paths and typed
-configuration at launch time.
+Desktop Shell combines Quickshell surfaces, a command backend, and Nix modules.
+The package builds them from one source tree and passes generated configuration
+to the runtime. Hyprland is the compositor integration.
 
-## Runtime model
+## Processes and lifecycle
 
-The Home Manager module installs `desktop-shell.service` as a systemd user
-unit. The service runs:
+`desktop-shell.service` runs `desktop-shell run`, which starts `src/shell.qml`.
+That process owns bars, the launcher and switcher, the control center and
+notification server, clipboard and wallpaper pickers, and media notifications.
+Its systemd lifetime follows the configured graphical-session target.
 
-```console
-$ desktop-shell run
-```
+The PAM lock runs separately from `src/lock.qml`. The optional greetd greeter
+starts `src/greeter.qml` under Cage. Both use the shared `LockView.qml`
+presentation with their own authentication and lifecycle. Restarting the
+ordinary shell leaves the lock process independent. See
+[Session lock](lock-security.md) and [Login greeter](greeter.md).
 
-`run` exports the generated configuration and starts `src/shell.qml` with
-Quickshell. The entry point owns the long-lived shell surfaces:
+Applications launch through `uwsm app --` into separate user units. They must
+outlive a shell restart.
 
-- bar, tray, workspaces, calendar, and an optional recording indicator;
-- a microphone badge while any PipeWire audio source has an active connection,
-  with consuming app names on hover; output-monitor capture is excluded;
-- launcher and existing-window focus search;
-- control center, notification server, Wi-Fi, Bluetooth, and audio mixer;
-- clipboard history and wallpaper picker;
-- spatial window switcher with workspace previews;
-- lock preview, media notifications, and keybinding reference.
+## Code owners
 
-The lock screen has a standalone entry point at `src/lock.qml`; the login
-greeter has another at `src/greeter.qml`. Both adapt their authentication
-mechanism to the same pure `LockView.qml` presentation. Keeping the entry
-points separate gives the PAM lock and greetd greeter narrow lifetimes.
-See [Session-lock security](lock-security.md) for guarantees and host prerequisites.
-
-## Ownership boundaries
-
-### QML
-
-`ThemedToolTip.qml` owns Qt control tooltip appearance using the shell's
-`bgToast`, `textPrimary`, `borderMuted`, `controlRadius`, and `uiFontFamily`
-roles. `ShellToolTip.qml` provides a themed native popup for bar anchors that
-need a surface outside the bar window.
-
-`src/modules/` owns presentation, interaction state, and Quickshell-native
-models. Components consume configuration passed by the package; they do not
-select machine names, output identifiers, applications, or network providers.
-
-`src/modules/common/AudioStatus.js` owns audio mute symbols and their semantic
-color for the bar, volume OSD, quick controls, device mixer, and application
-mixer. Presentations bind directly to PipeWire audio objects; mute is independent
-of volume, and all surfaces render the same authored symbols through
-`ShellSymbol`.
-
-Hyprland is the supported compositor backend. Workspace and window operations
-are centralized in the Hyprland integration so UI components do not each grow
-their own dispatch vocabulary. The adapter targets Hyprland's Lua dispatcher
-API. Supporting another compositor would require a complete integration with
-equivalent focus, workspace, layer-shell, and screencopy behavior.
-
-Launcher membership, open-window counts, focus results, profile summaries, and
-window-switcher geometry refreshes come from authoritative `j/clients`
-snapshots over Hyprland's native request
-socket. Quickshell's persistent Hyprland model supplies change notifications
-and the active-toplevel signal, but it is not treated as a client registry
-because transient or removed toplevel objects may outlive compositor clients.
-Application/window identity is indexed when applications or client snapshots
-change; typing only filters and ranks the current index. The hidden launcher
-keeps incoming data current without rebuilding search results.
-Profile application takes its own authoritative snapshot, then serializes moves
-on `movewindowv2` events from the native event socket. Application dispatch and
-atomic launcher-history writes stay in QML; the latency-sensitive path does not
-spawn the command backend.
-
-### Hyprland integration
-
-`src/hyprland/init.lua` loads the product's compositor helpers and registers blur
-for shell-owned layers. `popup-escape.lua` owns dismissal while its shell popups
-are mapped; `window-popout.lua` owns the `desktopShell.windowPopout` API. The
-package installs this tree under `share/desktop-shell/hyprland`.
-
-Home Manager exposes it under `$XDG_CONFIG_HOME/desktop-shell/hyprland` and
-loads it into enabled Hyprland Lua configuration. Externally managed compositor
-configuration loads the same entry point once. There is one supported compositor
-integration; application bindings, monitor rules, workspace placement and layout
-policy remain consumer-owned. See [Hyprland setup](installation.md#hyprland-integration)
-and [keybindings](keybindings.md#window-pop-outs).
-
-### Output presentation
-
-`ShellConfig.qml` exposes available outputs, compositor focus and configured
-bar selection. `ScreenPlacement.qml` captures an output at invocation and
-invalidates it on removal. Keyboard controllers capture before queuing a
-presentation; bar menus receive their originating output explicitly.
-
-`BarOverlayWindow.qml` owns geometry and focus for bar popovers. Mouse opens
-keep `keyboardRequested` false so a stationary bar trigger retains pointer
-focus; entering the overlay enables on-demand keyboard focus. Keyboard opens
-may request exclusive focus. Consumers must select this mode before presenting
-and preserve it when handing off to another surface.
-Floating card surfaces use `Theme.barPopoverGap` for separation from the bar
-or tray shelf.
-
-`src/shell.qml` creates per-output bars around one `BarState.qml` owner for
-telemetry, keyboard and battery sampling, network controls and bar commands.
-One `BatteryNotifications.qml` consumes that shared battery sample and sends
-[battery warnings](commands.md#battery-warnings) through the notification server;
-bars and lock-screen samplers do not send their own warnings.
-The control center retains one notification server and shared event models;
-output delegates present only their assigned notifications and OSD rows.
-`OsdModel.qml` preserves each output's OSD row identity across level updates
-so active bars animate from their current level.
-`NotificationPopupModel.qml` filters the shared popup model by output while
-preserving existing toast instances, animations, and lifetime state.
-Notification layers retain output-sized buffers with an input mask around the
-cards. `NotificationPopupStack.qml` owns animated repositioning; individual
-toasts own their entrance, exit, and lifetime animations.
-Per-output views do not own independent polling or command endpoints. See
-[Multiple displays](configuration.md#multiple-displays) for placement behavior.
-
-### Command backend
-
-`src/backend/desktop-shell.sh` is the stable command entry point used by
-keybindings and QML subprocesses. Cohesive operations live in
-`src/backend/lib/`; the dispatcher remains a routing layer.
-
-The backend owns operations that are a poor fit for QML, including wallpaper
-application, clipboard decoding, device commands, runtime environment
-discovery, and validated display transactions. JSON written for QML is an
-interface: change its producer, consumer, tests, and documentation together.
-
-Public native-model commands in `lib/commands.sh` call semantic JSON endpoints
-on the existing QML owners. PipeWire and NetworkManager stay native model
-sources; MPRIS commands use the existing active-player selection. Audio command
-logic also serves the mixer's volume setter, and DND writes share the UI's
-preference setter. Reads do not open panels or start the service.
-
-Profile inspection uses a separate on-demand authoritative client snapshot so
-it does not interfere with in-flight profile moves. Optional CLI verification
-checks actual window placement after dispatch; launch acceptance alone is not
-reported as convergence. See [Commands](commands.md) for results and timeouts.
-
-Network providers have three complete contracts: built-in Tailscale, a system
-unit with explicit actions, or a custom status/toggle argv pair. The backend
-owns status interpretation and action dispatch; the host owns daemon setup,
-operator rights, secrets and any privileged helper. Providers are loaded only
-when configured. See [network configuration](configuration.md#network-controls).
-
-### Nix package
-
-`nix/package.nix` assembles the immutable QML tree, backend, bundled defaults,
-Hyprland Lua files and runtime dependencies. It also provides the executable
-wrapper. A command used by the backend must be present here rather than assumed
-to exist in the interactive shell.
-
-### Home Manager module
-
-The Home Manager module owns user policy, generated configuration, package
-installation, state directories, the systemd user service and loading the
-product's Hyprland integration. It installs and uses the selected Tailscale
-client only when the built-in provider is configured. Consumers own application and navigation bindings;
-the product owns its contextual popup Escape binding.
-
-### NixOS module
-
-The NixOS module owns system integration that Home Manager cannot provide. It
-creates the PAM service used by the lock screen and can configure a greetd
-login path. The greeter runs Quickshell as Cage's only client, authenticates a
-fixed local user through greetd, and launches a fixed UWSM session command.
-Quickshell quits after launch, then Cage exits because its only client is gone;
-the graphical greeter does not remain resident with the desktop session.
-Optional privileged actions use fixed-purpose helpers; Desktop Shell never
-accepts an arbitrary root command from QML.
-
-## External integrations
-
-Desktop Shell deliberately uses the desktop's existing services instead of
-maintaining a parallel state database:
-
-| Integration | Purpose |
+| Area | Owner |
 | --- | --- |
-| Hyprland IPC and screencopy | workspaces, windows, focus, and switcher previews |
-| Hyprland Lua monitor API | output modes, scale, layout presets, and mirroring |
-| Quickshell Networking | persistent NetworkManager Wi-Fi state and scanning |
-| BlueZ and `bluetoothctl` | Bluetooth discovery, pairing, trust, and connections |
-| PipeWire | global and per-stream playback/recording controls |
-| UWSM | launching desktop entries outside the shell service cgroup |
-| `cliphist` and Wayland clipboard tools | clipboard history and previews |
-| `hyprpaper` | wallpaper application |
-| MPRIS | media state and track-change notifications |
-| systemd user services | lifecycle, status, and logs |
-| Tailscale LocalAPI and CLI, when selected | peer/Taildrop data, connection status and operator actions |
+| Entry points | `src/shell.qml`, `src/lock.qml`, `src/greeter.qml` |
+| UI and interaction | `src/modules/` |
+| CLI routing | `src/backend/desktop-shell.sh` |
+| Device, session, and file operations | `src/backend/lib/` |
+| Compositor helpers | `src/hyprland/` |
+| Package and runtime dependencies | `nix/package.nix` |
+| User configuration and services | `nix/home-manager-module.nix` |
+| System PAM and greeter | `nix/nixos-module.nix` |
+| Browser bridge | `browser-extension/`, `nix/browser-tab-bridge.nix` |
 
-Applications are launched with `uwsm app --`. They must not become children of
-the Quickshell process: restarting the shell must not terminate terminals,
-browsers, or other applications it launched.
+Keep presentation and interaction state in QML. Use the backend for device
+commands, file operations, environment discovery, and validated display
+transactions. Nix modules own durable policy, packages, and service setup.
+Runtime observations such as windows, devices, audio nodes, and output geometry
+come from their live services.
 
-## State and runtime data
+## Hyprland
 
-Persistent user state is kept below one `XDG_STATE_HOME/desktop-shell/` tree.
-The atomically updated DND and focus settings live in its `preferences/`
-directory. The tree also contains launcher usage, bounded telemetry, clipboard
-previews, clipboard capture times, notification counts, the current wallpaper
-selection, and confirmed display profiles under `displays/`, keyed by monitor
-description or EDID identity.
+`HyprlandAdapter.qml` centralizes compositor operations. Authoritative
+`j/clients` snapshots from Hyprland's request socket supply window identity and
+geometry; Quickshell's persistent model supplies change events. Launcher
+indexes refresh when applications or clients change, so typing only filters
+and ranks the current index.
 
-Clipboard watchers call `desktop-shell clipboard store` to store content in
-cliphist and atomically retain capture times in `clipboard-ages.json`. This
-private file also retains record identifiers and previews to reject timestamps
-from reused IDs; it is pruned with history updates and cleared on wipe. Entries
-captured outside this command have unknown ages. Watchers receive clipboard
-data before acquiring the history lock so concurrent MIME transfers cannot
-block one another. Private capture files are removed when the command exits.
-The picker displays compact
-inline image previews, link icons, and relative capture ages, updating ages only
-while open. Selecting any entry copies it; links are not opened.
+`ProfileController.qml` launches and places profile applications. It serializes
+moves using compositor events and uses standard desktop-entry metadata for
+window identity. The CLI's profile inspection takes a separate snapshot;
+launch acceptance and verified placement are distinct results.
 
-Transient browser-tab data and IPC sockets live below
-`XDG_RUNTIME_DIR/desktop-shell/`. See [Browser tabs](browser-tabs.md) for the
-data contract.
+`src/hyprland/init.lua` loads blur rules for shell layers, contextual popup
+Escape handling, and the `desktopShell.windowPopout` API. Home Manager installs
+and loads this entry point for Lua configuration; externally managed Hyprland
+loads the same file. Consumers own application bindings, monitor rules,
+workspace placement, and layout policy. See [Keybindings](keybindings.md).
 
-Display changes are applied as one validated `hyprctl eval` transaction using
-Hyprland's Lua monitor API. Before applying, the backend records the current
-layout below `XDG_RUNTIME_DIR/desktop-shell/` and arms a transient systemd user
-timer. Keeping the layout cancels that timer and atomically replaces the
-profile for the connected physical-output set; expiry or explicit rejection
-reapplies the recorded layout. The configured startup monitor rules are exposed
-to the UI as the exact restore target. Restoring them removes only the profile
-for the connected output set and then runs `hyprctl reload`.
+## Shared models and displays
 
-Search queries are not recorded. Launcher history stores desktop-entry IDs,
-counts, and timestamps only. Invalid or absent state is treated as empty state
-and rebuilt when necessary.
+`src/shell.qml` creates a bar for each selected output around one shared
+`BarState.qml`. Telemetry, battery warnings, network controls, keyboard state,
+and command endpoints have one owner rather than one per bar. The control
+center owns one notification server and shared event models.
 
-## Telemetry
+`ScreenPlacement.qml` captures the output when a surface opens and invalidates
+it when that output disappears. `BarOverlayWindow.qml` owns popover geometry
+and input focus: pointer opens keep the bar trigger reachable; keyboard opens
+request keyboard focus. Per-output views present their assigned notifications
+and OSD items without duplicating models or polling.
 
-The bar samples resource telemetry every 30 seconds. Shared `BatteryState` and
-`KeyboardState` components own sampling and layout-event handling for the bar
-and standalone lock process. Battery sampling runs every 30 seconds and retries
-after absent-device samples; keyboard refreshes coalesce events arriving during
-an in-flight query. Battery icon and warning thresholds have one shared owner. Control Center
-uses Bluetooth polling while open and a brightness change watcher; it does not
-sample resource or power-profile data for hidden content.
+Display changes are one validated transaction through Hyprland's Lua monitor
+API. Before applying, the backend records the previous layout in the runtime
+directory and arms a transient systemd timer. Confirmation cancels the timer
+and saves the layout for the physical-output set; expiry or rejection restores
+the previous layout. Restoring startup rules removes the saved profile for that
+set and reloads Hyprland.
 
-Resource sampling reads CPU and memory counters once per request. VRAM queries
-are skipped when `bar.showVram` is disabled or an NVIDIA device reports runtime
-suspension. Battery sampling computes its persisted history and UI result in one
-JSON pass, preserving the rolling-hour window and excluding suspend gaps from
-discharge averages.
+## Desktop services and commands
 
-## Configuration flow
+The shell reads PipeWire, NetworkManager, BlueZ, MPRIS, and Hyprland rather than
+keeping a parallel desktop state database. hyprpaper applies wallpapers;
+cliphist stores clipboard content. Optional Tailscale controls use LocalAPI for
+status and peers and the CLI for supported actions.
 
-Nix options are evaluated before launch. Home Manager serializes the theme and
-structured values such as workspaces, bar controls, and keybinding metadata to
-one JSON file. The command backend validates that file and exposes resolved
-values to QML through environment variables. Shared backend initialization
-resolves those values in one `jq` invocation using `lib/config-environment.jq`.
-It passes values as NUL-delimited data rather than evaluating shell code.
-Keep new configuration fields in that shared projection instead of adding a
-parser process per field to every command.
+`lib/commands.sh` exposes semantic JSON endpoints through the existing QML
+owners for audio, Wi-Fi, media, notifications, and profiles. Reads do not open
+panels or start the service. Producers, consumers, tests, and documentation
+share these contracts; change them together.
 
-Runtime observations stay runtime-owned. Window lists, devices, PipeWire
-nodes, network state, and output geometry are discovered from their source
-services rather than copied into the Nix interface.
+Network providers use one of three complete contracts: built-in Tailscale,
+a system unit with explicit action commands, or a custom status/toggle argv
+pair. The backend validates and interprets providers. The host owns daemon
+setup, operator rights, secrets, and privileged helpers. See
+[Network controls](configuration.md#network-controls).
+
+## Configuration and packaging
+
+Home Manager serializes typed options into one JSON file. The backend resolves
+that file through `lib/config-environment.jq` and passes values as NUL-delimited
+data, without evaluating shell code. Add configuration projections there rather
+than starting a parser for each field.
+
+`nix/package.nix` assembles the QML tree, backend, defaults, and Lua files. Its
+wrapper supplies runtime commands and immutable source paths. Backend commands
+must be packaged dependencies rather than assumptions about the interactive
+shell's PATH.
+
+The Home Manager module owns the shell service, clipboard watchers, optional
+pairing agent, generated configuration, and state directories. The NixOS module
+supplies PAM and the optional greeter. Neither module owns the user's full
+compositor configuration or desktop service policy.
+
+## State
+
+Persistent state lives below `$XDG_STATE_HOME/desktop-shell/`: preferences,
+launcher usage, telemetry, clipboard previews and capture ages, wallpaper
+selection, and confirmed display profiles. Search queries are not recorded;
+launcher history stores desktop-entry IDs, counts, and timestamps. Invalid or
+missing state is treated as empty where it can be rebuilt.
+
+Clipboard watchers store content through cliphist and atomically update capture
+ages. The age file retains record identities so a reused ID cannot inherit an
+old timestamp. Entries captured elsewhere have unknown ages.
+
+Transient IPC, browser-tab snapshots, and display rollback data live below
+`$XDG_RUNTIME_DIR/desktop-shell/`. The browser bridge's permissions, lifetime,
+and published fields are documented in [Browser tabs](browser-tabs.md).
+
+## Shared visual contracts
+
+[Design notes](../DESIGN.md) describes theme roles and their owners. Reuse shared
+controls, `ShellSymbol`, and common input-intent handling. Audio presentations
+share `AudioStatus.js`; output/input models remain native PipeWire objects.
+Component geometry belongs to the component; bar spacing belongs to
+`BarSpacing.qml`, and animation roles belong to `Motion.qml`.

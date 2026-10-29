@@ -54,8 +54,23 @@ artifacts into the same Firefox-derived browser. The flake exposes
 profiles require a signed extension; deploy it through a supported signing or
 policy channel rather than disabling signature checks in the everyday profile.
 
-See [Installation](installation.md#browser-tab-integration) for the Nix wrapper
-example.
+Register the native host in the browser wrapper and enable the shell side:
+
+```nix
+{ inputs, pkgs, ... }:
+{
+  programs.firefox.package = pkgs.firefox.override {
+    nativeMessagingHosts = [
+      inputs.desktop-shell.packages.${pkgs.stdenv.hostPlatform.system}.browser-native-host
+    ];
+  };
+  programs.desktop-shell.browserTabs.enable = true;
+}
+```
+
+Build the extension with `nix build --quiet .#browser-extension-unsigned` from a
+checkout. Install the signed or development extension in the same browser that
+receives the native host.
 
 After installation, restart the browser and verify the bridge:
 

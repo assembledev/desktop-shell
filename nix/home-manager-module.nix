@@ -606,16 +606,17 @@ in
     home = {
       packages = [
         finalPackage
+        pkgs.fira-sans
         pkgs.nerd-fonts.fira-code
       ]
       ++ lib.optional builtinTailscaleEnabled cfg.tailscalePackage;
 
       activation.seedDesktopShellState = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        $DRY_RUN_CMD mkdir -p "$HOME/.local/state/desktop-shell/wallpaper"
-        $DRY_RUN_CMD mkdir -p "$HOME/.local/state/desktop-shell/preferences"
+        desktop_shell_state_dir=${lib.escapeShellArg "${config.xdg.stateHome}/desktop-shell"}
+        $DRY_RUN_CMD mkdir -p "$desktop_shell_state_dir/wallpaper" "$desktop_shell_state_dir/preferences"
         for preference in dnd focus; do
-          legacy="$HOME/.local/state/desktop-shell/$preference"
-          target="$HOME/.local/state/desktop-shell/preferences/$preference"
+          legacy="$desktop_shell_state_dir/$preference"
+          target="$desktop_shell_state_dir/preferences/$preference"
           if [ ! -e "$target" ] && [ -r "$legacy" ]; then
             $DRY_RUN_CMD cp "$legacy" "$target"
           fi
@@ -624,13 +625,15 @@ in
       '';
 
       activation.seedDesktopShellWallpaper = mkIf (cfg.wallpaper.default != null) (
-        lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+        lib.hm.dag.entryAfter [ "seedDesktopShellState" ] ''
           if [ ! -e ${lib.escapeShellArg "${cfg.wallpaper.directory}/wallpaper.jpg"} ]; then
             $DRY_RUN_CMD cp ${cfg.wallpaper.default} ${lib.escapeShellArg "${cfg.wallpaper.directory}/wallpaper.jpg"}
           fi
         ''
       );
     };
+
+    fonts.fontconfig.enable = lib.mkDefault true;
 
     xdg.configFile = {
       "desktop-shell/config.json".source = configFile;

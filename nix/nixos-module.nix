@@ -162,7 +162,10 @@ in
         }
       ];
 
-      fonts.packages = [ pkgs.nerd-fonts.fira-code ];
+      fonts.packages = [
+        pkgs.fira-sans
+        pkgs.nerd-fonts.fira-code
+      ];
 
       services.greetd = {
         enable = true;

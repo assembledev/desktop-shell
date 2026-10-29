@@ -1,176 +1,134 @@
 # Installation
 
-Desktop Shell is distributed as a Nix flake.
+The supported setup is an existing **NixOS + Hyprland** desktop, with Home
+Manager managing user configuration and UWSM managing the Wayland session.
+Start from a working [Lua configuration](https://wiki.hypr.land/configuring/core/).
+Convert existing Hyprlang settings and bindings before importing the example;
+`configType` selects the output syntax rather than translating those settings.
+The flake provides packages for `x86_64-linux` and `aarch64-linux`.
 
-## Flake input
+## Add the flake and modules
 
-```nix
-{
-  inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-
-    home-manager = {
-      url = "github:nix-community/home-manager/release-26.05";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    desktop-shell = {
-      url = "github:assembledev/desktop-shell";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.home-manager.follows = "home-manager";
-    };
-  };
-}
-```
-
-The flake exports packages and modules for `x86_64-linux` and `aarch64-linux`.
-
-For development against a local checkout, replace the input URL with
-`path:../desktop-shell` and refresh the owning flake lock.
-
-## NixOS with Home Manager
-
-Import both modules. The NixOS module creates the PAM service used by the lock;
-the Home Manager module installs and starts the shell and loads its Hyprland
-integration when it manages the compositor configuration.
+Add Desktop Shell to your system flake. Keep the Nixpkgs and Home Manager
+inputs already used by your system:
 
 ```nix
-{
-  outputs =
-    inputs@{
-      nixpkgs,
-      home-manager,
-      desktop-shell,
-      ...
-    }:
-    {
-      nixosConfigurations.workstation = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
-        modules = [
-          desktop-shell.nixosModules.default
-          home-manager.nixosModules.home-manager
-
-          ({ pkgs, ... }: {
-            # NixOS-side PAM integration.
-            programs.desktop-shell.enable = true;
-
-            home-manager = {
-              useGlobalPkgs = true;
-              useUserPackages = true;
-              sharedModules = [ desktop-shell.homeManagerModules.default ];
-
-              users.user = { pkgs, ... }: {
-                home.stateVersion = "26.05";
-                wayland.windowManager.hyprland = {
-                  enable = true;
-                  configType = "lua";
-                };
-
-                programs.desktop-shell = {
-                  enable = true;
-                  package = desktop-shell.packages.${pkgs.stdenv.hostPlatform.system}.default;
-                };
-              };
-            };
-          })
-        ];
-      };
-    };
-}
-```
-
-Replace `user` and the state version with those already owned by the system
-configuration. `programs.desktop-shell.lock.enable` defaults to `true` on the
-NixOS side. Set it to `false` only when the lock screen is disabled or the PAM
-service is created elsewhere.
-
-## Optional greetd greeter
-
-The NixOS module can replace a separate display manager with a Quickshell login
-screen that reuses Desktop Shell's lock-screen presentation:
-
-```nix
-programs.desktop-shell = {
-  enable = true;
-  package = desktop-shell.packages.${pkgs.stdenv.hostPlatform.system}.default;
-  greeter = {
-    enable = true;
-    user = "user";
-    scale = 1.25;
-    wallpaperPath = "/var/lib/desktop-shell-greeter/wallpaper";
-  };
+inputs.desktop-shell = {
+  url = "github:assembledev/desktop-shell";
+  inputs.nixpkgs.follows = "nixpkgs";
+  inputs.home-manager.follows = "home-manager";
 };
 ```
 
-This enables greetd on VT1 and runs `greeter.qml` as Cage's only client. The
-greeter uses a fixed US keyboard layout and English locale. Its cursor uses
-`greeter.cursorPackage` and `greeter.cursorTheme`; the base 24 px size follows
-`greeter.scale`. Successful authentication launches
-`uwsm start -e -D Hyprland hyprland.desktop`; both Quickshell and Cage then
-exit. Routine Quickshell and UWSM startup messages are suppressed through their
-supported logging controls; warnings and errors remain available. The
-greeter process tree logs to the journal under `desktop-shell-greeter`, including
-Cage and its wlroots backend. Read it with
-`journalctl -b -t desktop-shell-greeter`. This keeps graphical greeter logs off
-the login VT; it does not eliminate the compositor handoff to Hyprland. The
-`greeter.outputMode = "last"` setting selects only Cage's final discovered
-output, while `"extend"` spans all outputs. The wallpaper path must already be
-readable by the `greeter` user; the module does not grant it access to a user's
-home directory. Do not enable SDDM at the same time.
-
-After ten minutes without input, the greeter clears unfinished password input
-and shows a black surface with the cursor hidden. Keyboard input, pointer
-movement, clicks, touch, and scrolling wake it; the wake key or click is consumed
-before password entry regains focus. Blanking pauses while authentication is
-running. This is visual blanking: the display link stays active, and the greeter
-does not run an idle daemon or change DPMS. The logged-in session owns its
-separate inactivity and display-power policy.
-
-## Standalone Home Manager
-
-Import the Home Manager module directly:
+Import the NixOS module for lock-screen PAM authentication and the Home Manager
+module for the package, configuration, and user services. In your existing
+`nixosSystem` module list:
 
 ```nix
-{ inputs, pkgs, ... }:
-{
-  imports = [ inputs.desktop-shell.homeManagerModules.default ];
+modules = [
+  ./configuration.nix
+  desktop-shell.nixosModules.default
+  home-manager.nixosModules.home-manager
+  {
+    programs.desktop-shell.enable = true;
 
-  programs.desktop-shell = {
-    enable = true;
-    package =
-      inputs.desktop-shell.packages.${pkgs.stdenv.hostPlatform.system}.default;
-  };
-}
+    home-manager.sharedModules = [
+      desktop-shell.homeManagerModules.default
+    ];
+    home-manager.users.your-user.imports = [
+      "${desktop-shell}/examples/home.nix"
+    ];
+  }
+];
 ```
 
-The shell and all surfaces except authentication can run with Home Manager
-alone. `desktop-shell lock` requires a system PAM service named
-`desktop-shell-lock`; importing `nixosModules.default` is the supported NixOS
-way to provide it.
+Here `desktop-shell` and `home-manager` are inputs passed to your flake's
+`outputs` function. Replace `your-user` with your account. If Home Manager is
+already imported, add the shared module and user import to that configuration.
+Keep your existing `home.stateVersion`.
 
-## System prerequisites
+The [example](../examples/home.nix) enables the shell, loads its Hyprland Lua
+integration, starts hyprpaper, and supplies starter shell keybindings with
+matching cheat-sheet entries. It leaves applications, workspace bindings,
+layouts, and monitor rules to your Hyprland configuration. Review its shortcuts for conflicts before
+importing it.
 
-The modules do not take ownership of the complete desktop stack. Configure
-these services in the surrounding system:
+For a smaller setup, import only `desktop-shell.homeManagerModules.default`,
+set `programs.desktop-shell.enable = true` in your user configuration, and add
+[the bindings you want](keybindings.md).
 
-- Hyprland and a UWSM-managed Wayland session;
-- systemd user sessions;
-- NetworkManager for Wi-Fi controls;
-- PipeWire for global and per-stream audio controls;
-- BlueZ for Bluetooth controls;
-- a running `hyprpaper` instance for wallpaper changes.
+## Session and system services
 
-The shell package supplies Quickshell and its command dependencies. The Home
-Manager module installs the default Fira Code Nerd Font. When overriding
-`theme.fontFamily`, add the selected family to the user profile as well.
+Enable Hyprland with UWSM on the NixOS side:
 
-For DDC/CI brightness, enable I2C device access and DDC/CI in the monitor's
-on-screen settings. Systems with a kernel backlight do not need DDC/CI.
+```nix
+programs.hyprland = {
+  enable = true;
+  withUWSM = true;
+};
+```
+
+With UWSM, disable Home Manager's separate Hyprland systemd integration. The
+example already sets this:
+
+```nix
+wayland.windowManager.hyprland.systemd.enable = false;
+```
+
+At login, select **Hyprland (uwsm-managed)** in your display manager. From a
+text login, run `uwsm start hyprland.desktop`. See the
+[NixOS Wiki](https://wiki.nixos.org/wiki/Hyprland) and
+[Hyprland UWSM guide](https://wiki.hypr.land/useful-utilities/uwsm/) for session
+setup.
+
+The shell uses existing desktop services. Enable the ones you need in the
+surrounding system:
+
+| Feature | System service |
+| --- | --- |
+| Wi-Fi and network details | `networking.networkmanager.enable = true` |
+| Audio | PipeWire with WirePlumber; see [PipeWire](https://wiki.nixos.org/wiki/PipeWire) |
+| Bluetooth | `hardware.bluetooth.enable = true` |
+| Wallpaper | hyprpaper; enabled by the example |
+| File choosers, including Taildrop save | A configured desktop portal with a file chooser backend |
+
+Keep one owner for clipboard capture, Bluetooth pairing, the bar, and desktop
+notifications. The module starts its own clipboard watchers and Blueman pairing
+agent. Disable the corresponding shell option when another component already
+owns that task; see [Configuration](configuration.md#module-options).
+
+The package supplies Quickshell and backend command dependencies. The module
+installs its default fonts. For external-monitor brightness, enable DDC/CI in
+the monitor and configure user access to its I2C device; see
+[DDC/CI](https://wiki.nixos.org/wiki/Backlight#External_Monitors). A kernel
+backlight uses brightnessctl instead.
+
+## First login
+
+Rebuild your existing NixOS configuration, then log into the UWSM session.
+Run:
+
+```console
+$ desktop-shell status
+$ desktop-shell doctor
+$ desktop-shell launcher open
+```
+
+The service starts with `graphical-session.target`. If the session was already
+running during activation, use `desktop-shell start`. Remove any old
+`exec-once` or autostart command that starts another copy of the shell.
+
+Try launching an application, opening the control center, and locking and
+unlocking the session. Continue with the [user guide](user-guide.md), or use
+[Troubleshooting](troubleshooting.md) if a check fails.
+
+Set your [wallpaper directory](configuration.md#wallpaper),
+[keyboard layout labels](configuration.md#keyboard-layout-labels), and
+[workspace topology](configuration.md#workspaces) to match your setup.
 
 ## Hyprland integration
 
-Desktop Shell supports Hyprland with Lua configuration. When Home Manager
-manages an enabled Hyprland instance, set:
+When Home Manager manages Hyprland, use Lua configuration:
 
 ```nix
 wayland.windowManager.hyprland = {
@@ -179,14 +137,13 @@ wayland.windowManager.hyprland = {
 };
 ```
 
-The Desktop Shell module installs `$XDG_CONFIG_HOME/desktop-shell/hyprland/`
-and appends its loader to the compositor configuration automatically. The
-loader registers shell-layer blur, contextual popup Escape handling and the
-`desktopShell.windowPopout` API. Keep application bindings, workspace rules,
-layouts and monitors in your own configuration; see [Keybindings](keybindings.md).
+The module loads `$XDG_CONFIG_HOME/desktop-shell/hyprland/init.lua` automatically.
+That file configures blur for shell layers, popup Escape handling, and the
+window pop-out API. Application bindings and monitor policy stay in your
+configuration.
 
-If Hyprland configuration is managed outside Home Manager, load the installed
-file once from that configuration:
+For a Hyprland configuration managed outside Home Manager, load that same file
+once from your Lua configuration:
 
 ```lua
 local configHome = os.getenv("XDG_CONFIG_HOME")
@@ -196,93 +153,48 @@ end
 desktopShell = dofile(configHome .. "/desktop-shell/hyprland/init.lua")
 ```
 
-Do not add this manual loader when Home Manager already loads it. The package
-also ships these files under `share/desktop-shell/hyprland` for installations
-that manage their own XDG links. Inspect mapped surfaces with `hyprctl layers`.
+If your compositor is pinned or patched, set
+`programs.desktop-shell.hyprlandPackage` to the same package so the backend uses
+its matching `hyprctl`.
 
-## First activation
+## Optional integrations
 
-Rebuild the owning NixOS or Home Manager configuration, then inspect the user
-service:
+- [Login greeter](greeter.md) — replace your login manager with the greetd view.
+- [Browser tabs](browser-tabs.md#installation) — add Firefox-compatible tab search.
+- [Network providers](configuration.md#network-controls) — add Tailscale or a VPN
+  control to the bar.
+- [Session lock](lock-security.md#system-integration) — configure automatic and
+  pre-suspend locking through Hypridle.
 
-```console
-$ desktop-shell status
-$ desktop-shell doctor
-$ desktop-shell logs
-```
+## Try a checkout
 
-If the graphical target was already active but the service has not started:
-
-```console
-$ desktop-shell start
-```
-
-Connect commands to the compositor using [Keybindings](keybindings.md). The
-module leaves application and navigation bindings to your configuration.
-Contextual popup Escape handling is supplied by the Hyprland integration.
-
-## Try from a checkout
-
-The default app can print help without installing the module:
+Print help without installing a module:
 
 ```console
 $ nix run . -- help
 ```
 
-From an active Hyprland session, run an isolated foreground instance with:
+Inside an existing Hyprland session, run a foreground instance:
 
 ```console
 $ nix run . -- start --foreground
 ```
 
-Stop any installed `desktop-shell.service` first to avoid duplicate Quickshell
-instances.
-
-## Browser-tab integration
-
-The flake exposes the two browser-side artifacts separately:
-
-```console
-$ nix build .#browser-native-host
-$ nix build .#browser-extension-unsigned
-```
-
-Pass the native host to the Nix browser package so its wrapper registers the
-manifest:
-
-```nix
-{ inputs, pkgs, ... }:
-let
-  system = pkgs.stdenv.hostPlatform.system;
-in
-{
-  programs.firefox.package = pkgs.firefox.override {
-    nativeMessagingHosts = [
-      inputs.desktop-shell.packages.${system}.browser-native-host
-    ];
-  };
-
-  programs.desktop-shell.browserTabs.enable = true;
-}
-```
-
-`browser-extension-unsigned` is a development XPI. Normal Firefox release
-profiles require a signed extension; sign or package the artifact through the
-browser's supported deployment channel, then install it in the same browser
-that receives the native host. See [Browser tabs](browser-tabs.md) for the data
-contract and diagnostics.
+Stop an installed `desktop-shell.service` first to avoid a duplicate instance.
+This reads your installed Desktop Shell configuration when present, falling
+back to built-in defaults otherwise. System PAM, session, and service
+prerequisites still apply.
 
 ## Flake outputs
 
 | Output | Purpose |
 | --- | --- |
-| `packages.<system>.default` | Desktop Shell package |
-| `packages.<system>.desktop-shell` | Named alias for the default package |
-| `packages.<system>.browser-native-host` | Mozilla native messaging manifest and host |
+| `packages.<system>.default` / `.desktop-shell` | Shell package |
+| `packages.<system>.browser-native-host` | Mozilla native messaging host |
 | `packages.<system>.browser-extension-unsigned` | Development XPI |
 | `apps.<system>.default` | `desktop-shell` command |
-| `homeManagerModules.default` | Home Manager integration |
-| `nixosModules.default` | PAM lock integration |
-| `checks.<system>.*` | package, module, source, and bridge checks |
-| `devShells.<system>.default` | contributor toolchain |
-| `formatter.<system>` | Nix tree formatter |
+| `homeManagerModules.default` | User configuration and services |
+| `nixosModules.default` | PAM authentication and optional greetd greeter |
+| `checks.<system>.*` | Package, module, and source checks |
+| `devShells.<system>.default` | Contributor tools |
+| `formatter.<system>` | Nix formatter |

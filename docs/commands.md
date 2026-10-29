@@ -56,56 +56,30 @@ The first invocation starts the user service when necessary. `wifi-page` and
 `display-page` opens the connected-output and layout controls; `audio-page`
 opens output/input devices and application audio streams.
 
-The control center is attached beneath the bar. Quick controls stay above an
-independently scrolling notification history. Sound opens the detailed audio
-page. Lock and power actions belong to the separate power menu.
+The [user guide](user-guide.md#use-the-bar-and-control-center) covers page
+controls. Display changes have a 20-second confirmation deadline; unconfirmed
+changes revert. Confirmed layouts are saved for the connected physical-output
+set. Resetting removes that saved layout and reloads the compositor's startup
+rules.
 
-On NixOS, the main page footer shows the running system's local-store
-registration time and `switch` or `test`. `switch` means the running closure
-matches a retained system generation or one of its specialisations; `test`
-means it does not. This is inferred state, not a record of the last rebuild
-command: testing an already retained generation also displays `switch`.
-The timestamp can reflect an import rather than build completion or activation.
-The read-only `desktop-shell system status-json` query uses the host's Nix CLI;
-when its local-store metadata API is unavailable, the date is unavailable.
-The footer refreshes on opening and while the main page is visible. It creates
-no rebuild history and does not require changes to rebuild commands.
-
-The display page provides a centered, draggable output arrangement. Dragging
-chooses exact top/center/bottom placements beside another display, or
-left/center/right placements above or below it. The shared edges stay touching;
-placements that overlap another display are skipped.
-Geometry uses scaled, rotated dimensions. Overlapping layouts
-are rejected before application. Extend, Duplicate, Internal only, and External
-only presets are available alongside per-output mode and scale controls. Testing a change starts a 20-second confirmation deadline
-backed by a transient systemd user timer and visibly locks further editing. A
-confirmed layout is saved for the same set of physical displays and restored
-when that set reconnects. **Reset layout** removes the saved profile for the connected display
-set before reloading Hyprland's declarative monitor rules.
+On NixOS, the footer shows the running closure's local-store registration time
+and whether it matches a retained system generation (`switch`) or differs
+(`test`). This is inferred from current store state, not a rebuild history.
+`desktop-shell system status-json` exposes the same read-only result through
+the host Nix CLI. An unavailable metadata API leaves the date unavailable.
 
 ### Network
 
-Click the network icon between the keyboard language and notification bell to
-open details on that output. It shows the active Wi-Fi or Ethernet uplink;
-Wi-Fi has four signal levels. The connection header opens the existing Wi-Fi
-selection page. Addresses, gateways and link DNS values copy when clicked;
-confirmation appears inline beside the value, without a reserved footer.
-Global IPv6 addresses appear when assigned. Escape or clicking outside closes
-the popover.
+The network popover shows the active Wi-Fi or Ethernet uplink, addresses,
+gateways, DNS, link rate, and current traffic. Click an address to copy it;
+click the connection header to open Wi-Fi settings.
 
-Local details come from NetworkManager and the physical interface. Link rate
-is distinct from the current receive/send traffic rate. Ping targets `1.1.1.1`
-and follows normal system routing, including VPNs. Details, traffic and ping
-refresh every two seconds while the popover is open; closing it stops probes
-and clears the traffic baseline. A timed-out or unavailable ping does not imply
-that Wi-Fi or Ethernet is disconnected. Missing data is shown as unavailable.
-Public IPv4 is queried over HTTPS from `https://ip.me` on opening and every
-30 seconds while open, through normal routing including VPNs. This service
-sees the current public/VPN egress IP. The address is copyable and cleared on
-closing. Transient request failures are retried once within a ten-second
-process deadline. A failed lookup is labelled separately from a disconnected
-link; `status-json` includes its error category (DNS, connection, TLS, service,
-timeout or invalid response). No speed test runs.
+Details, traffic, and ping refresh every two seconds while open. Ping targets
+`1.1.1.1` through normal routing, including VPNs. Public IPv4 is queried from
+`https://ip.me` on opening and every 30 seconds while open; that service sees
+your public or VPN egress IP. Closing the popover stops probes and clears its
+public address and traffic baseline. Missing ping or public-address data is
+reported separately from link connectivity. No speed test runs.
 
 ```console
 $ desktop-shell network open

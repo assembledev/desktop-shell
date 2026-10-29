@@ -1,10 +1,9 @@
 # Keybindings
 
-Desktop Shell does not replace the keybinding policy in an existing Hyprland
-configuration. Its [Hyprland integration](installation.md#hyprland-integration)
-provides contextual popup Escape handling. Bind the other commands you use,
-then provide matching keybinding metadata to the Home Manager module for the
-built-in cheat sheet.
+The [Home Manager example](../examples/home.nix) includes a starter subset of
+these bindings and matching cheat-sheet entries. Import it as described in
+[Installation](installation.md), or choose bindings for your existing key map.
+The shell's Lua integration supplies contextual popup Escape handling.
 
 ## Suggested bindings
 
@@ -91,7 +90,7 @@ hl.bind("XF86MonBrightnessDown", shell("brightness down"), { repeating = true })
 
 If the keyboard emits different key names, use `wev` and bind the reported
 symbols. See the current
-[Hyprland bind documentation](https://wiki.hypr.land/Configuring/Basics/Binds/)
+[Hyprland bind documentation](https://wiki.hypr.land/configuring/core/binds/)
 for additional flags and keycode bindings.
 
 ## Window pop-outs

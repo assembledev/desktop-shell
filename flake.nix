@@ -123,6 +123,24 @@
               }
             ];
           };
+          exampleHomeConfiguration = home-manager.lib.homeManagerConfiguration {
+            inherit pkgs;
+            modules = [
+              self.homeManagerModules.default
+              ./examples/home.nix
+              {
+                home = {
+                  username = "desktop-shell-example";
+                  homeDirectory = "/home/desktop-shell-example";
+                  stateVersion = "26.05";
+                };
+                xdg.stateHome = "/home/desktop-shell-example/.state";
+                programs.desktop-shell.wallpaper.default = pkgs.writeText "wallpaper.svg" ''
+                  <svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>
+                '';
+              }
+            ];
+          };
           nixosConfiguration = nixpkgs.lib.nixosSystem {
             inherit system;
             modules = [
@@ -168,6 +186,35 @@
             assert builtins.elem "desktop-shell.service"
               homeConfiguration.config.systemd.user.services.desktop-shell-launch-profile.Unit.After;
             homeConfiguration.activationPackage;
+
+          installation-example =
+            assert exampleHomeConfiguration.config.wayland.windowManager.hyprland.package == null;
+            assert exampleHomeConfiguration.config.wayland.windowManager.hyprland.portalPackage == null;
+            assert !exampleHomeConfiguration.config.wayland.windowManager.hyprland.systemd.enable;
+            assert exampleHomeConfiguration.config.fonts.fontconfig.enable;
+            assert builtins.elem (toString pkgs.fira-sans) (
+              map toString exampleHomeConfiguration.config.home.packages
+            );
+            assert nixpkgs.lib.hasInfix "/home/desktop-shell-example/.state/desktop-shell"
+              exampleHomeConfiguration.config.home.activation.seedDesktopShellState.data;
+            assert builtins.elem "seedDesktopShellState"
+              exampleHomeConfiguration.config.home.activation.seedDesktopShellWallpaper.after;
+            pkgs.runCommand "desktop-shell-installation-example-check"
+              { nativeBuildInputs = [ pkgs.hyprland ]; }
+              ''
+                export HOME="$TMPDIR/home"
+                export XDG_RUNTIME_DIR="$TMPDIR/runtime"
+                mkdir -p "$HOME"
+                mkdir -m 0700 "$XDG_RUNTIME_DIR"
+                test -d ${exampleHomeConfiguration.activationPackage}
+                # Resolve the installed XDG link directly while checking in the build sandbox.
+                substitute ${exampleHomeConfiguration.config.xdg.configFile."hypr/hyprland.lua".source} \
+                  "$TMPDIR/hyprland.lua" \
+                  --replace-fail ${nixpkgs.lib.escapeShellArg "${exampleHomeConfiguration.config.xdg.configHome}/desktop-shell/hyprland"} \
+                  ${nixpkgs.lib.escapeShellArg "${exampleHomeConfiguration.config.programs.desktop-shell.finalPackage}/share/desktop-shell/hyprland"}
+                Hyprland --verify-config --config "$TMPDIR/hyprland.lua"
+                touch "$out"
+              '';
 
           nixos-module =
             assert nixosConfiguration.config.services.greetd.enable;

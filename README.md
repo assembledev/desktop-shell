@@ -1,97 +1,62 @@
 # Desktop Shell
 
-A keyboard-first Hyprland desktop shell built with Quickshell and packaged as a
-Nix flake.
+A keyboard-first desktop shell for Hyprland, built with Quickshell.
 
-Desktop Shell treats the bar, launcher, control center, lock screen, and window
-navigation as one coherent interface. It follows live compositor and system
-services instead of maintaining a second desktop state database.
-
-Desktop Shell is actively developed and used daily on NixOS with Hyprland.
-The public configuration and CLI may evolve as the standalone packaging is
-exercised across more systems.
+A bar, launcher, spatial window switcher, control center, clipboard history,
+wallpaper picker, and lock screen that work together. Desktop Shell reads live
+state from Hyprland and the desktop's services. NixOS and Home Manager handle
+installation and configuration.
 
 https://github.com/user-attachments/assets/14bcbe04-3493-41c1-a380-b65dd58fe4a0
 
-## Features
+## Install
 
-- Output-aware bar with workspaces, tray, calendar, battery, audio, metrics,
-  recording status, and configurable network controls.
-- Launcher with separate application-launch and existing-window focus modes,
-  usage-aware ordering, and optional Firefox-compatible tab search.
-- Spatial Alt-Tab overview with workspace previews, directional
-  navigation, drag-to-workspace, and scrolling-layout geometry.
-- Control center with notification history, persistent NetworkManager Wi-Fi
-  state, BlueZ device management, safe compositor-native display layouts,
-  brightness and power controls, and a per-stream PipeWire mixer.
-- Clipboard history, wallpaper picker, lock screen, media-change notifications,
-  focus mode, and a generated keybinding reference.
-- One `desktop-shell` command for systemd lifecycle, diagnostics, UI actions,
-  and compositor keybindings.
-- Typed Home Manager configuration and a NixOS module for PAM lock and an
-  optional greetd login greeter.
+The supported setup is **NixOS, Home Manager, and Hyprland with Lua
+configuration**, launched through UWSM. Start with an existing Hyprland session.
 
-## Requirements
+Follow the [installation guide](docs/installation.md), then the
+[user guide](docs/user-guide.md). The shell supplies its own compositor
+integration; your applications, workspace bindings, monitor rules, and login
+manager stay in your configuration.
 
-Desktop Shell currently supports Hyprland on NixOS or another Nix-managed Linux
-system. Its runtime integration expects:
+## What it does
 
-- a UWSM-managed Wayland session;
-- systemd user services;
-- NetworkManager for the Wi-Fi page;
-- PipeWire for audio controls;
-- BlueZ for Bluetooth controls;
-- `hyprpaper` for wallpaper application.
+- A bar on each display, with workspaces, tray, calendar, audio, battery, system
+  metrics, and network status.
+- An application launcher with a separate search for open windows, launch
+  profiles, and optional browser-tab search.
+- A spatial Alt-Tab overview with live workspace previews and drag-to-workspace.
+- A control center for notifications, Wi-Fi, Bluetooth, PipeWire audio, displays,
+  brightness, and power controls.
+- Clipboard search, a wallpaper picker, media notifications, focus mode, and a
+  keybinding reference.
+- A separate PAM-backed lock screen and an optional greetd login screen.
 
-Individual surfaces degrade when their service or hardware is absent. For
-example, brightness uses a kernel backlight when available and can fall back to
-DDC/CI when the monitor and system expose it.
-
-## Installation
-
-Use the flake's Home Manager module for the user service and configuration. On
-NixOS, also import its NixOS module for the lock-screen PAM service and the
-optional greetd greeter. Home Manager loads the product’s Hyprland Lua
-integration automatically when it manages Hyprland; other configurations load
-the same installed entry point.
-
-See [Installation](docs/installation.md) for a complete flake example and
-[Configuration](docs/configuration.md) for the option reference. Design
-principles and their code owners are documented in [Design notes](DESIGN.md).
-
-After activation:
-
-```console
-$ desktop-shell status
-$ desktop-shell doctor
-```
-
-Keep application and navigation bindings in your Hyprland configuration; a
-working set and the window pop-out API are documented in
-[Keybindings](docs/keybindings.md). The product handles Escape only while its
-relevant popups are mapped.
+NetworkManager supplies Wi-Fi controls, PipeWire supplies audio, BlueZ supplies
+Bluetooth, and hyprpaper applies wallpapers. Hardware controls appear as their
+backends become available. Tailscale and browser tabs are optional integrations.
 
 ## Documentation
 
-- [Installation](docs/installation.md)
-- [Configuration](docs/configuration.md)
-- [Commands](docs/commands.md)
-- [Keybindings](docs/keybindings.md)
-- [Browser tabs](docs/browser-tabs.md)
-- [Architecture](docs/architecture.md)
-- [Design notes](DESIGN.md)
-- [Contributing](CONTRIBUTING.md)
+- [Installation](docs/installation.md) — modules, prerequisites, and first login
+- [User guide](docs/user-guide.md) — everyday controls and keyboard navigation
+- [Configuration](docs/configuration.md) — Home Manager options
+- [Keybindings](docs/keybindings.md) — suggested Hyprland bindings
+- [Commands](docs/commands.md) — CLI reference
+- [Troubleshooting](docs/troubleshooting.md) — diagnostics and removal
+- [Browser tabs](docs/browser-tabs.md) · [Login greeter](docs/greeter.md) ·
+  [Session lock](docs/lock-security.md)
+
+For contributors: [Contributing](CONTRIBUTING.md),
+[Architecture](docs/architecture.md), and [Design notes](DESIGN.md).
 
 ## Development
 
 ```console
 $ nix develop
 $ nix flake check
-$ nix build
+$ nix build --quiet
 ```
-
-See [Contributing](CONTRIBUTING.md) before changing backend contracts, runtime
-dependencies, or compositor integration.
 
 ## License
 

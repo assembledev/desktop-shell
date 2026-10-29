@@ -20,7 +20,7 @@ $ nix flake check
 Build the default package when a change affects packaging or runtime inputs:
 
 ```console
-$ nix build
+$ nix build --quiet
 ```
 
 The check set covers Nix, shell, QML, and the browser bridge. A successful
@@ -58,6 +58,8 @@ do not transfer files to peers or send notifications to the running desktop.
   messaging host.
 - `nix/` contains the package and system integration modules.
 - `docs/` contains user and developer documentation.
+- `examples/home.nix` is the public NixOS + Hyprland Home Manager setup; keep it
+  covered by the module checks when changing integration.
 
 See [Architecture](docs/architecture.md) for the ownership boundaries between
 these parts.

@@ -195,6 +195,63 @@ for invalid_json in '{' '[]' 'null' '' '{"output":"a\u0000b"}'; do
   fi
 done
 
+# Service inspection and recovery must survive invalid config without setting
+# up wallpaper, persistent state, or runtime device backends.
+lifecycle_calls="$test_root/lifecycle-calls"
+export DESKTOP_SHELL_TEST_LIFECYCLE_CALLS="$lifecycle_calls"
+printf '#!%s\n' "$(command -v bash)" >"$test_bin/systemctl"
+cat >>"$test_bin/systemctl" <<'SH'
+printf '%s\n' "$*" >>"$DESKTOP_SHELL_TEST_LIFECYCLE_CALLS"
+if [ "$DESKTOP_SHELL_TEST_SERVICE_INACTIVE" = 1 ]; then
+  case "$*" in
+    "--user --quiet is-active desktop-shell.service") exit 3 ;;
+    "--user is-active desktop-shell.service")
+      printf 'inactive\n'
+      exit 3
+      ;;
+  esac
+fi
+SH
+printf '#!%s\n' "$(command -v bash)" >"$test_bin/journalctl"
+cat >>"$test_bin/journalctl" <<'SH'
+printf '%s\n' "$*" >>"$DESKTOP_SHELL_TEST_LIFECYCLE_CALLS"
+SH
+chmod +x "$test_bin/systemctl" "$test_bin/journalctl"
+lifecycle_cli() {
+  HOME="$test_root/lifecycle-home" \
+    XDG_CONFIG_HOME="$test_root/lifecycle-config" \
+    XDG_STATE_HOME="$test_root/lifecycle-state" \
+    XDG_RUNTIME_DIR="$test_root/lifecycle-runtime" \
+    DESKTOP_SHELL_CONFIG="$config_fixture" \
+    PATH="$test_bin:$PATH" \
+    bash "$source_root/src/backend/desktop-shell.sh" "$@"
+}
+printf '{\n' >"$config_fixture"
+lifecycle_cli status | grep -Fx 'desktop-shell.service: active' >/dev/null
+for action in start stop restart logs; do lifecycle_cli "$action"; done
+if lifecycle_cli doctor >"$test_root/doctor-output" 2>&1; then
+  printf 'doctor must fail for invalid configuration\n' >&2
+  exit 1
+fi
+grep -F 'config: invalid' "$test_root/doctor-output" >/dev/null
+grep -Fx 'hyprland: reachable' "$test_root/doctor-output" >/dev/null
+grep -Fx 'service: active' "$test_root/doctor-output" >/dev/null
+printf '{}\n' >"$config_fixture"
+lifecycle_cli doctor >"$test_root/doctor-output"
+grep -F 'config: ok' "$test_root/doctor-output" >/dev/null
+inactive_status=0
+DESKTOP_SHELL_TEST_SERVICE_INACTIVE=1 lifecycle_cli status >"$test_root/lifecycle-status" || inactive_status="$?"
+test "$inactive_status" = 3
+grep -Fx 'desktop-shell.service: inactive' "$test_root/lifecycle-status" >/dev/null
+grep -Fx -- '--user start desktop-shell.service' "$lifecycle_calls" >/dev/null
+grep -Fx -- '--user stop desktop-shell.service' "$lifecycle_calls" >/dev/null
+grep -Fx -- '--user restart desktop-shell.service' "$lifecycle_calls" >/dev/null
+grep -Fx -- '--user-unit desktop-shell.service --no-pager -n 200' "$lifecycle_calls" >/dev/null
+test ! -e "$test_root/lifecycle-home"
+test ! -e "$test_root/lifecycle-state"
+test ! -e "$test_root/lifecycle-runtime"
+rm "$test_bin/systemctl" "$test_bin/journalctl"
+
 fast_ipc_args="$test_root/fast-ipc-args"
 invalid_config="$test_root/invalid-config.json"
 printf '{\n' >"$invalid_config"

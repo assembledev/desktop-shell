@@ -47,9 +47,9 @@ Hyprland must use Lua configuration.
 Set `hyprlandPackage` when the session uses a pinned or patched Hyprland build.
 This keeps the packaged `hyprctl` compatible with the running compositor.
 
-The service target must be part of the Wayland session and carry
-`WAYLAND_DISPLAY`. Most UWSM and Home Manager Hyprland sessions already expose
-`graphical-session.target` for this purpose.
+The service target must belong to the UWSM session and carry
+`WAYLAND_DISPLAY`. The default `graphical-session.target` is used by the
+[installation example](../examples/home.nix).
 
 ## Workspaces
 
@@ -110,18 +110,12 @@ programs.desktop-shell.launcher = {
 };
 ```
 
-Profiles are selected as `@<name>` in the launcher. `autoStartProfile` applies
-the named profile once at graphical session startup. Missing applications open
-directly on their target workspaces through Hyprland's native `workspace
-<id> silent` exec rule with per-exec `no_initial_focus = true`. This prevents
-profile startup from taking focus without disabling later user-initiated
-activation requests from those applications.
-Existing matching windows move with `follow = false`, without switching the
-visible workspace. Inactive windows move first. If the active window itself
-belongs elsewhere, it moves last; Hyprland then selects the remaining window on
-the visible workspace once. Repeated requests made while an application is
-still mapping share a short in-memory launch lease instead of starting
-duplicates.
+Select profiles with `@<name>` in the launcher. `autoStartProfile` applies
+once per graphical session. Missing applications launch on their target
+workspaces; matching windows move there without switching your visible
+workspace. Repeated requests while an application is opening share the pending
+launch. See [profile commands](commands.md#launcher) to inspect placement or
+wait for completion.
 
 `label` defaults to the profile ID. `description` is optional and otherwise
 lists the resolved application names. `icon` is an optional freedesktop icon
@@ -173,22 +167,16 @@ module does not take ownership of its monitor policy.
 
 ## Multiple displays
 
-Bars appear on each output by default. Each bar uses that output's logical
-geometry, scale and orientation, highlights its visible workspace, and marks
-keyboard focus with an accented edge. Workspace IDs and application state are
-shared across the session.
+Bars appear on every output by default. Keyboard actions open surfaces on the
+compositor-focused output; bar clicks open them on that bar's output. Open
+surfaces stay there until closed. Notifications and OSD appear once on the
+focused output at the time of the event.
 
-Keyboard commands open shell surfaces on the compositor-focused output, even
-when its workspace is empty. Bar clicks open menus on that bar's output.
-Surfaces stay there until closed or explicitly invoked on another output.
-Notifications and OSD appear once on the focused output when their event occurs;
-existing items keep their output when focus changes.
-
-Connecting an output adds its presentations without restarting the shell.
-Disconnecting closes its interactive surfaces and removes its transient items.
-The next invocation uses the remaining focused output. The `output` option
-restricts bars and supplies a fallback when compositor focus is unavailable;
-it does not pin keyboard surfaces. Wallpaper selection remains session-wide.
+Hotplug adds and removes output presentations without restarting the shell.
+Disconnecting an output closes its surfaces and removes its transient items.
+`output` restricts bars and provides a fallback when compositor focus is
+unavailable; keyboard actions still follow focus. Wallpaper selection is
+session-wide.
 
 ## Bar
 
@@ -199,21 +187,11 @@ it does not pin keyboard surfaces. Wallpaper selection remains session-wide.
 | `bar.workspaceIcons` | `true` | Show application icons in workspace controls |
 | `bar.networkControls` | `[]` | Ordered generic status/toggle providers |
 
-The landscape bar allocates both sides around the centered clock from their
-measured content. When space is constrained it shortens the clock to the time
-and collapses the active workspace title before allowing either side to cross
-the center; wider outputs keep the full date and expanded workspace. The right
-side collapses tray items into an overflow shelf first. If the status controls
-and the smallest tray representation still cannot fit beside the clock, network
-labels hide as a final fallback, preserving each provider icon and status light
-(including transition and error colors).
-
-Bar spacing follows a semantic 2 px scale owned by `BarSpacing.qml`. The bar
-edge uses `edgeInset`; tray, status, and action clusters are separated by
-`groupGap`; parents place neighboring controls with `itemGap`; and controls own
-only their internal `itemPadding` and `contentGap`. Compact mode selects denser
-landscape values from the same hierarchy instead of applying per-control
-margin exceptions; portrait mode retains touch-sized actions and padding.
+On narrow displays the bar shortens the clock and workspace title, folds tray
+items into an overflow shelf, then hides optional network labels as needed.
+Compact mode uses denser landscape spacing; portrait displays retain larger
+actions. Shared spacing and theme owners are described in
+[Design notes](../DESIGN.md).
 
 ## Keyboard layout labels
 
@@ -428,12 +406,5 @@ surfaceAccent surfaceToast borderSubtle
 Surface colors include their opacity. When changing the base palette, update
 the corresponding surface values as well; they are explicit colors rather than
 being recomputed from a base color at Home Manager evaluation time.
-
-The previous primitive names are accepted as renamed Home Manager options and
-emit a migration warning. Their mappings are `foreground` → `textPrimary`,
-`text` → `textSecondary`, `mutedAlt` → `textMuted`, `muted` → `textDisabled`,
-`terminalBlue` → `accent`, `blue` → `info`, `green` → `success`, `yellow` →
-`warning`, `orange` → `caution`, `red` → `danger`, `brightRed` →
-`dangerStrong`, and `purple` → `special`.
 
 See [Design notes](../DESIGN.md) for semantic roles and visual principles.
