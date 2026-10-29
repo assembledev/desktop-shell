@@ -425,16 +425,29 @@ Scope {
     replaceFocusOrder([focused].concat(focusOrder.filter(function(item) { return item !== focused; })));
   }
 
+  function repairSelection() {
+    if (!sessionActive)
+      return;
+    const candidates = orderedWindows();
+    if (candidates.length === 0) {
+      cancel();
+    } else if (!candidates.some(win => addressOf(win) === selectedAddress)) {
+      selectedAddress = addressOf(candidates[0]);
+    }
+  }
+
   function acceptClientSnapshot(clients) {
-    const selection = selectedAddress;
+    if (stateRefreshQueued) {
+      finishClientSnapshot();
+      return;
+    }
     windows = LauncherSearch.manageableClients(clients);
     monitors = (Hyprland.monitors.values || []).map(monitorData);
     const current = Hyprland.activeToplevel;
     activeWindow = windowByAddress(HyprlandWindow.normalizedAddress(current?.address))
       || (current ? windowDataForToplevel(current) : {});
     normalizeFocusOrder();
-    if (sessionActive && windowByAddress(selection))
-      selectedAddress = selection;
+    repairSelection();
     finishClientSnapshot();
   }
 
@@ -447,7 +460,7 @@ Scope {
     const queued = stateRefreshQueued;
     stateRefreshQueued = false;
     if (queued && open)
-      Qt.callLater(function() { refreshState(); });
+      Qt.callLater(function() { if (root.open) refreshState(); });
   }
 
   function refreshState() {
@@ -458,7 +471,7 @@ Scope {
   function advance(action) {
     const candidates = orderedWindows();
     if (candidates.length === 0) {
-      open = false;
+      cancel();
       return false;
     }
 
@@ -499,7 +512,7 @@ Scope {
   }
 
   function commitSelection() {
-    const address = selectedAddress;
+    const address = validWindow(windowByAddress(selectedAddress)) ? selectedAddress : "";
     presentationTimer.stop();
     sessionActive = false;
     open = false;
@@ -586,6 +599,22 @@ Scope {
 
     function onActiveToplevelChanged() {
       root.recordFocusedAddress(Hyprland.activeToplevel?.address || "");
+    }
+
+    function onRawEvent(event) {
+      if (!root.sessionActive)
+        return;
+      if (event.name === "closewindow") {
+        const address = HyprlandWindow.normalizedAddress(event.data);
+        root.windows = root.windows.filter(win => root.addressOf(win) !== address);
+        root.repairSelection();
+      }
+      if (root.open && ["openwindow", "closewindow", "movewindowv2", "windowtitlev2", "changefloatingmode"].indexOf(event.name) >= 0) {
+        if (clientSnapshot.pending)
+          root.stateRefreshQueued = true;
+        else
+          refreshTimer.restart();
+      }
     }
   }
 
