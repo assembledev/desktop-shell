@@ -1097,8 +1097,10 @@ Scope {
   function toggleOpen(keyboard = true, screen) {
     if (open && placement.matches(screen))
       open = false;
-    else
+    else {
+      page = "main";
       openPanel(keyboard, screen);
+    }
   }
 
   function openWifiPage(keyboard = true, screen) {
@@ -2489,6 +2491,7 @@ Scope {
       root.toggleOpen();
     }
     function open() {
+      root.page = "main";
       if (root.open)
         root.refreshAll();
       root.openPanel();

@@ -45,7 +45,8 @@ into a pinned floating window and return it to tiling when toggled again.
 Click the **clock** for the calendar, the **network icon** for connection
 details, the **notification bell** for the control center, and the **power
 icon** for lock, suspend, restart, and shutdown. **Super+N** also opens the
-control center.
+control center. Opening it from the bar or **Super+N** starts at the overview.
+The network details shortcut opens its Wi-Fi page directly.
 
 The control center groups quick controls above notification history. Wi-Fi,
 Bluetooth, Display, and Sound open their detailed pages:
