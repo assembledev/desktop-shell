@@ -106,6 +106,14 @@ rm "$SEND_ARGUMENTS"
 if (tailscale_inbox_json -1) >/dev/null 2>&1; then exit 1; fi
 if (tailscale_inbox_json 1) >/dev/null 2>&1; then exit 1; fi
 test ! -e "$SEND_ARGUMENTS"
+# Large status and inbox responses must travel through stdin rather than argv.
+jq -n '{BackendState:"Running", Self:{ID:"self", HostName:"local"}, Peer:
+  ([range(0;3000) | {key:(tostring), value:{ID:(tostring), HostName:("peer-" + tostring), Online:true}}] | from_entries)}' >"$test_root/status"
+test "$(wc -c <"$test_root/status")" -gt 131072
+tailscale_snapshot_json false | jq -e '.available and (.peers | length == 3000)' >/dev/null
+jq -n '[range(0;5000) | {Name:("file-" + tostring + ".txt"), Size:1}]' >"$test_root/files"
+test "$(wc -c <"$test_root/files")" -gt 131072
+tailscale_snapshot_json | jq -e '.inboxAvailable and (.files | length == 5000)' >/dev/null
 printf '{"BackendState":"Stopped","Self":{},"Peer":{}}' >"$test_root/status"
 tailscale_snapshot_json | jq -e '(.connected|not) and (.peers|length == 0)' >/dev/null
 printf 'invalid' >"$test_root/status"

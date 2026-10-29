@@ -23,7 +23,8 @@ tailscale_snapshot_json() {
   else
     files='null'
   fi
-  jq -nc --argjson status "$status" --argjson files "$files" --argjson inbox "$inbox_available" '
+  jq -sc --argjson inbox "$inbox_available" '
+    .[0] as $status | .[1] as $files |
     def peer:
       {id: .ID, name: (if (.DNSName // "") != "" then (.DNSName | split(".")[0]) else .HostName end),
        hostname: (.HostName // ""), dnsName: ((.DNSName // "") | rtrimstr(".")), os: (.OS // ""),
@@ -38,7 +39,7 @@ tailscale_snapshot_json() {
      peers: (if $connected then [$status.Peer[]? | select(.ShareeNode != true) | peer]
        | sort_by([if .online then 0 else 1 end, (.name | ascii_downcase), .id]) else [] end),
      files: [($files // [])[] | {name: .Name, size: .Size}], inboxAvailable: $inbox}
-  '
+  ' <<<"$status"$'\n'"$files"
 }
 
 # The model owns the waiting connection directly, so disabling it cancels curl
