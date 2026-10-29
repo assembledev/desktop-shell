@@ -45,14 +45,14 @@ PopupWindow {
   TextMetrics {
     id: tipMetrics
     font.family: theme.uiFontFamily
-    font.pixelSize: 10
+    font.pixelSize: 11
     text: root.text
   }
 
   Rectangle {
     anchors.fill: parent
     anchors.margins: root.edgePadding
-    radius: 7
+    radius: theme.controlRadius
     color: theme.surfaceToast
     border.color: theme.borderMuted
     border.width: 1
@@ -64,7 +64,7 @@ PopupWindow {
       text: root.text
       color: theme.textPrimary
       font.family: theme.uiFontFamily
-      font.pixelSize: 10
+      font.pixelSize: 11
       wrapMode: Text.WrapAtWordBoundaryOrAnywhere
       horizontalAlignment: Text.AlignHCenter
     }
