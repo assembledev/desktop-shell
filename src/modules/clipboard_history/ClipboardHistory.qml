@@ -96,19 +96,33 @@ Scope {
     if (!open)
       return;
     const query = search.text.toLowerCase().trim();
-    filteredModel.clear();
+    const selectedId = currentItem()?.entryId;
+    const previousIndex = list.currentIndex;
+    let row = 0;
+    let selectedIndex = -1;
 
     for (let i = 0; i < entries.length; i++) {
       const item = entries[i];
       const haystack = (displayLabel(item) + " " + (item.kind || "") + " " + (item.dimensions || "")).toLowerCase();
-      if (query.length === 0 || haystack.indexOf(query) !== -1)
-        filteredModel.append(item);
+      if (query.length > 0 && haystack.indexOf(query) === -1)
+        continue;
+      let existing = row;
+      while (existing < filteredModel.count && filteredModel.get(existing).entryId !== item.entryId)
+        existing++;
+      if (existing < filteredModel.count) {
+        if (existing !== row)
+          filteredModel.move(existing, row, 1);
+        filteredModel.set(row, item);
+      } else {
+        filteredModel.insert(row, item);
+      }
+      if (item.entryId === selectedId)
+        selectedIndex = row;
+      row++;
     }
-
-    if (filteredModel.count > 0 && list.currentIndex < 0)
-      list.currentIndex = 0;
-    if (filteredModel.count === 0)
-      list.currentIndex = -1;
+    if (filteredModel.count > row)
+      filteredModel.remove(row, filteredModel.count - row);
+    list.currentIndex = selectedIndex >= 0 ? selectedIndex : Math.min(Math.max(0, previousIndex), row - 1);
   }
 
   function refresh(showLoading) {
