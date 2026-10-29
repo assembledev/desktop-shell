@@ -485,7 +485,7 @@ Scope {
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           height: 1
-          color: root.outputFocused ? Qt.alpha(theme.info, 0.45) : theme.borderSubtle
+          color: theme.borderSubtle
         }
 
         RowLayout {
