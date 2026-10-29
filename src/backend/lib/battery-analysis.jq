@@ -19,8 +19,10 @@ if type == "object" and .bootId == $bootId then . else {} end |
 (.lastEnergyUwh | integer) as $previousEnergy |
 (.totalWh | nonnegative) as $previousWh |
 (.totalSeconds | integer) as $previousSeconds |
+# Energy counters can stay unchanged between updates; those intervals still
+# belong in the elapsed discharge time used by both averages.
 (if $status == "Discharging" and .lastStatus == "Discharging"
-    and $energy > 0 and $previousEnergy > $energy
+    and $energy > 0 and $previousEnergy >= $energy
     and $now > $previousTime and $now - $previousTime <= 120
  then $now - $previousTime else 0 end) as $seconds |
 (if $seconds > 0 then ($previousEnergy - $energy) / 1000000 else 0 end) as $wh |

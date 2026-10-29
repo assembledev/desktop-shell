@@ -44,30 +44,52 @@ mkdir -p "$bat_dir"
 printf '80\n' >"$bat_dir/capacity"
 printf 'Discharging\n' >"$bat_dir/status"
 printf '40000000\n' >"$bat_dir/energy_now"
-printf '10000000\n' >"$bat_dir/power_now"
+printf '6000000\n' >"$bat_dir/power_now"
 printf 'test-boot\n' >"$system_proc_root/sys/kernel/random/boot_id"
 sample_battery
-"$TEST_JQ" -e '.analysis.estimateSeconds == 14400 and .analysis.estimateText == "4h 00m" and .analysis.currentDraw == "10.0 W" and .analysis.bootSeconds == 0' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.analysis.estimateSeconds == 24000 and .analysis.estimateText == "6h 40m" and .analysis.currentDraw == "6.0 W" and .analysis.bootSeconds == 0' "$test_root/battery.json" >/dev/null
 
-# A 30-second discharge sample contributes to both rolling and boot totals.
+# Quantized energy readings still contribute elapsed discharge time. Until
+# energy changes, the remaining-time estimate uses the reported current draw.
 export TEST_SAMPLE_TIME=4030
+sample_battery
+"$TEST_JQ" -e '.analysis.bootSeconds == 30 and .analysis.hourSeconds == 30 and .analysis.bootWh == 0 and .analysis.estimateSeconds == 24000' "$test_root/battery.json" >/dev/null
+export TEST_SAMPLE_TIME=4060
 printf '39900000\n' >"$bat_dir/energy_now"
 sample_battery
-"$TEST_JQ" -e '.analysis.bootSeconds == 30 and .analysis.hourSeconds == 30 and .analysis.bootWh == 0.1 and .analysis.bootAverage == "12.0 W" and .analysis.estimateSeconds == 11970' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.analysis.bootSeconds == 60 and .analysis.hourSeconds == 60 and .analysis.bootWh == 0.1 and .analysis.bootAverage == "6.0 W" and .analysis.hourAverage == "6.0 W" and .analysis.estimateSeconds == 23940 and .analysis.estimateText == "6h 39m"' "$test_root/battery.json" >/dev/null
 
 # Ignore suspend gaps and charging transitions rather than inventing draw.
 export TEST_SAMPLE_TIME=4300
 printf '39000000\n' >"$bat_dir/energy_now"
 sample_battery
-"$TEST_JQ" -e '.analysis.bootSeconds == 30 and .analysis.bootWh == 0.1' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.analysis.bootSeconds == 60 and .analysis.bootWh == 0.1' "$test_root/battery.json" >/dev/null
 printf 'Charging\n' >"$bat_dir/status"
 sample_battery
 "$TEST_JQ" -e '.analysis.estimateText == "charging" and .analysis.currentDraw == "--" and .analysis.estimateSeconds == 0' "$test_root/battery.json" >/dev/null
 
-# Keep only the overlapping part of a sample at the rolling-hour boundary.
-printf '%s\n' '{"bootId":"test-boot","lastTs":4300,"lastEnergyUwh":39000000,"lastStatus":"Charging","totalWh":1,"totalSeconds":120,"history":[{"start":640,"end":760,"seconds":120,"wh":1}]}' >"$state_dir/battery-drain.json"
+# Charging-to-discharge transitions and rising energy reset the baseline
+# without adding time or negative consumption; subsequent samples still count.
+export TEST_SAMPLE_TIME=4330
+printf 'Discharging\n' >"$bat_dir/status"
 sample_battery
-"$TEST_JQ" -e '.analysis.hourSeconds == 60 and .analysis.hourWh == 0.5 and .analysis.hourAverage == "30.0 W"' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.analysis.bootSeconds == 60 and .analysis.bootWh == 0.1' "$test_root/battery.json" >/dev/null
+export TEST_SAMPLE_TIME=4360
+printf '39100000\n' >"$bat_dir/energy_now"
+sample_battery
+"$TEST_JQ" -e '.analysis.bootSeconds == 60 and .analysis.bootWh == 0.1' "$test_root/battery.json" >/dev/null
+export TEST_SAMPLE_TIME=4390
+printf '39000000\n' >"$bat_dir/energy_now"
+sample_battery
+"$TEST_JQ" -e '.analysis.bootSeconds == 90 and .analysis.bootWh == 0.2' "$test_root/battery.json" >/dev/null
+
+# Keep only the overlapping part of a sample at the rolling-hour boundary,
+# including elapsed time from unchanged energy readings.
+export TEST_SAMPLE_TIME=4300
+printf 'Charging\n' >"$bat_dir/status"
+printf '%s\n' '{"bootId":"test-boot","lastTs":4300,"lastEnergyUwh":39000000,"lastStatus":"Charging","totalWh":1,"totalSeconds":120,"history":[{"start":640,"end":760,"seconds":120,"wh":0},{"start":760,"end":790,"seconds":30,"wh":0.15}]}' >"$state_dir/battery-drain.json"
+sample_battery
+"$TEST_JQ" -e '.analysis.hourSeconds == 90 and .analysis.hourWh == 0.15 and .analysis.hourAverage == "6.0 W"' "$test_root/battery.json" >/dev/null
 printf 'new-boot\n' >"$system_proc_root/sys/kernel/random/boot_id"
 sample_battery
 "$TEST_JQ" -e '.analysis.bootWh == 0 and .analysis.hourSeconds == 0' "$test_root/battery.json" >/dev/null
