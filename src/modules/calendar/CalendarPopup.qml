@@ -39,6 +39,11 @@ Scope {
   readonly property bool portraitMode: Number(window.screen?.width || 0) > 0 && Number(window.screen?.width || 0) < Number(window.screen?.height || 0)
 
   function resetToToday() {
+    monthTransition.stop();
+    calendarGrid.opacity = 1;
+    calendarGrid.x = 0;
+    pendingMonth = viewMonth;
+    pendingYear = viewYear;
     today = new Date();
     showMonth(today.getMonth(), today.getFullYear());
   }
@@ -73,6 +78,7 @@ Scope {
   }
 
   function closeCalendar() {
+    monthTransition.stop();
     open = false;
   }
 
