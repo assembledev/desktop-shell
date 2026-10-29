@@ -299,11 +299,11 @@ Scope {
   }
 
   function notificationPopupPersistent(notification) {
-    return notificationIsResident(notification) || Number(notification?.expireTimeout || -1) === 0 || Boolean(notification?.hasInlineReply);
+    return notificationIsResident(notification) || Number(notification?.expireTimeout ?? -1) === 0 || Boolean(notification?.hasInlineReply);
   }
 
   function notificationPopupDuration(notification) {
-    const requested = Number(notification?.expireTimeout || -1);
+    const requested = Number(notification?.expireTimeout ?? -1);
     return requested > 0 ? Math.max(1000, requested) : popupTimeout;
   }
 
