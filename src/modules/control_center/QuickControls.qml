@@ -16,6 +16,7 @@ ColumnLayout {
     property real value
     property real maximum: 1
     property bool available: true
+    property bool pending: false
     property bool muted: false
     property bool boostAllowed: false
     property bool muteControl: true
@@ -41,11 +42,16 @@ ColumnLayout {
       onClicked: level.toggleMute()
     }
     ShellSlider {
+      id: slider
       Layout.fillWidth: true
       colors: quick.colors
       from: 0
       to: level.maximum
-      value: level.value
+      Binding on value {
+        when: !slider.pressed && !level.pending
+        value: level.value
+        restoreMode: Binding.RestoreNone
+      }
       boostAllowed: level.boostAllowed
       dimmed: level.muted
       enabled: level.available
@@ -164,11 +170,21 @@ ColumnLayout {
         name: "Brightness"
         muteControl: false
         value: quick.controller.brightness
+        pending: quick.controller.brightnessBusy
         available: quick.controller.brightnessSupported && quick.controller.brightnessWritable
         onMoved: value => quick.controller.setBrightness(value)
         visible: quick.controller.brightnessSupported
       }
     }
+  }
+  Text {
+    Layout.fillWidth: true
+    visible: quick.controller.brightnessError.length > 0
+    text: quick.controller.brightnessError
+    color: quick.colors.danger
+    font.family: quick.colors.uiFontFamily
+    font.pixelSize: 12
+    wrapMode: Text.Wrap
   }
   ShellGroup {
     Layout.fillWidth: true

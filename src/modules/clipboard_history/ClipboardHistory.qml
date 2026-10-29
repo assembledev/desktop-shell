@@ -36,7 +36,10 @@ Scope {
   property var entries: []
   property var previewPaths: ({})
   property double ageNow: Date.now() / 1000
-  property string message: ""
+  property string readError: ""
+  property string actionError: ""
+  readonly property string message: actionError || readError
+  readonly property bool actionRunning: actionInProgress()
   property bool wipeArmed: false
 
   onOpenChanged: {
@@ -128,7 +131,7 @@ Scope {
     inputIntent.claimKeyboard();
     ageNow = Date.now() / 1000;
     open = true;
-    message = "";
+    actionError = "";
     if (search.text.length > 0)
       search.text = "";
     else
@@ -158,20 +161,28 @@ Scope {
     return filteredModel.get(list.currentIndex);
   }
 
+  function actionInProgress() {
+    return copyProc.running || deleteProc.running || wipeProc.running;
+  }
+
   function copyItem(item) {
-    if (!item || !item.record || copyProc.running)
+    if (!item || !item.record || actionInProgress())
       return;
-    message = "";
+    actionError = "";
     copyProc.exec([backend, "clipboard", "copy", item.record]);
   }
 
   function deleteItem(item) {
-    if (!item || !item.record)
+    if (!item || !item.record || actionInProgress())
       return;
+    actionError = "";
     deleteProc.exec([backend, "clipboard", "delete", item.record, item.entryId, item.kind]);
   }
 
   function wipe() {
+    if (actionInProgress())
+      return;
+    actionError = "";
     if (!wipeArmed) {
       wipeArmed = true;
       wipeConfirmTimer.restart();
@@ -217,12 +228,15 @@ Scope {
     stdout: StdioCollector {
       onStreamFinished: {
         try {
-          root.entries = JSON.parse(text);
-          root.message = "";
+          const entries = JSON.parse(text);
+          if (!Array.isArray(entries))
+            throw new Error("Expected a clipboard entry list");
+          root.entries = entries;
+          root.readError = "";
           root.hydrated = true;
         } catch (error) {
           root.entries = [];
-          root.message = "Failed to read clipboard";
+          root.readError = "Failed to read clipboard";
           console.error("clipboard-history: JSON parse failed: " + error);
         }
         root.loading = false;
@@ -230,8 +244,10 @@ Scope {
         root.applyFilter();
       }
     }
-    onExited: {
+    onExited: function(exitCode, exitStatus) {
       root.loading = false;
+      if (exitCode !== 0 || exitStatus !== 0)
+        root.readError = "Failed to read clipboard";
       if (root.refreshPending) {
         root.refreshPending = false;
         Qt.callLater(function() { root.refresh(false); });
@@ -241,25 +257,58 @@ Scope {
 
   Process {
     id: copyProc
+    property bool didStart: false
+    onStarted: didStart = true
+    onRunningChanged: {
+      if (!running) {
+        if (!didStart)
+          root.actionError = "Failed to copy clipboard entry";
+        didStart = false;
+      }
+    }
     onExited: function(exitCode, exitStatus) {
       if (exitCode === 0 && exitStatus === 0)
         root.closePicker();
       else
-        root.message = "Failed to copy clipboard entry";
+        root.actionError = "Failed to copy clipboard entry";
     }
   }
 
   Process {
     id: deleteProc
-    onExited: root.refresh(false)
+    property bool didStart: false
+    onStarted: didStart = true
+    onRunningChanged: {
+      if (!running) {
+        if (!didStart)
+          root.actionError = "Failed to delete clipboard entry";
+        didStart = false;
+      }
+    }
+    onExited: function(exitCode, exitStatus) {
+      if (exitCode !== 0 || exitStatus !== 0)
+        root.actionError = "Failed to delete clipboard entry";
+      root.refresh(false);
+    }
   }
 
   Process {
     id: wipeProc
+    property bool didStart: false
+    onStarted: didStart = true
+    onRunningChanged: {
+      if (!running) {
+        if (!didStart)
+          root.actionError = "Failed to wipe clipboard history";
+        didStart = false;
+      }
+    }
     command: [root.backend, "clipboard", "wipe"]
-    onExited: function(exitCode) {
-      if (exitCode === 0)
+    onExited: function(exitCode, exitStatus) {
+      if (exitCode === 0 && exitStatus === 0)
         root.previewPaths = ({});
+      else
+        root.actionError = "Failed to wipe clipboard history";
       root.refresh(false);
     }
   }
@@ -367,6 +416,7 @@ Scope {
             glyph: root.wipeArmed ? "warning" : "trash"
             tooltip: root.wipeArmed ? "Click again to wipe" : "Wipe clipboard history"
             danger: true
+            enabled: !root.actionRunning
             onClicked: root.wipe()
           }
         }

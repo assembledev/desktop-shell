@@ -311,6 +311,10 @@ The picker calls these commands internally; they are also useful in scripts:
 
 The picker lists files below the configured wallpaper directory. `set` also
 accepts an explicit image path, which is useful for external wallpaper tools.
+`set` and `apply` return failure if the image cannot be applied; `set` saves the
+selection only after all connected outputs accept it. The picker stays open
+with an error when application fails. Optional greeter wallpaper synchronization
+is best-effort and does not change the session wallpaper result.
 
 ## Configuration and IPC
 

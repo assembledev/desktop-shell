@@ -163,6 +163,10 @@ TestCase {
     property bool brightnessWritable: true
     property bool displaysReady: true
     property real brightness: .75
+    property bool brightnessBusy: false
+    property string brightnessError: ""
+    property bool deferBrightness: false
+    property int pendingBrightnessPercent: 0
     property var sink: ({
         audio: {
           volume: .64,
@@ -194,7 +198,11 @@ TestCase {
       focusMode = value;
     }
     function setBrightness(value) {
-      brightness = value;
+      pendingBrightnessPercent = Math.round(value * 100);
+      if (deferBrightness)
+        brightnessBusy = true;
+      else
+        brightness = value;
     }
     function setNodeVolume(node, value) {
       node.audio.volume = value;
@@ -218,6 +226,11 @@ TestCase {
     clicks = 0;
     mock.page = "main";
     mock.dnd = false;
+    mock.brightness = .75;
+    mock.brightnessBusy = false;
+    mock.brightnessError = "";
+    mock.deferBrightness = false;
+    mock.pendingBrightnessPercent = 0;
   }
   function test_tooltipFollowsShellTheme() {
     const button = createTemporaryObject(iconComponent, suite);
@@ -328,6 +341,50 @@ TestCase {
     keyClick(Qt.Key_Right);
     verify(b.value > .5);
     compare(b.Accessible.name, "Output level");
+  }
+  function test_brightnessWaitsForObservedState_data() {
+    return [
+      { tag: "failed-unchanged", observed: .75, failed: true },
+      { tag: "hardware-clamped", observed: .8, failed: false }
+    ];
+  }
+  function test_brightnessWaitsForObservedState(row) {
+    mock.deferBrightness = true;
+    const quick = createTemporaryObject(quickComponent, suite);
+    verify(quick);
+    const slider = find(quick, x => x.Accessible?.name === "Brightness level");
+    verify(slider);
+    slider.forceActiveFocus(Qt.TabFocusReason);
+    keyClick(Qt.Key_Right);
+    verify(mock.brightnessBusy);
+    compare(mock.brightness, .75, "a request must not become an observed level");
+    verify(slider.value > .75, "the thumb may track a pending request");
+    verify(find(quick, x => x.text === "75%"), "the numeric level remains observed");
+    mock.brightness = row.observed;
+    mock.brightnessError = row.failed ? "Could not change brightness" : "";
+    mock.brightnessBusy = false;
+    tryCompare(slider, "value", row.observed);
+    if (row.failed)
+      verify(find(quick, x => x.text === mock.brightnessError && x.visible), "failed changes have inline feedback");
+  }
+  function test_brightnessKeyboardRepeatsAccumulateWhilePending() {
+    mock.deferBrightness = true;
+    mock.brightness = .4;
+    const quick = createTemporaryObject(quickComponent, suite);
+    verify(quick);
+    const slider = find(quick, x => x.Accessible?.name === "Brightness level");
+    verify(slider);
+    slider.forceActiveFocus(Qt.TabFocusReason);
+    keyClick(Qt.Key_Right);
+    keyClick(Qt.Key_Right);
+    keyClick(Qt.Key_Right);
+    compare(mock.brightness, .4);
+    verify(mock.brightnessBusy);
+    compare(mock.pendingBrightnessPercent, 70);
+    fuzzyCompare(slider.value, .7, .001);
+    mock.brightness = .7;
+    mock.brightnessBusy = false;
+    tryCompare(slider, "value", .7);
   }
   function test_quickGeometry_data() {
     return [

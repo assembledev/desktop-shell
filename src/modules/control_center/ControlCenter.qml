@@ -94,6 +94,11 @@ Scope {
   property bool brightnessWritable: false
   property int pendingBrightnessPercent: 0
   property bool brightnessReady: false
+  property string brightnessActionError: ""
+  property string brightnessReadError: ""
+  readonly property string brightnessError: brightnessActionError || brightnessReadError
+  property bool brightnessPending: false
+  readonly property bool brightnessBusy: brightnessPending || brightnessProc.running
   property bool displaysReady: false
   property var displays: []
   property bool displayProfileAvailable: false
@@ -1401,7 +1406,7 @@ Scope {
     refreshSystemInfo();
     refreshBluetoothForPage();
     if (brightnessSupported)
-      brightnessProc.running = true;
+      refreshBrightness();
   }
 
   function refreshSystemInfo() {
@@ -1474,7 +1479,19 @@ Scope {
     refreshBluetooth();
   }
 
-  function updateBrightness(value) {
+  function refreshBrightness() {
+    if (brightnessProc.running) {
+      brightnessProc.refreshPending = true;
+      return;
+    }
+    brightnessProc.output = "";
+    brightnessProc.requested = true;
+    brightnessProc.running = true;
+  }
+
+  function updateBrightness(value, readback = false) {
+    if (!readback && brightnessBackend === "ddc" && brightnessBusy)
+      return;
     const raw = String(value).trim();
     if (raw.length === 0 || !isFinite(Number(raw)))
       return;
@@ -1488,15 +1505,10 @@ Scope {
   function setBrightness(value) {
     if (!brightnessSupported || !brightnessWritable)
       return;
-    const percent = Math.round(clamp(value, 0, 1) * 100);
-    if (brightnessBackend === "ddc") {
-      pendingBrightnessPercent = percent;
-      brightnessSetTimer.restart();
-    } else {
-      setBrightnessProc.exec([backend, "brightness", "set", String(percent)]);
-    }
-    brightness = percent / 100;
-    showOsd("brightness", brightness);
+    pendingBrightnessPercent = Math.round(clamp(value, 0, 1) * 100);
+    brightnessActionError = "";
+    brightnessPending = true;
+    brightnessSetTimer.restart();
   }
 
   function connectWifi(network, password) {
@@ -2238,9 +2250,40 @@ Scope {
 
   Process {
     id: brightnessProc
+    property string output: ""
+    property bool requested: false
+    property bool refreshPending: false
     command: [backend, "brightness", "get"]
     stdout: StdioCollector {
-      onStreamFinished: root.updateBrightness(text)
+      onStreamFinished: brightnessProc.output = text
+    }
+    onRunningChanged: {
+      // FailedToStart has no exited signal.
+      if (!running && requested) {
+        requested = false;
+        refreshPending = false;
+        root.brightnessReadError = "Could not start brightness command";
+        if (!setBrightnessProc.running && !brightnessSetTimer.running)
+          root.brightnessPending = false;
+      }
+    }
+    onExited: function (exitCode, exitStatus) {
+      requested = false;
+      const raw = output.trim();
+      const finished = !refreshPending && !setBrightnessProc.running && !brightnessSetTimer.running;
+      if (exitCode !== 0 || exitStatus !== 0 || raw.length === 0 || !isFinite(Number(raw))) {
+        root.brightnessReadError = "Could not read brightness";
+      } else {
+        root.brightnessReadError = "";
+        if (finished)
+          root.updateBrightness(raw, true);
+      }
+      if (finished)
+        root.brightnessPending = false;
+      if (refreshPending) {
+        refreshPending = false;
+        Qt.callLater(root.refreshBrightness);
+      }
     }
   }
 
@@ -2288,7 +2331,7 @@ Scope {
         if (capabilities.backend === "backlight" || capabilities.backend === "ddc")
           root.brightnessBackend = capabilities.backend;
         if (root.brightnessSupported) {
-          brightnessProc.running = true;
+          root.refreshBrightness();
           if (root.brightnessBackend === "backlight")
             brightnessWatchProc.running = true;
         }
@@ -2322,17 +2365,44 @@ Scope {
 
   Process {
     id: setBrightnessProc
+    property int requestedPercent: -1
+    onRunningChanged: {
+      if (!running && requestedPercent >= 0) {
+        requestedPercent = -1;
+        brightnessSetTimer.stop();
+        root.brightnessActionError = "Could not start brightness command";
+        root.brightnessPending = false;
+        root.refreshBrightness();
+      }
+    }
+    onExited: function (exitCode, exitStatus) {
+      const requested = requestedPercent;
+      requestedPercent = -1;
+      if (exitCode !== 0 || exitStatus !== 0)
+        root.brightnessActionError = "Could not change brightness";
+      if (root.pendingBrightnessPercent !== requested) {
+        if (!brightnessSetTimer.running)
+          brightnessSetTimer.restart();
+      } else {
+        brightnessSetTimer.stop();
+        root.refreshBrightness();
+      }
+    }
   }
 
   Timer {
     id: brightnessSetTimer
-    interval: 250
+    interval: root.brightnessBackend === "ddc" ? 250 : 0
     onTriggered: {
-      if (setBrightnessProc.running) {
-        restart();
+      if (setBrightnessProc.running)
+        return;
+      if (!root.brightnessSupported || !root.brightnessWritable) {
+        root.brightnessPending = false;
         return;
       }
-      setBrightnessProc.exec([backend, "brightness", "set", String(pendingBrightnessPercent)]);
+      setBrightnessProc.requestedPercent = root.pendingBrightnessPercent;
+      root.brightnessActionError = "";
+      setBrightnessProc.exec([backend, "brightness", "set", String(root.pendingBrightnessPercent)]);
     }
   }
 

@@ -28,30 +28,41 @@ read_current_wallpaper() {
 }
 
 preview_wallpaper() {
+  local path="$1" tries=25 snapshot monitors monitor
   ensure_hypr_env
-  path="$1"
-  [ -f "$path" ] || exit 0
+  if [ ! -f "$path" ] || [ ! -r "$path" ]; then
+    printf 'desktop-shell: Wallpaper image is not readable\n' >&2
+    return 1
+  fi
 
-  tries=25
-  while ! hyprctl hyprpaper listactive >/dev/null 2>&1; do
-    [ "$tries" -gt 0 ] || exit 0
+  while ! timeout --kill-after=1s 1s hyprctl hyprpaper listactive >/dev/null 2>&1; do
+    if [ "$tries" -eq 0 ]; then
+      printf 'desktop-shell: hyprpaper is not responding\n' >&2
+      return 1
+    fi
     tries=$((tries - 1))
     sleep 0.2
   done
 
-  hyprctl monitors -j |
-    jq -r '.[].name' |
-    while IFS= read -r monitor; do
-      [ -n "$monitor" ] || continue
-      hyprctl hyprpaper wallpaper "$monitor,$path,cover" >/dev/null
-    done
+  if ! snapshot="$(timeout --kill-after=1s 8s hyprctl monitors -j 2>/dev/null)" ||
+    ! monitors="$(jq -er '[.[].name | select(type == "string" and length > 0)] | if length == 0 then empty else .[] end' <<<"$snapshot")"; then
+    printf 'desktop-shell: Could not read connected displays\n' >&2
+    return 1
+  fi
+  while IFS= read -r monitor; do
+    if ! timeout --kill-after=1s 8s hyprctl hyprpaper wallpaper "$monitor,$path,cover" >/dev/null; then
+      printf 'desktop-shell: Could not apply wallpaper to %s\n' "$monitor" >&2
+      return 1
+    fi
+  done <<<"$monitors"
 }
 
 apply_wallpaper() {
-  path="$1"
-  preview_wallpaper "$path"
-  printf '%s\n' "$path" >"$current_wallpaper_file"
+  local path="$1"
+  preview_wallpaper "$path" || return 1
+  printf '%s\n' "$path" >"$current_wallpaper_file" || return 1
   if [ -n "$login_wallpaper_sync" ]; then
-    "$login_wallpaper_sync" "$path" >/dev/null 2>&1 || true
+    # Greeter cache synchronization is best-effort after the session selection.
+    timeout --kill-after=1s 5s "$login_wallpaper_sync" "$path" >/dev/null 2>&1 || true
   fi
 }

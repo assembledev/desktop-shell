@@ -19,7 +19,12 @@ Scope {
   ScreenPlacement {
     id: placement
     configuration: shellConfig
-    onRemoved: shell.cancel()
+    onRemoved: {
+      if (shell.applyPath.length > 0)
+        shell.close();
+      else
+        shell.cancel();
+    }
   }
   MotionTransition {
     id: surfaceTransition
@@ -37,6 +42,8 @@ Scope {
   property bool listLoaded: false
   property string pendingPreviewPath: ""
   property string previewStartedPath: ""
+  property string applyPath: ""
+  property string applyError: ""
 
   function imageUrl(path) {
     if (!path)
@@ -109,12 +116,13 @@ Scope {
     if (!item)
       return;
 
-    accepted = true;
     closing = true;
+    applyError = "";
+    applyPath = item.path;
     previewDebounce.stop();
-    previewProc.running = false;
-    Quickshell.execDetached([backend, "set", item.path]);
-    close();
+    // Finish the current preview before committing the selected image.
+    if (!previewProc.running)
+      applyProc.running = true;
   }
 
   function cancel() {
@@ -123,20 +131,23 @@ Scope {
 
     closing = true;
     previewDebounce.stop();
-    previewProc.running = false;
-    if (!accepted && currentPath.length > 0)
-      Quickshell.execDetached([backend, "preview", currentPath]);
+    if (!accepted && currentPath.length > 0) {
+      pendingPreviewPath = currentPath;
+      previewDebounce.restart();
+    }
     close();
   }
 
   function openPicker(screen) {
-    if (!placement.capture(screen) || open)
+    if (!placement.capture(screen) || open || applyPath.length > 0)
       return;
     accepted = false;
     closing = false;
     ready = false;
     currentLoaded = false;
     listLoaded = false;
+    pendingPreviewPath = "";
+    applyError = "";
     search.text = "";
     filteredModel.clear();
     open = true;
@@ -190,22 +201,56 @@ Scope {
     id: previewDebounce
     interval: 120
     onTriggered: {
-      if (!shell.open || shell.closing)
+      if (shell.pendingPreviewPath.length === 0 || shell.applyPath.length > 0)
         return;
       if (previewProc.running) {
         restart();
         return;
       }
       shell.previewStartedPath = shell.pendingPreviewPath;
-      previewProc.exec([shell.backend, "preview", shell.previewStartedPath]);
+      previewProc.exec(["timeout", "--kill-after=1s", "8s", shell.backend, "preview", shell.previewStartedPath]);
     }
   }
 
   Process {
     id: previewProc
     onExited: {
-      if (shell.open && !shell.closing && shell.pendingPreviewPath !== shell.previewStartedPath)
+      if (shell.applyPath.length > 0)
+        applyProc.running = true;
+      else if (shell.pendingPreviewPath.length > 0 && shell.pendingPreviewPath !== shell.previewStartedPath)
         previewDebounce.restart();
+    }
+  }
+
+  Process {
+    id: applyProc
+    property string errorOutput: ""
+    command: [shell.backend, "set", shell.applyPath]
+    onStarted: errorOutput = ""
+    stderr: StdioCollector { onStreamFinished: applyProc.errorOutput = text }
+    onRunningChanged: {
+      // FailedToStart has no exited signal. Normal exits clear applyPath first.
+      if (!running && shell.applyPath.length > 0) {
+        shell.applyPath = "";
+        shell.closing = false;
+        shell.applyError = "Could not start wallpaper command";
+        if (shell.open)
+          carousel.forceActiveFocus();
+      }
+    }
+    onExited: function(exitCode, exitStatus) {
+      if (exitCode === 0 && exitStatus === 0) {
+        shell.accepted = true;
+        shell.currentPath = shell.applyPath;
+        shell.applyPath = "";
+        shell.close();
+      } else {
+        shell.applyPath = "";
+        shell.closing = false;
+        shell.applyError = errorOutput.trim().replace(/^desktop-shell: /, "") || "Could not apply wallpaper";
+        if (shell.open)
+          carousel.forceActiveFocus();
+      }
     }
   }
 
@@ -219,7 +264,7 @@ Scope {
 
     visible: surfaceTransition.presented && placement.screen !== null
     color: "transparent"
-    implicitHeight: 300
+    implicitHeight: launcher.height + 50
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell:wallpaperPicker"
@@ -255,7 +300,7 @@ Scope {
       anchors.bottom: parent.bottom
       anchors.bottomMargin: 18
       width: contentWidth
-      height: 250
+      height: 250 + (applyFeedback.visible ? 26 : 0)
       opacity: surfaceTransition.progress
       scale: 0.92 + surfaceTransition.progress * 0.08
       transformOrigin: Item.Bottom
@@ -264,6 +309,10 @@ Scope {
       }
 
       Keys.onPressed: event => {
+        if (shell.applyPath.length > 0) {
+          event.accepted = true;
+          return;
+        }
         if (event.key === Qt.Key_Escape) {
           shell.cancel();
           event.accepted = true;
@@ -292,7 +341,8 @@ Scope {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: searchWrapper.y
+        height: applyFeedback.visible ? applyFeedback.y : searchWrapper.y
+        enabled: shell.applyPath.length === 0
         focus: true
         clip: true
 
@@ -512,6 +562,21 @@ Scope {
         }
       }
 
+      Text {
+        id: applyFeedback
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: searchWrapper.top
+        anchors.bottomMargin: 8
+        visible: shell.applyPath.length > 0 || shell.applyError.length > 0
+        text: shell.applyPath.length > 0 ? "Applying wallpaper…" : shell.applyError
+        color: shell.applyError.length > 0 ? theme.danger : theme.textSecondary
+        font.family: theme.uiFontFamily
+        font.pixelSize: 13
+        horizontalAlignment: Text.AlignHCenter
+        elide: Text.ElideRight
+      }
+
       Rectangle {
         id: searchWrapper
 
@@ -552,6 +617,7 @@ Scope {
           font.pointSize: 11
           clip: true
           focus: false
+          enabled: shell.applyPath.length === 0
 
           onTextChanged: shell.applyFilter()
 

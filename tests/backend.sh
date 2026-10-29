@@ -62,6 +62,82 @@ test "$(cat "$XDG_STATE_HOME/desktop-shell/preferences/focus")" = 1
 write_preference focus 0
 test "$(cat "$XDG_STATE_HOME/desktop-shell/preferences/focus")" = 0
 
+# Wallpaper failures must leave the saved selection unchanged, including an
+# early output failure followed by an output that would have succeeded.
+(
+  # shellcheck source=../src/backend/lib/wallpaper.sh
+  source "$source_root/src/backend/lib/wallpaper.sh"
+  ensure_hypr_env() { :; }
+  sleep() { :; }
+  wallpaper_mode=success
+  wallpaper_calls="$test_root/wallpaper-calls"
+  current_wallpaper_file="$test_root/current-wallpaper"
+  login_wallpaper_sync=
+  wallpaper_image="$test_root/image.jpg"
+  touch "$wallpaper_image"
+  printf 'previous\n' >"$current_wallpaper_file"
+  mkdir -p "$test_root/wallpaper-bin"
+  export wallpaper_mode wallpaper_calls
+  export PATH="$test_root/wallpaper-bin:$PATH"
+  printf '#!%s\n' "$(command -v bash)" >"$test_root/wallpaper-bin/hyprctl"
+  cat >>"$test_root/wallpaper-bin/hyprctl" <<'SH'
+set -eu
+case "$1:$2" in
+  hyprpaper:listactive) test "$wallpaper_mode" != unavailable ;;
+  monitors:-j)
+    case "$wallpaper_mode" in
+      invalid-monitors) printf 'invalid\n' ;;
+      no-monitors) printf '[]\n' ;;
+      *) printf '[{"name":"ONE"},{"name":"TWO"}]\n' ;;
+    esac
+    test "$wallpaper_mode" != monitor-error
+    ;;
+  hyprpaper:wallpaper)
+    printf '%s\n' "$3" >>"$wallpaper_calls"
+    test "$wallpaper_mode" != apply-error || [[ "$3" != ONE,* ]]
+    ;;
+  *) exit 2 ;;
+esac
+SH
+  chmod +x "$test_root/wallpaper-bin/hyprctl"
+  if (apply_wallpaper "$test_root/missing.jpg") 2>/dev/null; then
+    printf 'missing wallpaper must fail\n' >&2
+    exit 1
+  fi
+  for wallpaper_mode in unavailable monitor-error invalid-monitors no-monitors apply-error; do
+    if (apply_wallpaper "$wallpaper_image") 2>/dev/null; then
+      printf 'wallpaper %s must fail\n' "$wallpaper_mode" >&2
+      exit 1
+    fi
+    test "$(cat "$current_wallpaper_file")" = previous
+  done
+  wallpaper_mode=success
+  : >"$wallpaper_calls"
+  apply_wallpaper "$wallpaper_image"
+  test "$(cat "$current_wallpaper_file")" = "$wallpaper_image"
+  test "$(wc -l <"$wallpaper_calls")" -eq 2
+
+  # A failed or stalled optional greeter sync cannot undo a saved wallpaper or
+  # turn the session selection into a failed command.
+  login_wallpaper_sync="$test_root/wallpaper-sync"
+  export wallpaper_sync_mode wallpaper_sync_finished="$test_root/sync-finished"
+  printf '#!%s\n' "$(command -v bash)" >"$login_wallpaper_sync"
+  cat >>"$login_wallpaper_sync" <<'SH'
+if [ "$wallpaper_sync_mode" = slow ]; then
+  sleep 30
+  touch "$wallpaper_sync_finished"
+else
+  exit 1
+fi
+SH
+  chmod +x "$login_wallpaper_sync"
+  for wallpaper_sync_mode in failed slow; do
+    apply_wallpaper "$wallpaper_image"
+    test "$(cat "$current_wallpaper_file")" = "$wallpaper_image"
+  done
+  test ! -e "$wallpaper_sync_finished"
+)
+
 network_control_command demo status | jq -e '.text == "Demo" and .active == true' >/dev/null
 
 # Provider commands are argv, including empty and multiline arguments.
