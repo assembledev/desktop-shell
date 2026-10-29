@@ -4,6 +4,7 @@ const RECONNECT_MAX_MS = 30000;
 
 let nativePort = null;
 let publishTimer = null;
+let publishGeneration = 0;
 let reconnectTimer = null;
 let reconnectDelayMs = 1000;
 
@@ -68,11 +69,16 @@ async function publishSnapshot() {
   if (!nativePort)
     return;
 
+  const port = nativePort;
+  const generation = publishGeneration;
   try {
-    nativePort.postMessage({
+    const tabs = await collectSnapshot();
+    if (port !== nativePort || generation !== publishGeneration)
+      return;
+    port.postMessage({
       type: "snapshot",
       generatedAt: Date.now(),
-      tabs: await collectSnapshot()
+      tabs
     });
   } catch (error) {
     console.error("desktop-shell-tabs: failed to publish tab snapshot", error);
@@ -80,6 +86,7 @@ async function publishSnapshot() {
 }
 
 function schedulePublish() {
+  publishGeneration += 1;
   if (!nativePort)
     connectNativeHost();
   if (publishTimer !== null)

@@ -26,7 +26,10 @@ function harness() {
     runtime: {
       onStartup: event(),
       connectNative() {
-        const port = { onMessage: event(), onDisconnect: event(), postMessage() {} };
+        const port = {
+          onMessage: event(), onDisconnect: event(), messages: [],
+          postMessage(message) { this.messages.push(message); }
+        };
         ports.push(port);
         return port;
       }
@@ -49,6 +52,11 @@ function harness() {
   });
   return {
     browser, ports,
+    publish() {
+      const [id, timer] = [...timers].find(([, value]) => value.delay === 60);
+      timers.delete(id);
+      return timer.callback();
+    },
     reconnect(expectedDelay) {
       const [id, timer] = [...timers].find(([, value]) => value.delay >= 1000);
       assert.equal(timer.delay, expectedDelay);
@@ -104,7 +112,11 @@ async function checkHostTermination(signal, partialMessage) {
   let stderr = "";
   host.stderr.on("data", data => { stderr += data; });
   try {
-    await once(host.stdout, "data");
+    await Promise.race([
+      once(host.stdout, "data"),
+      exited.then(() => { throw new Error(`host exited before readiness: ${stderr}`); })
+    ]);
+    assert.equal(fs.existsSync(path.join(runtimeRoot, "desktop-shell/browser-tabs.json")), true);
     if (partialMessage.length)
       host.stdin.write(partialMessage);
     host.kill(signal);
@@ -135,7 +147,43 @@ async function checkSignalCleanup() {
   }
 }
 
-checkSignalCleanup().catch(error => {
+async function checkSnapshotOrdering() {
+  const h = harness();
+  const pending = [];
+  h.browser.tabs.query = () => new Promise(resolve => pending.push(resolve));
+  h.browser.windows.getAll = async () => [];
+  const tab = title => [{ id: 1, windowId: 1, title }];
+
+  const first = h.publish();
+  h.browser.tabs.onUpdated.emit();
+  const second = h.publish();
+  pending[1](tab("newer"));
+  await second;
+  pending[0](tab("older"));
+  await first;
+  assert.deepEqual(h.ports[0].messages.map(message => message.tabs[0].title), ["newer"],
+    "late collections must not overwrite a newer snapshot");
+
+  h.browser.tabs.onUpdated.emit();
+  const disconnected = h.publish();
+  h.ports[0].onDisconnect.emit();
+  h.reconnect(1000);
+  pending[2](tab("old connection"));
+  await disconnected;
+  assert.equal(h.ports[1].messages.length, 0,
+    "a collection from the old connection must not publish to the new host");
+  const reconnected = h.publish();
+  pending[3](tab("new connection"));
+  await reconnected;
+  assert.equal(h.ports[1].messages[0].tabs[0].title, "new connection");
+}
+
+async function main() {
+  await checkSnapshotOrdering();
+  await checkSignalCleanup();
+}
+
+main().catch(error => {
   console.error(error);
   process.exitCode = 1;
 });
