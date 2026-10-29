@@ -1644,8 +1644,11 @@ Scope {
       pendingPassword = "";
       connectionTargetSsid = "";
     }
-    if (page !== "bluetooth")
+    if (page !== "bluetooth") {
+      pendingBluetoothForgetAddress = "";
+      bluetoothForgetTimer.stop();
       endBluetoothSession();
+    }
     if (open) {
       invalidateBluetoothForPage();
       refreshBluetoothForPage();
@@ -1675,6 +1678,8 @@ Scope {
       refreshAll();
     } else {
       lastBluetoothPollAt = 0;
+      pendingBluetoothForgetAddress = "";
+      bluetoothForgetTimer.stop();
       pendingSsid = "";
       pendingPassword = "";
       connectionTargetSsid = "";

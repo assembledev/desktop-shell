@@ -39,6 +39,13 @@ Scope {
   property string message: ""
   property bool wipeArmed: false
 
+  onOpenChanged: {
+    if (!open) {
+      wipeArmed = false;
+      wipeConfirmTimer.stop();
+    }
+  }
+
   function imageUrl(path) {
     if (!path)
       return "";
