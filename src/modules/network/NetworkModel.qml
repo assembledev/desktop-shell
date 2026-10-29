@@ -42,7 +42,8 @@ Scope {
   readonly property string nativeState: JSON.stringify(Networking.devices.values.map(candidate => ({ name: candidate.name, connected: candidate.connected, state: candidate.state })))
 
   function refresh() {
-    if (sample.running)
+    sample.refreshPending = sample.running;
+    if (sample.refreshPending)
       return;
     sample.requestEpoch = epoch;
     sample.detailed = detailsActive;
@@ -50,6 +51,7 @@ Scope {
   }
 
   function refreshPing() {
+    probe.refreshPending = detailsActive && connected && probe.running && probe.requestEpoch !== epoch;
     if (!detailsActive || !connected || probe.running)
       return;
     probe.requestEpoch = epoch;
@@ -57,6 +59,7 @@ Scope {
   }
 
   function refreshPublicIP() {
+    publicProbe.refreshPending = detailsActive && connected && publicProbe.running && publicProbe.requestEpoch !== epoch;
     if (!detailsActive || !connected || publicProbe.running)
       return;
     publicProbe.requestEpoch = epoch;
@@ -107,6 +110,11 @@ Scope {
   }
   Process {
     id: sample
+    property bool refreshPending: false
+    onRunningChanged: {
+      if (!running && refreshPending)
+        root.refresh();
+    }
     property int requestEpoch: 0
     property bool detailed: false
     stdout: StdioCollector { id: sampleOutput }
@@ -148,6 +156,11 @@ Scope {
   }
   Process {
     id: probe
+    property bool refreshPending: false
+    onRunningChanged: {
+      if (!running && refreshPending)
+        root.refreshPing();
+    }
     property int requestEpoch: 0
     stdout: StdioCollector { id: probeOutput }
     onExited: function(exitCode) {
@@ -162,6 +175,11 @@ Scope {
   }
   Process {
     id: publicProbe
+    property bool refreshPending: false
+    onRunningChanged: {
+      if (!running && refreshPending)
+        root.refreshPublicIP();
+    }
     property int requestEpoch: 0
     stdout: StdioCollector { id: publicOutput }
     onExited: function(exitCode) {
