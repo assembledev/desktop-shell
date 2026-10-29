@@ -194,7 +194,7 @@ Scope {
   }
 
   PwObjectTracker {
-    objects: Pipewire.nodes.values
+    objects: [Pipewire.defaultAudioSink, Pipewire.defaultAudioSource].concat(root.microphoneLinks.map(link => link.target))
   }
 
   PwObjectTracker {
