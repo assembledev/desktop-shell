@@ -138,10 +138,10 @@ tailscale_receive_file() (
   jq -nc --arg path "$target" --argjson removed "$removed" '{saved:true,path:$path,inboxRemoved:$removed}'
 )
 
-# Bar state and toggles share the same LocalAPI snapshot as peers and Taildrop.
+# Bar state and toggles only need the daemon state from LocalAPI.
 # Service-manager state distinguishes a stopped daemon from a failed/API error.
 tailscale_control_state() {
-  local daemon_state="$1" snapshot
+  local daemon_state="$1" status
   case "$daemon_state" in
     inactive)
       printf 'Stopped\n'
@@ -165,8 +165,8 @@ tailscale_control_state() {
       return 1
       ;;
   esac
-  snapshot="$(tailscale_snapshot_json false)" || return "$?"
-  if ! jq -er 'select(.available) | .state' <<<"$snapshot"; then
+  if ! status="$(tailscale_status_json 2>/dev/null)" ||
+    ! jq -er 'select(type == "object") | .BackendState | select(type == "string")' <<<"$status"; then
     printf 'desktop-shell: Tailscale LocalAPI status is unavailable\n' >&2
     return 1
   fi

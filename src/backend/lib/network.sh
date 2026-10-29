@@ -108,35 +108,32 @@ network_control_command() {
 # Choose a connected physical uplink from the main routing table. Policy-routed
 # VPNs must not replace the Wi-Fi/Ethernet identity or its local addresses.
 network_snapshot_json() {
-  local mode="${1:-link}" devices candidates routes selected interface kind
-  local fields='{}' properties link='' frequency='' speed='' rx='' tx='' sys_root
+  local mode="${1:-link}" devices routes selected interface kind
+  local properties='' link='' frequency='' speed='' rx='' tx='' sys_root
   case "$mode" in link | details) ;; *) return 2 ;; esac
   if ! devices="$(nmcli --wait 2 --terse --escape no --fields DEVICE,TYPE,STATE device status 2>/dev/null)"; then
     printf '{"available":false,"connected":false,"interface":"","type":""}\n'
     return
   fi
-  candidates="$(jq -Rsc '
-    [split("\n")[] | split(":")
-      | select(length >= 3 and (.[1] == "wifi" or .[1] == "ethernet") and (.[2] | startswith("connected")))
-      | {interface: .[0], type: .[1]}]
-  ' <<<"$devices")"
   routes="$(ip -j -4 route show default 2>/dev/null)" || routes='[]'
   if [ "$(jq 'length' <<<"$routes")" -eq 0 ]; then
     routes="$(ip -j -6 route show default 2>/dev/null)" || routes='[]'
   fi
-  selected="$(jq -nc --argjson devices "$candidates" --argjson routes "$routes" '
-    $devices | sort_by(
+  selected="$(jq -Rsc --argjson routes "$routes" '
+    [split("\n")[] | split(":")
+      | select(length >= 3 and (.[1] == "wifi" or .[1] == "ethernet") and (.[2] | startswith("connected")))
+      | {interface: .[0], type: .[1]}]
+    | sort_by(
       .interface as $interface |
       ([$routes[] | select(.dev == $interface) | (.metric // 0)] | min) as $metric |
       [if $metric == null then 1 else 0 end, ($metric // 0), (if .type == "ethernet" then 0 else 1 end), .interface]
     ) | first // null
-  ')"
+  ' <<<"$devices")"
   if [ "$selected" = null ]; then
     printf '{"available":true,"connected":false,"interface":"","type":""}\n'
     return
   fi
-  interface="$(jq -r '.interface' <<<"$selected")"
-  kind="$(jq -r '.type' <<<"$selected")"
+  read -r interface kind <<<"$(jq -r '.interface + " " + .type' <<<"$selected")"
   if [ "$mode" = details ]; then
     # Split at the first colon only. IPv6 and connection names can contain
     # colons; --escape no keeps their values literal rather than backslashed.
@@ -144,16 +141,6 @@ network_snapshot_json() {
       printf '{"available":true,"connected":false,"interface":"","type":""}\n'
       return
     fi
-    fields="$(jq -Rsc '
-      [split("\n")[] | capture("^(?<key>[^:]+):(?<value>.*)$") | select(.value != "" and .value != "--")] as $fields |
-      def values($prefix): [$fields[] | select(.key | startswith($prefix)) | .value];
-      {connection: (values("GENERAL.CONNECTION") | first // ""),
-       ipv4: (values("IP4.ADDRESS[") | map(split("/")[0])),
-       ipv6: (values("IP6.ADDRESS[") | map(split("/")[0] | select(startswith("fe80:") | not))),
-       gateway: (values("IP4.GATEWAY") | first // ""),
-       gateway6: (values("IP6.GATEWAY") | first // ""),
-       dns: (values("IP4.DNS[") + values("IP6.DNS["))}
-    ' <<<"$properties")"
     if [ "$kind" = wifi ]; then
       link="$(iw dev "$interface" link 2>/dev/null)" || link=''
       frequency="$(awk '$1 == "freq:" {print $2; exit}' <<<"$link")"
@@ -168,11 +155,21 @@ network_snapshot_json() {
       read -r tx <"$sys_root/class/net/$interface/statistics/tx_bytes" || tx=''
     fi
   fi
-  jq -nc --argjson selected "$selected" --argjson fields "$fields" --arg mode "$mode" \
+  jq -nc --argjson selected "$selected" --arg properties "$properties" --arg mode "$mode" \
     --arg frequency "$frequency" --arg speed "$speed" --arg rx "$rx" --arg tx "$tx" '
     def positive: tonumber? | select(. > 0);
     def counter: tonumber? | select(. >= 0);
-    $selected + $fields + {available: true, connected: true, detailed: ($mode == "details"),
+    def details:
+      [split("\n")[] | capture("^(?<key>[^:]+):(?<value>.*)$") | select(.value != "" and .value != "--")] as $fields |
+      def values($prefix): [$fields[] | select(.key | startswith($prefix)) | .value];
+      {connection: (values("GENERAL.CONNECTION") | first // ""),
+       ipv4: (values("IP4.ADDRESS[") | map(split("/")[0])),
+       ipv6: (values("IP6.ADDRESS[") | map(split("/")[0] | select(startswith("fe80:") | not))),
+       gateway: (values("IP4.GATEWAY") | first // ""),
+       gateway6: (values("IP6.GATEWAY") | first // ""),
+       dns: (values("IP4.DNS[") + values("IP6.DNS["))};
+    $selected + (if $mode == "details" then $properties | details else {} end)
+    + {available: true, connected: true, detailed: ($mode == "details"),
       frequencyMHz: ($frequency | positive // null), linkMbps: ($speed | positive // null),
       rxBytes: ($rx | counter // null), txBytes: ($tx | counter // null)}
   '
