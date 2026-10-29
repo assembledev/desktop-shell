@@ -65,7 +65,7 @@ Scope {
   function consume(data) {
     if (!pending)
       return;
-    response += data;
+    response = data;
 
     // Hyprland sends one JSON document and then closes the request socket.
     // Closing as soon as the document is complete avoids treating that normal
@@ -82,11 +82,10 @@ Scope {
     id: requestSocket
     path: Hyprland.requestSocketPath
 
-    parser: SplitParser {
-      splitMarker: ""
-      onRead: function(data) {
-        root.consume(data);
-      }
+    // Decode the accumulated bytes so UTF-8 characters can span socket reads.
+    parser: StdioCollector {
+      waitForEnd: false
+      onTextChanged: root.consume(text)
     }
 
     onConnectionStateChanged: {

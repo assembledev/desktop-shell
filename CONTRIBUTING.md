@@ -39,6 +39,13 @@ It checks pointer and keyboard invocation, closing and reopening against the
 real shared overlay with fixture network state. Also check consecutive clicks
 on the actual bar trigger while keeping the pointer stationary.
 
+For Hyprland snapshot parsing and socket lifecycle changes, run the isolated
+socket regression:
+
+```console
+$ nix develop --command python3 tests/native/hyprland-client-snapshot.py
+```
+
 For Tailscale inbox detection and notification delivery, run:
 
 ```console
