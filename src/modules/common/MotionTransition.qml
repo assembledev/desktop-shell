@@ -23,7 +23,6 @@ QtObject {
   }
 
   function snapDismissed() {
-    progressAnimation.stop();
     animationEnabled = false;
     progress = 0;
     presented = false;
