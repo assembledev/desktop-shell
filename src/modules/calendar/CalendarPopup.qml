@@ -9,6 +9,9 @@ import "../common"
 
 Scope {
   id: root
+  property var taskHost: null
+  function cancelTask() { closeCalendar(); }
+  onOpenChanged: { if (!open && taskHost) taskHost.releaseTask(root); }
 
   required property var barSurface
   readonly property var screen: placement.screen
@@ -32,18 +35,13 @@ Scope {
   property date today: new Date()
   property int viewMonth: today.getMonth()
   property int viewYear: today.getFullYear()
-  property int pendingMonth: viewMonth
-  property int pendingYear: viewYear
   property int monthDirection: 1
   readonly property bool currentMonth: viewMonth === today.getMonth() && viewYear === today.getFullYear()
   readonly property bool portraitMode: Number(window.screen?.width || 0) > 0 && Number(window.screen?.width || 0) < Number(window.screen?.height || 0)
 
   function resetToToday() {
     monthTransition.stop();
-    calendarGrid.opacity = 1;
     calendarGrid.x = 0;
-    pendingMonth = viewMonth;
-    pendingYear = viewYear;
     today = new Date();
     showMonth(today.getMonth(), today.getFullYear());
   }
@@ -57,21 +55,19 @@ Scope {
     if (month === viewMonth && year === viewYear)
       return;
 
-    pendingMonth = month;
-    pendingYear = year;
     monthDirection = direction || ((year * 12 + month) < (viewYear * 12 + viewMonth) ? -1 : 1);
-    if (!open) {
-      viewMonth = pendingMonth;
-      viewYear = pendingYear;
-      return;
-    }
-
-    monthTransition.restart();
+    // Update immediately so repeated input uses the latest month.
+    viewMonth = month;
+    viewYear = year;
+    if (open)
+      monthTransition.restart();
   }
 
   function openCalendar(screen) {
     if (!placement.capture(screen))
       return;
+    if (taskHost)
+      taskHost.requestTask(root, placement.screen);
     window.keyboardRequested = screen === undefined;
     resetToToday();
     open = true;
@@ -119,44 +115,13 @@ Scope {
     onTriggered: root.refreshToday()
   }
 
-  SequentialAnimation {
+  MotionNumberAnimation {
     id: monthTransition
-
-    ParallelAnimation {
-      MotionNumberAnimation {
-        target: calendarGrid
-        property: "opacity"
-        to: 0
-        role: MotionNumberAnimation.SurfaceExit
-      }
-      MotionNumberAnimation {
-        target: calendarGrid
-        property: "x"
-        to: -root.monthDirection * 18
-        role: MotionNumberAnimation.SurfaceExit
-      }
-    }
-    ScriptAction {
-      script: {
-        root.viewMonth = root.pendingMonth;
-        root.viewYear = root.pendingYear;
-        calendarGrid.x = root.monthDirection * 18;
-      }
-    }
-    ParallelAnimation {
-      MotionNumberAnimation {
-        target: calendarGrid
-        property: "opacity"
-        to: 1
-        role: MotionNumberAnimation.Content
-      }
-      MotionNumberAnimation {
-        target: calendarGrid
-        property: "x"
-        to: 0
-        role: MotionNumberAnimation.Content
-      }
-    }
+    target: calendarGrid
+    property: "x"
+    from: root.monthDirection * 18
+    to: 0
+    role: MotionNumberAnimation.Content
   }
 
   BarOverlayWindow {
@@ -279,7 +244,7 @@ Scope {
               spacing: 8
 
               CalendarButton {
-                icon: ""
+                icon: "back"
                 onClicked: root.changeMonth(-1)
               }
 
@@ -302,7 +267,7 @@ Scope {
               }
 
               CalendarButton {
-                icon: ""
+                icon: "right"
                 onClicked: root.changeMonth(1)
               }
             }
@@ -455,13 +420,11 @@ Scope {
       MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
     }
 
-    Text {
+    ShellSymbol {
       anchors.centerIn: parent
-      text: button.icon
-      color: mouse.containsMouse ? theme.accent : theme.textMuted
-      font.family: theme.fontFamily
-      font.pixelSize: 11
-      font.bold: true
+      symbol: button.icon
+      size: 16
+      tint: mouse.containsMouse ? theme.accent : theme.textMuted
     }
 
     MouseArea {

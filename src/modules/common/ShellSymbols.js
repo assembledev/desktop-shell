@@ -1,6 +1,6 @@
 .pragma library
 
-// Authored 24px symbols, one stroke system. Theme supplies the tint.
+// SVG paths use a 24x24 viewBox.
 var paths = {
   "search": "M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0 M15 15l6 6",
   "document": "M5 3h9l5 5v13H5Z M14 3v6h5 M8 13h8 M8 17h6",
@@ -30,13 +30,13 @@ var paths = {
   "network-off": "M3 3l18 18M8 6.1c4.4-1 9.2-.2 13 2.4M3 8.5l1.3-1M6.5 12c1.2-1 2.5-1.6 3.8-1.9M15 10.5l2.5 1.5M10 15.5c1.1-.9 2.9-.9 4 0M12 19h.01",
   "ethernet": "M5 3h14v12h-4v6H9v-6H5ZM8 3v5M12 3v5M16 3v5M9 15h6",
   "copy": "M8 8h13v13H8ZM16 8V3H3v13h5",
-  "back": "M15 5l-7 7 7 7",
+  "back": "M15.5 5l-7 7 7 7",
   "keyboard": "M3 6h18v12H3zM6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 15h10",
   "sun": "M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5",
   "mic": "M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0zM6 11v1a6 6 0 0 0 12 0v-1M12 18v4M9 22h6",
   "mouse": "M7 8a5 5 0 0 1 10 0v8a5 5 0 0 1-10 0zM12 3v7",
   "mute": "M3 9h4l5-4v14l-5-4H3zM16 9l5 6M21 9l-5 6",
-  "right": "M9 5l7 7-7 7",
+  "right": "M8.5 5l7 7-7 7",
   "focus": "M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M8 12h8M12 8v8",
   "lock": "M7 10V7a5 5 0 0 1 10 0v3M5 10h14v11H5zM12 14v3",
   "display": "M4 4h16a1 1 0 0 1 1 1v12H3V5a1 1 0 0 1 1-1zM12 17v4M8 21h8",
