@@ -627,17 +627,14 @@ Scope {
                       }
                     }
 
-                    Text {
+                    ShellSymbol {
                       visible: !entryRow.modelData?.isSeparator && Boolean(entryRow.modelData?.hasChildren)
                       anchors.right: parent.right
                       anchors.rightMargin: 12
                       anchors.verticalCenter: parent.verticalCenter
-                      anchors.verticalCenterOffset: -1
-                      text: "›"
-                      color: entryRow.highlighted ? theme.accent : theme.textMuted
-                      font.family: theme.uiFontFamily
-                      font.pixelSize: 20
-                      font.bold: true
+                      symbol: "right"
+                      size: 16
+                      tint: entryRow.highlighted ? theme.accent : theme.textMuted
                       scale: entryRow.highlighted ? 1.14 : 1
 
                       Behavior on scale {
