@@ -118,7 +118,7 @@ Item {
                 : (statusItem.currentStatus.text || modelData.label || "")
               color: statusItem.failed ? theme.danger : theme.textPrimary
               font.family: theme.uiFontFamily
-              font.pixelSize: 15
+              font.pixelSize: 16
               font.bold: true
             }
 

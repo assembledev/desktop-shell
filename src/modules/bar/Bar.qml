@@ -728,7 +728,7 @@ Scope {
                 Layout.preferredWidth: barSpacing.actionSize
                 Layout.preferredHeight: root.barHeight
                 symbol: "power"
-                size: 21
+                size: 20
                 tint: powerMouse.containsMouse || root.powerMenuOpen ? theme.dangerStrong : theme.danger
                 scale: powerMouse.pressed ? 0.86 : (powerMouse.containsMouse ? 1.08 : 1)
 
@@ -882,7 +882,7 @@ Scope {
               Layout.preferredWidth: barSpacing.actionSize
               Layout.preferredHeight: root.portraitPrimaryHeight
               symbol: "power"
-              size: 21
+              size: 20
               tint: portraitPowerMouse.containsMouse || root.powerMenuOpen ? theme.dangerStrong : theme.danger
               scale: portraitPowerMouse.pressed ? 0.86 : (portraitPowerMouse.containsMouse ? 1.08 : 1)
 
@@ -1373,6 +1373,7 @@ Scope {
   component ConnectionSegment: BarSegment {
     id: connectionSegment
     symbol: root.sharedState.connection.icon
+    symbolSize: 20
     iconColor: root.networkDetailsOpen ? theme.info : root.sharedState.connection.connected ? theme.textPrimary : theme.textMuted
     clickable: true
     onClicked: root.networkToggleRequested()
@@ -1387,6 +1388,7 @@ Scope {
     id: segment
     property string icon
     property string symbol: ""
+    property int symbolSize: 16
     property string label
     property color iconColor: theme.textPrimary
     property color textColor: theme.textPrimary
@@ -1419,14 +1421,14 @@ Scope {
         font.pixelSize: 16
         font.bold: true
         verticalAlignment: Text.AlignVCenter
-        y: root.textOpticalYOffset
+        anchors.verticalCenter: parent.verticalCenter
       }
 
       ShellSymbol {
         visible: segment.symbol.length > 0
         symbol: segment.symbol
         tint: segment.iconColor
-        size: 16
+        size: segment.symbolSize
         anchors.verticalCenter: parent.verticalCenter
       }
 
@@ -1662,7 +1664,6 @@ Scope {
     Text {
       id: notificationIcon
       anchors.centerIn: parent
-      anchors.verticalCenterOffset: root.textOpticalYOffset
       text: notif.icon
       color: theme.textPrimary
       font.family: theme.fontFamily

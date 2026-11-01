@@ -144,12 +144,8 @@ Item {
         }
         y: {
           if (expandedLayout || count < 3)
-            return Math.round((parent.height - height) / 2) + 1;
-          if (index === 0)
-            return 3;
-          if (index === 1)
-            return 19;
-          return 11;
+            return (parent.height - height) / 2;
+          return (parent.height - height - 16) / 2 + (index === 2 ? 8 : index * 16);
         }
         z: index
         asynchronous: false
@@ -189,7 +185,6 @@ Item {
       visible: root.occupied && root.shownApplicationCount === 0
       x: root.expanded ? root.expandedIconOriginX : root.compactIconOriginX
       anchors.verticalCenter: parent.verticalCenter
-      anchors.verticalCenterOffset: 1
       text: ""
       color: root.mutedColor
       font.family: theme.fontFamily
@@ -200,7 +195,6 @@ Item {
       visible: !root.occupied
       x: root.expanded ? root.expandedIconOriginX : root.compactIconOriginX
       anchors.verticalCenter: parent.verticalCenter
-      anchors.verticalCenterOffset: 1
       spacing: 3
 
       Repeater {
