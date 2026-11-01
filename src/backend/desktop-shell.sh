@@ -928,8 +928,12 @@ case "${1:-help}" in
         [ "$#" -eq 3 ] || exit 2
         network_control_command "$3" "$2"
         ;;
+      select)
+        [ "$#" -eq 4 ] || exit 2
+        network_control_command "$3" "$2" "$4"
+        ;;
       *)
-        printf 'usage: desktop-shell network-control [status|toggle] <id>\n' >&2
+        printf 'usage: desktop-shell network-control {status|toggle} <id> | select <id> <profile-id>\n' >&2
         exit 2
         ;;
     esac

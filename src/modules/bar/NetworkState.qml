@@ -12,6 +12,7 @@ Item {
   property int refreshNonce: 0
   signal statusRequested(string controlId)
   signal toggleRequested(string controlId)
+  signal selectionRequested(string controlId, string profileId)
 
   function parseJson(text, fallback) {
     const raw = String(text || "").trim();
@@ -101,6 +102,28 @@ Item {
     toggleRequested(control.id);
   }
 
+  function profiles(control) {
+    if (!Array.isArray(control?.selectCommand) || control.selectCommand.length === 0)
+      return [];
+    const choices = status(control).profiles;
+    const ids = new Set();
+    if (!Array.isArray(choices) || !choices.every(profile => {
+      if (!profile || typeof profile.id !== "string" || !/^[A-Za-z0-9_.-]+$/.test(profile.id)
+          || typeof profile.label !== "string" || !profile.label.length || ids.has(profile.id))
+        return false;
+      ids.add(profile.id);
+      return true;
+    })) return [];
+    return choices;
+  }
+
+  function selectProfile(control, profileId) {
+    if (!control?.id || status(control).busy || !profiles(control).some(profile => profile.id === profileId))
+      return;
+    setStatus(control, { busy: true, error: "", errorKind: "" });
+    selectionRequested(control.id, profileId);
+  }
+
   onPollingEnabledChanged: {
     if (pollingEnabled)
       refreshNonce++;
@@ -136,17 +159,19 @@ Item {
         id: poller
         required property var modelData
         property bool refreshPending: false
-        property bool reconcilingToggle: false
+        property bool reconcilingAction: false
         property int transitionEpoch: 0
         property string statusOutput: ""
         property string statusError: ""
-        property string toggleOutput: ""
-        property string toggleError: ""
+        property string actionOutput: ""
+        property string actionError: ""
+        property string actionName: ""
+        property string actionFailure: ""
 
         function refresh() {
-          if (!network.pollingEnabled || !modelData?.id)
+          if ((!network.pollingEnabled && !reconcilingAction) || !modelData?.id)
             return;
-          if (toggleProcess.running) {
+          if (actionProcess.running) {
             refreshPending = true;
             return;
           }
@@ -162,18 +187,22 @@ Item {
           statusProcess.exec([network.backend, "network-control", "status", modelData.id]);
         }
 
-        function startToggle() {
-          if (!modelData?.id || toggleProcess.running)
+        function startAction(action, profileId) {
+          if (!modelData?.id || actionProcess.running)
             return;
 
-          // Status reads already in flight belong to the pre-toggle state and
+          // Status reads already in flight belong to the previous state and
           // must never finish the transition visually.
           transitionEpoch++;
-          reconcilingToggle = false;
+          reconcilingAction = false;
           refreshPending = false;
-          toggleOutput = "";
-          toggleError = "";
-          toggleProcess.exec([network.backend, "network-control", "toggle", modelData.id]);
+          actionOutput = "";
+          actionError = "";
+          actionFailure = "";
+          actionName = action;
+          const command = [network.backend, "network-control", action, modelData.id];
+          if (action === "select") command.push(profileId);
+          actionProcess.exec(command);
         }
 
         Component.onCompleted: refresh()
@@ -187,7 +216,11 @@ Item {
           }
           function onToggleRequested(controlId) {
             if (controlId === poller.modelData?.id)
-              poller.startToggle();
+              poller.startAction("toggle");
+          }
+          function onSelectionRequested(controlId, profileId) {
+            if (controlId === poller.modelData?.id)
+              poller.startAction("select", profileId);
           }
         }
 
@@ -202,7 +235,7 @@ Item {
           }
           onExited: function(exitCode) {
             const current = statusProcess.epoch === poller.transitionEpoch;
-            const completesToggle = current && poller.reconcilingToggle;
+            const completesAction = current && poller.reconcilingAction;
 
             if (!current) {
               // A status read may have started before or during the toggle.
@@ -211,22 +244,22 @@ Item {
               const next = network.parseJson(poller.statusOutput, null);
               if (next && typeof next === "object") {
                 network.setStatus(poller.modelData, Object.assign({}, next, {
-                  busy: completesToggle ? false : network.status(poller.modelData).busy,
-                  error: "",
-                  errorKind: ""
+                  busy: completesAction ? false : network.status(poller.modelData).busy,
+                  error: poller.actionFailure,
+                  errorKind: poller.actionFailure ? poller.actionName : ""
                 }));
               } else {
                 network.setStatus(poller.modelData, {
-                  busy: completesToggle ? false : network.status(poller.modelData).busy,
-                  error: "Status command returned invalid JSON",
+                  busy: completesAction ? false : network.status(poller.modelData).busy,
+                  error: poller.actionFailure || "Status command returned invalid JSON",
                   errorKind: "status"
                 });
                 console.error("network control " + poller.modelData.id + " status returned invalid JSON");
               }
             } else {
               network.setStatus(poller.modelData, {
-                busy: completesToggle ? false : network.status(poller.modelData).busy,
-                error: network.commandError(
+                busy: completesAction ? false : network.status(poller.modelData).busy,
+                error: poller.actionFailure || network.commandError(
                   poller.modelData,
                   "status",
                   exitCode,
@@ -237,8 +270,8 @@ Item {
               });
             }
 
-            if (completesToggle)
-              poller.reconcilingToggle = false;
+            if (completesAction)
+              poller.reconcilingAction = false;
 
             if (poller.refreshPending)
               Qt.callLater(function() { poller.refresh(); });
@@ -246,42 +279,24 @@ Item {
         }
 
         Process {
-          id: toggleProcess
+          id: actionProcess
           stdout: StdioCollector {
-            onStreamFinished: poller.toggleOutput = text
+            onStreamFinished: poller.actionOutput = text
           }
           stderr: StdioCollector {
-            onStreamFinished: poller.toggleError = text
+            onStreamFinished: poller.actionError = text
           }
           onExited: function(exitCode) {
-            if (exitCode === 0) {
-              // Keep the yellow transition state until a status read started
-              // after this command confirms the new provider state.
-              poller.transitionEpoch++;
-              poller.reconcilingToggle = true;
-              poller.refreshPending = false;
-              network.setStatus(poller.modelData, {
-                busy: true,
-                error: "",
-                errorKind: ""
-              });
-              Qt.callLater(function() { poller.refresh(); });
-            } else {
-              poller.transitionEpoch++;
-              poller.reconcilingToggle = false;
-              poller.refreshPending = false;
-              network.setStatus(poller.modelData, {
-                busy: false,
-                error: network.commandError(
-                  poller.modelData,
-                  "toggle",
-                  exitCode,
-                  poller.toggleError,
-                  poller.toggleOutput
-                ),
-                errorKind: "toggle"
-              });
-            }
+            // Failed selections may still change the requested profile. Always
+            // reconcile provider state, retaining the command's useful error.
+            poller.actionFailure = exitCode === 0 ? "" : network.commandError(
+              poller.modelData, poller.actionName, exitCode, poller.actionError, poller.actionOutput);
+            poller.transitionEpoch++;
+            poller.reconcilingAction = true;
+            poller.refreshPending = false;
+            network.setStatus(poller.modelData, { busy: true,
+              error: poller.actionFailure, errorKind: poller.actionFailure ? poller.actionName : "" });
+            Qt.callLater(function() { poller.refresh(); });
           }
         }
       }

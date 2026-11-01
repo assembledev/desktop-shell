@@ -337,6 +337,7 @@ provider:
 ```console
 $ desktop-shell network-control status <id>
 $ desktop-shell network-control toggle <id>
+$ desktop-shell network-control select <id> <profile-id>
 ```
 
 `status` reads the selected provider and `toggle` requests its state change.
@@ -346,6 +347,10 @@ uses the existing operator's CLI rights; an inactive daemon requires the configu
 `tailscaled-start` helper action. Service providers inspect system units and run
 their explicit start, stop or retry argv. Custom providers run the corresponding
 argv pair. Configure the required permissions in NixOS.
+
+`select` is available for custom providers with `selectCommand`. It validates the
+profile against a fresh provider status response and appends its ID to that argv
+prefix. The provider determines how selection changes the connection.
 
 ## Browser bridge
 

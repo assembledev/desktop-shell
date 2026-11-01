@@ -2,6 +2,7 @@
 
 network_control_run_argv() {
   local provider="$1" key="$2" command_reader_pid
+  shift 2
   local -a network_argv
   # The provider was validated as a complete mode before any command runs.
   # NUL preserves empty/multiline arguments without interpreting shell code.
@@ -9,7 +10,7 @@ network_control_run_argv() {
   command_reader_pid=$!
   wait "$command_reader_pid" || return 2
   [ "${#network_argv[@]}" -gt 0 ] || return 2
-  "${network_argv[@]}"
+  "${network_argv[@]}" "$@"
 }
 
 network_service_state() {
@@ -65,9 +66,13 @@ network_service_control() {
 }
 
 network_control_command() {
-  local control_id="$1" action="$2" provider mode
+  local control_id="$1" action="$2" profile_id="${3:-}" provider mode snapshot
   [[ "$control_id" =~ ^[A-Za-z0-9_.-]+$ ]] || return 2
-  case "$action" in status | toggle) ;; *) return 2 ;; esac
+  case "$action" in
+    status | toggle) [ "$#" -eq 2 ] || return 2 ;;
+    select) [ "$#" -eq 3 ] && [[ "$profile_id" =~ ^[A-Za-z0-9_.-]+$ ]] || return 2 ;;
+    *) return 2 ;;
+  esac
   # Raw JSON and Home Manager configurations share the same complete modes.
   # Validate every argv before executing anything, including an apparent prefix.
   if ! provider="$(jq -ce --arg id "$control_id" '
@@ -76,10 +81,12 @@ network_control_command() {
       type == "array" and length > 0 and all(.[]; type == "string" and (contains("\u0000") | not)) and .[0] != "";
     [.bar.networkControls[]? | select(.id == $id)]
     | if length == 1 then .[0] else error("missing or duplicate provider") end
-    | if (.statusCommand | argv) and (.toggleCommand | argv) and .unit == null
+    | if ((.selectCommand | empty_command) or (.selectCommand | argv)) | not then error("invalid select command")
+      elif (.statusCommand | argv) and (.toggleCommand | argv) and .unit == null
          and (.startCommand | empty_command) and (.stopCommand | empty_command) and (.retryCommand | empty_command)
       then . + {_mode: "command"}
-      elif (.statusCommand | empty_command) and (.toggleCommand | empty_command) then
+      elif (.statusCommand | empty_command) and (.toggleCommand | empty_command)
+           and (.selectCommand | empty_command) then
         if .id == "tailscale" and .unit == null
            and (.startCommand | empty_command) and (.stopCommand | empty_command) and (.retryCommand | empty_command)
         then . + {_mode: "tailscale"}
@@ -93,6 +100,24 @@ network_control_command() {
     return 2
   fi
   mode="$(jq -r '._mode' <<<"$provider")"
+  if [ "$action" = select ]; then
+    [ "$mode" = command ] && jq -e '.selectCommand | length > 0' >/dev/null <<<"$provider" || return 2
+    snapshot="$(network_control_run_argv "$provider" statusCommand)" || return "$?"
+    # The provider owns policy; the shell dispatches only an advertised,
+    # unambiguous ID and never interprets IDs or argv as shell source.
+    if ! jq -e --arg id "$profile_id" '
+      .profiles | type == "array" and length > 0
+      and all(.[]; type == "object" and (.id | type == "string" and test("^[A-Za-z0-9_.-]+$"))
+        and (.label | type == "string" and length > 0))
+      and ([.[].id] | length == (unique | length))
+      and any(.[]; .id == $id)
+    ' >/dev/null <<<"$snapshot"; then
+      printf 'desktop-shell: network control %s returned invalid or unknown profile %s\n' "$control_id" "$profile_id" >&2
+      return 2
+    fi
+    network_control_run_argv "$provider" selectCommand "$profile_id"
+    return
+  fi
   case "$mode" in
     command) network_control_run_argv "$provider" "${action}Command" ;;
     service) network_service_control "$provider" "$action" ;;

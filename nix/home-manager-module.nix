@@ -98,6 +98,11 @@ let
         default = [ ];
         description = "Argv command toggling the provider.";
       };
+      selectCommand = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        description = "Optional custom-provider argv prefix selecting a profile; its ID is appended as one argument.";
+      };
       unit = mkOption {
         type = types.nullOr types.str;
         default = null;
@@ -262,6 +267,7 @@ let
     && provider.unit == null
     && provider.statusCommand == [ ]
     && provider.toggleCommand == [ ]
+    && provider.selectCommand == [ ]
     && provider.startCommand == [ ]
     && provider.stopCommand == [ ]
     && provider.retryCommand == [ ];
@@ -279,6 +285,7 @@ let
     && provider.unit != ""
     && provider.statusCommand == [ ]
     && provider.toggleCommand == [ ]
+    && provider.selectCommand == [ ]
     && provider.startCommand != [ ]
     && provider.stopCommand != [ ]
     && provider.retryCommand != [ ];

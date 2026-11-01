@@ -38,6 +38,8 @@ ShellRoot {
       networkDetails.closeDetails();
     if (except !== tailscaleDetails)
       tailscaleDetails.closeDetails();
+    if (except !== networkProfiles)
+      networkProfiles.closeDetails();
     for (const bar of bars.instances) {
       if (bar !== except)
         bar.power("close");
@@ -71,6 +73,8 @@ ShellRoot {
       sharedState: barState
       tailscaleDetailsOpen: tailscaleDetails.open && tailscaleDetails.screen === screen
       onTailscaleToggleRequested: tailscaleDetails.toggleDetails(screen)
+      profileDetailsId: networkProfiles.open && networkProfiles.screen === screen ? networkProfiles.controlId : ""
+      onProfilesToggleRequested: controlId => networkProfiles.toggleDetails(controlId, screen)
       networkDetailsOpen: networkDetails.open && networkDetails.screen === screen
       onCalendarToggleRequested: calendar.toggleCalendar(screen)
       onControlCenterToggleRequested: controlCenter.toggleOpen(false, screen)
@@ -110,6 +114,12 @@ ShellRoot {
   TaildropNotifications {
     id: taildropNotifications
     onSaveRequested: files => tailscaleDetails.saveReceived(files)
+  }
+  NetworkProfiles {
+    id: networkProfiles
+    controller: barState.network
+    barSurface: root.barFor(screen)?.surface || null
+    onOpenChanged: { if (open) root.closeBarPopups(networkProfiles); }
   }
   Connections {
     target: barState.tailscale
@@ -155,7 +165,7 @@ ShellRoot {
   }
   Connections {
     target: barState
-    function onBarOpenChanged() { if (!barState.barOpen) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); } }
+    function onBarOpenChanged() { if (!barState.barOpen) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); networkProfiles.closeDetails(); } }
   }
   Launcher {}
   LockPreview {}

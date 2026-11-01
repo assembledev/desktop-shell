@@ -295,6 +295,26 @@ store paths for reproducible executables. The backend validates each complete
 argv list before execution. Commands own their own authentication and state
 semantics.
 
+Custom providers may add a `selectCommand` argv prefix to expose profiles. Their
+status JSON supplies the available choices and the requested selection:
+
+```json
+{"text":"Private","active":true,"profiles":[{"id":"north","label":"North"},{"id":"south","label":"South"}],"selectedProfile":"north"}
+```
+
+Profile IDs use the same syntax as provider IDs and must be unique; labels must
+be nonempty strings. With more than one profile, the bar exposes an arrow opening
+the profile cards. Selecting a card appends its ID as one literal argument to
+`selectCommand`. The backend checks a fresh status response before dispatching.
+Selection and toggle commands are serialized, and status is refreshed after
+either success or failure. The provider owns switching, protection, persistence,
+and whether selection while disconnected also connects. The shell does not
+import or edit connection configurations.
+
+`selectedProfile` describes the requested choice rather than proving connectivity.
+Providers may also return `runningProfile` as an ID or `null` for consumers that
+need to distinguish the requested and running configurations.
+
 ## Browser tabs
 
 | Option | Default | Description |

@@ -26,6 +26,8 @@ Scope {
   signal controlCenterToggleRequested
   signal tailscaleToggleRequested
   property bool tailscaleDetailsOpen: false
+  signal profilesToggleRequested(string controlId)
+  property string profileDetailsId: ""
   signal networkToggleRequested
   property bool networkDetailsOpen: false
 
@@ -666,6 +668,8 @@ Scope {
                 tailscaleModel: root.sharedState.tailscale
                 tailscaleDetailsOpen: root.tailscaleDetailsOpen
                 onTailscaleDetailsRequested: root.tailscaleToggleRequested()
+                profileDetailsId: root.profileDetailsId
+                onProfilesRequested: controlId => root.profilesToggleRequested(controlId)
                 itemPadding: barSpacing.itemPadding
                 itemGap: barSpacing.itemGap
                 contentGap: barSpacing.contentGap
@@ -999,6 +1003,8 @@ Scope {
                 tailscaleModel: root.sharedState.tailscale
                 tailscaleDetailsOpen: root.tailscaleDetailsOpen
                 onTailscaleDetailsRequested: root.tailscaleToggleRequested()
+                profileDetailsId: root.profileDetailsId
+                onProfilesRequested: controlId => root.profilesToggleRequested(controlId)
                 targetHeight: root.portraitSecondaryHeight
                 itemPadding: barSpacing.itemPadding
                 itemGap: barSpacing.itemGap

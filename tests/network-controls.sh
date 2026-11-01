@@ -225,4 +225,40 @@ for expression in '.bar.networkControls[0].retryCommand = []' '.bar.networkContr
   if network_control_command work toggle >"$test_root/output" 2>/dev/null; then exit 1; fi
   test ! -e "$test_root/recorded"
 done
+
+# Profile selection is generic and appends exactly one advertised ID to literal
+# configured argv. Failed/malformed status must never dispatch a selection.
+profile_status() { cat "$test_root/profiles.json"; }
+printf '{"profiles":[{"id":"north","label":"North"},{"id":"south","label":"South"}],"selectedProfile":"north"}\n' >"$test_root/profiles.json"
+cp "$test_root/profiles.json" "$test_root/valid-profiles.json"
+jq -n --arg argument $'fixed\nargument; $(touch unsafe)' '{bar:{networkControls:[{
+  id:"private",label:"Private",statusCommand:["profile_status"],toggleCommand:["true"],
+  selectCommand:["record_action",$argument,""]
+}]}}' >"$desktop_shell_config"
+cp "$desktop_shell_config" "$test_root/profiles-config.json"
+network_control_command private select south
+test "$(cat "$test_root/recorded")" = $'<fixed\nargument; $(touch unsafe)><><south>'
+for profile_id in unknown '../north' 'north;touch unsafe' ''; do
+  rm -f "$test_root/recorded"
+  if network_control_command private select "$profile_id" >"$test_root/output" 2>/dev/null; then exit 1; fi
+  test ! -e "$test_root/recorded"
+done
+for expression in \
+  '.profiles += [.profiles[0]]' \
+  '.profiles[0].id = "../north"' \
+  '.profiles[0].label = null' \
+  '.profiles = {}' \
+  'del(.profiles)'; do
+  jq "$expression" "$test_root/valid-profiles.json" >"$test_root/profiles.json"
+  if network_control_command private select south >"$test_root/output" 2>/dev/null; then exit 1; fi
+  test ! -e "$test_root/recorded"
+done
+cp "$test_root/valid-profiles.json" "$test_root/profiles.json"
+for expression in \
+  '.bar.networkControls[0].selectCommand = ["record_action",null]' \
+  '.bar.networkControls[0].selectCommand = []'; do
+  jq "$expression" "$test_root/profiles-config.json" >"$desktop_shell_config"
+  if network_control_command private select south >"$test_root/output" 2>/dev/null; then exit 1; fi
+  test ! -e "$test_root/recorded"
+done
 printf 'network control tests passed\n'

@@ -10,6 +10,8 @@ Item {
   property var tailscaleModel: null
   property bool tailscaleDetailsOpen: false
   signal tailscaleDetailsRequested()
+  property string profileDetailsId: ""
+  signal profilesRequested(string controlId)
   property bool compactLabels: false
   property int targetHeight: 37
   required property int itemPadding
@@ -50,7 +52,8 @@ Item {
         required property int index
         required property var modelData
 
-        readonly property bool hasDetails: modelData.id === "tailscale"
+        readonly property bool hasProfiles: network.controller.profiles(modelData).length > 1
+        readonly property bool hasDetails: hasProfiles || modelData.id === "tailscale"
         readonly property int trailingPadding: hasDetails ? 2 : network.itemPadding
         readonly property real fullWidth: Math.ceil(18 + statusLabel.implicitWidth + 6
           + network.contentGap * 2 + network.itemPadding + trailingPadding)
@@ -143,13 +146,13 @@ Item {
           visible: hasDetails
           colors: theme
           glyph: "down"
-          Accessible.name: "Tailscale peers"
+          Accessible.name: hasProfiles ? (modelData.label || modelData.id) + " profiles" : "Tailscale peers"
           Layout.preferredWidth: 20
           Layout.preferredHeight: 28
           horizontalPadding: 2
           flatAction: true
-          accent: network.tailscaleDetailsOpen ? theme.info : theme.textPrimary
-          onClicked: network.tailscaleDetailsRequested()
+          accent: (hasProfiles ? network.profileDetailsId === modelData.id : network.tailscaleDetailsOpen) ? theme.info : theme.textPrimary
+          onClicked: hasProfiles ? network.profilesRequested(modelData.id) : network.tailscaleDetailsRequested()
         }
 
         Rectangle {
