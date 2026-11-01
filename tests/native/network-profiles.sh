@@ -41,6 +41,9 @@ export DESKTOP_SHELL_TEST_CONFIG="$test_root/config.json"
 QT_QPA_PLATFORM=offscreen timeout --kill-after=1s 10s quickshell --no-color --path "$test_root/shell.qml"
 test "$(cat "$test_root/actions")" = $'select south\nselect south'
 if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+  jq '.selectedProfile = "north" | .fixtureSnapshot = true' "$test_root/status.json" >"$test_root/next.json"
+  mv "$test_root/next.json" "$test_root/status.json"
+  printf 0 >"$test_root/polls"
   cp "$source_root/tests/native/network-profiles-popover.qml" "$test_root/shell.qml"
   QT_QPA_PLATFORM=wayland timeout --kill-after=1s 10s quickshell --no-color --path "$test_root/shell.qml"
 fi

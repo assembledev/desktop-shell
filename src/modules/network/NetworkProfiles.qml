@@ -118,7 +118,7 @@ Scope {
                   Text {
                     Layout.fillWidth: true
                     text: choice.modelData.label
-                    color: choice.enabled ? theme.textPrimary : theme.textDisabled
+                    color: theme.textPrimary
                     font.family: theme.uiFontFamily
                     font.pixelSize: 14
                     elide: Text.ElideRight

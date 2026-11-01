@@ -13,15 +13,34 @@ ShellRoot {
   property var testScreen: Quickshell.screens[0] || null
   property string invokedId: ""
   property var invokedTrigger: null
+  property var restingRow: null
+  property var restingLabel: null
+  property var restingAppearance: null
+  property var restingCheck: null
+  property var restingCheckAppearance: null
+  NetworkState {
+    id: profileState
+    backend: Quickshell.env("DESKTOP_SHELL_TEST_BACKEND")
+    configPath: Quickshell.env("DESKTOP_SHELL_TEST_CONFIG")
+    pollingEnabled: false
+    onControlsChanged: Qt.callLater(() => {
+      if (controls.length) setStatus(controls[0], {
+        selectedProfile: "north", profiles: [{id:"north",label:"North"},{id:"south",label:"South"}]
+      });
+    })
+  }
   QtObject {
     id: controller
-    property var controls: [{id:"private",label:"Private",selectCommand:["fixture-select"]}]
+    property var controls: profileState.controls
     property string selected: "north"
     property bool busy: false
     property string error: ""
     signal statusRequested(string controlId)
-    function status(control) { return {selectedProfile:selected,busy:busy,error:error}; }
-    function profiles(control) { return [{id:"north",label:"North"},{id:"south",label:"South"}]; }
+    onBusyChanged: profileState.setStatus(controls[0], {busy:busy})
+    onErrorChanged: profileState.setStatus(controls[0], {error:error})
+    onSelectedChanged: profileState.setStatus(controls[0], {selectedProfile:selected})
+    function status(control) { return profileState.status(control); }
+    function profiles(control) { return profileState.profiles(control); }
     function selectProfile(control, profileId) { selected = profileId; }
     function activate(control) { suite.verify(false, "arrow toggled provider"); }
   }
@@ -63,6 +82,12 @@ ShellRoot {
   }
   function arrow() { return find(barControls, item => item.Accessible?.name === "Private profiles"); }
   function choice(label) { return find(details.surface.contentItem, item => item.modelData?.label === label); }
+  function appearance(label) {
+    return {color:String(label.color),opacity:label.opacity,x:label.x,y:label.y,width:label.width,height:label.height};
+  }
+  function checkAppearance(symbol) {
+    return {visible:symbol.visible,opacity:symbol.opacity,tint:String(symbol.tint),x:symbol.x,y:symbol.y,width:symbol.width,height:symbol.height};
+  }
   function panel() {
     let item = find(details.surface.contentItem, item => item.text === "Private profiles");
     while (item && item !== details.surface.contentItem) {
@@ -80,7 +105,6 @@ ShellRoot {
     suite.verify(Math.abs(box.x - expected) < 0.5, "popup does not follow invoking trigger: " + box.x + " != " + expected);
     suite.verify(box.x >= 12 && box.x + box.width <= details.surface.width - 12, "popup escapes viewport");
     suite.verify(details.screen === bar.screen && details.surface.margins.top === bar.height, "popup used wrong output or bar height");
-    console.log("PROFILE_POPUP_GEOMETRY", JSON.stringify({triggerCenter:center,panelX:box.x,panelWidth:box.width,viewportWidth:details.surface.width,barHeight:bar.height}));
   }
   Timer {
     interval: 150; running: true; repeat: true
@@ -95,8 +119,11 @@ ShellRoot {
         const row = suite.choice("South");
         suite.verify(row && !row.selected, "missing unselected profile row");
         suite.verify(row.background.color.a === 0, "profile row has a permanent fill");
-        row.clicked();
-        suite.verify(controller.selected === "south" && row.selected, "row did not select generic profile");
+        suite.restingRow = suite.choice("North");
+        suite.restingLabel = suite.find(suite.restingRow, item => item.text === "North");
+        suite.restingAppearance = suite.appearance(suite.restingLabel);
+        suite.restingCheck = suite.find(suite.restingRow, item => item.symbol === "check");
+        suite.restingCheckAppearance = suite.checkAppearance(suite.restingCheck);
         const image = Quickshell.env("TEST_PROFILE_POPUP_IMAGE");
         if (image) suite.panel().grabToImage(result => {
           suite.verify(result.saveToFile(image), "failed popup capture");
@@ -106,11 +133,26 @@ ShellRoot {
       } else if (suite.step === 2) {
         if (!controller.busy) return;
         suite.verify(!suite.choice("North").enabled && !suite.choice("South").enabled, "transition did not disable rows");
+        const busyRow = suite.choice("North");
+        const busyLabel = suite.find(busyRow, item => item.text === "North");
+        suite.verify(busyRow === suite.restingRow && busyLabel === suite.restingLabel, "busy state recreated profile delegates");
+        suite.verify(JSON.stringify(suite.appearance(busyLabel)) === JSON.stringify(suite.restingAppearance), "busy state changed label appearance");
+        suite.verify(JSON.stringify(suite.checkAppearance(suite.restingCheck)) === JSON.stringify(suite.restingCheckAppearance), "busy state changed selection check");
         suite.verify(!suite.find(details.surface.contentItem, item => item.text === "Switching…" && item.visible), "redundant transition text is visible");
         controller.busy = false;
-        controller.error = "Fixture connection error";
+        profileState.pollingEnabled = true;
       } else if (suite.step === 3) {
+        if (!profileState.status(controller.controls[0]).fixtureSnapshot) return;
+        const refreshedRow = suite.choice("North");
+        const refreshedLabel = suite.find(refreshedRow, item => item.text === "North");
+        const refreshedCheck = suite.find(refreshedRow, item => item.symbol === "check");
+        suite.verify(JSON.stringify(suite.appearance(refreshedLabel)) === JSON.stringify(suite.restingAppearance), "status reconciliation changed label appearance");
+        suite.verify(JSON.stringify(suite.checkAppearance(refreshedCheck)) === JSON.stringify(suite.restingCheckAppearance), "status reconciliation changed selection check");
+        controller.error = "Fixture connection error";
         suite.verify(suite.find(details.surface.contentItem, item => item.text === controller.error && item.visible), "provider error is hidden");
+        const row = suite.choice("South");
+        row.clicked();
+        suite.verify(controller.selected === "south" && row.selected, "row did not select generic profile");
         controller.error = "";
         suite.arrow().clicked();
       } else if (suite.step === 4) {
