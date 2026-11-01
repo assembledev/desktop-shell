@@ -418,7 +418,7 @@ Scope {
       height: Math.min(window.height - 56, Math.max(680, contentColumns.implicitHeight + 118))
       anchors.centerIn: parent
       radius: theme.groupRadius
-      color: theme.surfaceGlassStrong
+      color: theme.surface
       border.width: 1
       border.color: theme.borderSubtle
       clip: true

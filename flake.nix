@@ -127,7 +127,7 @@
             modules = [
               {
                 programs.desktop-shell.theme = {
-                  surfaceGlassStrong = "#db102030";
+                  surface = "#db102030";
                   accent = "#123456";
                   uiFontFamily = "Example Sans";
                 };

@@ -695,7 +695,7 @@ Scope {
         height: overviewContent.implicitHeight + 28
         anchors.centerIn: parent
         radius: 14
-        color: theme.surfaceGlassStrong
+        color: theme.surface
         border.color: theme.borderSubtle
         border.width: 1
         clip: true
@@ -875,7 +875,7 @@ Scope {
     Layout.fillWidth: true
     Layout.preferredHeight: titleHeight + contentHeight + previewPadding
     radius: 11
-    color: active ? Qt.alpha(theme.info, 0.08) : theme.surfaceGlass
+    color: active ? Qt.alpha(theme.info, 0.08) : theme.surfaceMuted
     border.color: moveTarget ? theme.special : active ? Qt.alpha(theme.info, 0.78) : theme.borderSubtle
     border.width: 1
     clip: !dragSource
@@ -1130,7 +1130,7 @@ Scope {
       anchors.right: parent.right
       anchors.bottom: parent.bottom
       height: Math.min(28, Math.max(18, parent.height * 0.24))
-      color: theme.surfaceGlassStrong
+      color: theme.surface
 
       IconImage {
         id: tileIcon

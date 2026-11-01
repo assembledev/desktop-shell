@@ -166,16 +166,9 @@ module does not take ownership of its monitor policy.
 
 ## Multiple displays
 
-Bars appear on every output by default. Keyboard actions open surfaces on the
-compositor-focused output; bar clicks open them on that bar's output. Open
-surfaces stay there until closed. Notifications and OSD appear once on the
-focused output at the time of the event.
-
-Hotplug adds and removes output presentations without restarting the shell.
-Disconnecting an output closes its surfaces and removes its transient items.
-`output` restricts bars and provides a fallback when compositor focus is
-unavailable; keyboard actions still follow focus. Wallpaper selection is
-session-wide.
+`output` restricts which displays get bars and provides a fallback when
+compositor focus is unavailable. Keyboard actions still follow focus. See
+[Multiple displays](user-guide.md#multiple-displays) for panel placement.
 
 ## Bar
 
@@ -380,30 +373,18 @@ Provide its executable and sudo policy in the system configuration.
 
 ## Theme
 
-`theme` provides typed colors and font families with a complete built-in dark
-palette. Override only the values that differ:
+`theme` overrides the default colors and fonts:
 
 ```nix
 programs.desktop-shell.theme = {
-  uiFontFamily = "Fira Sans";
-  fontFamily = "FiraCode Nerd Font";
+  uiFontFamily = "sans-serif";
   bgSolid = "#10131c";
-  textPrimary = "#e7eaf2";
-  textSecondary = "#b7becd";
-  accent = "#a78bfa";
+  surface = "#db10131c";
 };
 ```
 
-`uiFontFamily` controls UI text throughout the shell: bar labels, search and
-input fields, menus, calendars, notifications, device pages, the switcher,
-wallpaper picker, keybinding reference, media and lock
-surfaces. Its default is `Fira Sans`; fontconfig resolves the selected family.
-`fontFamily` retains the icon-font role for existing Nerd Font glyphs; authored
-vector symbols do not depend on it. Install any additional font named in your
-overrides.
-
-To use sans-serif for all UI text, override just
-`programs.desktop-shell.theme.uiFontFamily = "sans-serif";`.
+`uiFontFamily` sets the UI font and defaults to `Fira Sans`. `fontFamily`
+supplies Nerd Font icons. Install any font named in your overrides.
 
 Color values use Qt hexadecimal form: `#RRGGBB` or `#AARRGGBB`. The available
 fields are:
@@ -414,21 +395,19 @@ textPrimary textSecondary textMuted textDisabled textOnAccent
 accent accentHover info special resource utility
 success warning caution danger dangerStrong
 border borderMuted
-surfaceGlass surfaceGlassStrong surfaceScrim surface surfaceBar
+surfaceScrim surface
 surfaceRaised surfaceSoft surfaceHover surfaceMuted surfaceMutedHover
 surfaceAccent surfaceToast borderSubtle
 ```
 
-Surface colors include their opacity. When changing the base palette, update
-the corresponding surface values as well; they are explicit colors rather than
-being recomputed from a base color at Home Manager evaluation time.
+Surface colors include opacity and must be overridden separately from base
+colors.
 
-Home Manager also applies the palette and UI font to Hyprtoolkit applications,
-including `hyprpolkitagent`. Their background uses `theme.surfaceGlassStrong`,
-which defaults to approximately 86% opacity; text and control colors retain
-their own opacity. Hyprland supplies background blur. Toolkit settings can be
-overridden through Home Manager's `programs.hyprtoolkit.settings`; setting
-`programs.hyprtoolkit.enable = false` disables this export. The system
-configuration owns the authentication agent and polkit policy.
+Home Manager applies the palette and UI font to Hyprtoolkit applications,
+including `hyprpolkitagent`. Their background uses `theme.surface` at 86% opacity
+by default. Override toolkit settings through
+`programs.hyprtoolkit.settings`, or disable the export with
+`programs.hyprtoolkit.enable = false`. Configure the authentication agent and
+polkit policy in NixOS.
 
-See [Design notes](../DESIGN.md) for semantic roles and visual principles.
+See [Design notes](../DESIGN.md) for the shell's visual guidelines.

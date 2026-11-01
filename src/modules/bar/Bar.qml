@@ -474,7 +474,7 @@ Scope {
       height: root.barHeight
       y: -root.barHeight * (1 - barTransition.progress)
       opacity: barTransition.progress
-      color: theme.surfaceBar
+      color: theme.surface
       border.color: "transparent"
       border.width: 0
       clip: true
@@ -1080,7 +1080,7 @@ Scope {
       anchors.right: parent.right
       anchors.rightMargin: root.trayShelfRightMargin
       radius: 12
-      color: theme.surfaceGlassStrong
+      color: theme.surface
       border.color: theme.borderSubtle
       border.width: 1
       opacity: trayShelfTransition.progress
@@ -1148,7 +1148,7 @@ Scope {
       anchors.right: parent.right
       anchors.rightMargin: 9
       radius: 12
-      color: theme.surfaceGlassStrong
+      color: theme.surface
       border.color: theme.borderSubtle
       border.width: 1
       opacity: batteryAnalysisTransition.progress
@@ -1234,7 +1234,7 @@ Scope {
         anchors.right: parent.right
         anchors.rightMargin: 8
         radius: 12
-        color: theme.surfaceGlassStrong
+        color: theme.surface
         border.color: theme.borderSubtle
         border.width: 1
         opacity: powerMenuTransition.progress
@@ -1817,7 +1817,7 @@ Scope {
         anchors.right: parent.right
         anchors.rightMargin: 1
         anchors.verticalCenter: parent.verticalCenter
-        color: theme.surfaceBar
+        color: theme.surface
         border.color: theme.borderSubtle
         border.width: 1
 

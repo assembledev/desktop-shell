@@ -377,7 +377,7 @@ Scope {
       anchors.horizontalCenter: parent.horizontalCenter
       anchors.verticalCenter: parent.verticalCenter
       radius: 14
-      color: theme.surfaceGlassStrong
+      color: theme.surface
       border.color: theme.borderSubtle
       border.width: 1
       clip: true

@@ -50,11 +50,8 @@ in
   borderMuted = "#343b55";
   borderSubtle = withAlpha "70" border;
 
-  surfaceGlass = withAlpha "bf" bgSolid;
-  surfaceGlassStrong = withAlpha "db" bgSolid;
   surfaceScrim = withAlpha "46" bgSolid;
-  surface = withAlpha "cc" bgSolid;
-  surfaceBar = withAlpha "c2" bgSolid;
+  surface = withAlpha "db" bgSolid;
   surfaceRaised = withAlpha "b8" bgRaised;
   surfaceSoft = withAlpha "9f" bgRaised;
   surfaceHover = withAlpha "bd" bgHover;

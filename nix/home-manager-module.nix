@@ -649,7 +649,7 @@ in
       enable = lib.mkDefault true;
       package = lib.mkDefault null;
       settings = lib.mapAttrs (_: lib.mkDefault) {
-        background = hyprColor cfg.theme.surfaceGlassStrong;
+        background = hyprColor cfg.theme.surface;
         base = hyprColor cfg.theme.bgRaised;
         alternate_base = hyprColor cfg.theme.bgMuted;
         text = hyprColor cfg.theme.textSecondary;

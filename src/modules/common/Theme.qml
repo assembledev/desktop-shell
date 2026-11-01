@@ -31,11 +31,8 @@ QtObject {
       dangerStrong: "#ff7898",
       border: "#424a68",
       borderMuted: "#343b55",
-      surfaceGlass: "#bf1a1b26",
-      surfaceGlassStrong: "#db1a1b26",
       surfaceScrim: "#461a1b26",
-      surface: "#cc1a1b26",
-      surfaceBar: "#c21a1b26",
+      surface: "#db1a1b26",
       surfaceRaised: "#b823283b",
       surfaceSoft: "#9f23283b",
       surfaceHover: "#bd303650",
@@ -118,11 +115,8 @@ QtObject {
   readonly property color danger: values.danger
   readonly property color dangerStrong: values.dangerStrong
 
-  readonly property color surfaceGlass: values.surfaceGlass
-  readonly property color surfaceGlassStrong: values.surfaceGlassStrong
   readonly property color surfaceScrim: values.surfaceScrim
   readonly property color surface: values.surface
-  readonly property color surfaceBar: values.surfaceBar
   readonly property color surfaceRaised: values.surfaceRaised
   readonly property color surfaceSoft: values.surfaceSoft
   readonly property color surfaceHover: values.surfaceHover

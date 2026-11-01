@@ -854,7 +854,7 @@ Scope {
       anchors.verticalCenter: parent.verticalCenter
       anchors.verticalCenterOffset: 24
       radius: 14
-      color: theme.surfaceGlassStrong
+      color: theme.surface
       border.color: theme.borderSubtle
       border.width: 1
       clip: true
@@ -885,7 +885,7 @@ Scope {
           Layout.fillWidth: true
           Layout.preferredHeight: 56
           radius: 10
-          color: theme.surfaceGlass
+          color: theme.surfaceMuted
           border.color: search.activeFocus ? root.accent : theme.borderSubtle
           border.width: 1
 

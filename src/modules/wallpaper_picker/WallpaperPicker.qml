@@ -508,7 +508,7 @@ Scope {
                 }
                 GradientStop {
                   position: 1
-                  color: theme.surfaceGlassStrong
+                  color: theme.surface
                 }
               }
             }

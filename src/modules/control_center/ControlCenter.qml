@@ -2563,7 +2563,7 @@ Scope {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        color: theme.surfaceGlassStrong
+        color: theme.surface
         border.color: "transparent"
         border.width: 0
         radius: 0
@@ -2667,7 +2667,7 @@ Scope {
         anchors.bottom: parent.bottom
         anchors.bottomMargin: parent.height * 0.26
         radius: 14
-        color: theme.surfaceGlassStrong
+        color: theme.surface
         border.color: theme.borderSubtle
         border.width: 1
         opacity: osdSurfaceTransition.progress
@@ -4592,7 +4592,7 @@ Scope {
     signal hide
     implicitHeight: Math.max(86, toastColumn.implicitHeight + 22 + actionBottomGap)
     radius: 12
-    color: theme.surfaceGlassStrong
+    color: theme.surface
     border.color: theme.borderSubtle
     border.width: 1
     opacity: 0

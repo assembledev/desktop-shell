@@ -155,7 +155,7 @@ Scope {
       id: card
       anchors.fill: parent
       radius: 16
-      color: theme.surfaceGlassStrong
+      color: theme.surface
       border.color: Qt.alpha(root.artworkTone, 0.54)
       border.width: 1
       contentUnderBorder: true

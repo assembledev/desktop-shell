@@ -134,7 +134,7 @@ Scope {
         width: Math.min(376, Math.max(1, window.width - 24))
         height: Math.min(content.implicitHeight + 32, Math.max(1, window.height - 16))
         radius: theme.groupRadius
-        color: theme.surfaceGlassStrong
+        color: theme.surface
         border.color: theme.borderMuted
         border.width: 1
         clip: true
