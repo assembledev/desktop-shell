@@ -304,8 +304,8 @@ status JSON supplies the available choices and the requested selection:
 
 Profile IDs use the same syntax as provider IDs and must be unique; labels must
 be nonempty strings. With more than one profile, the bar exposes an arrow opening
-the profile cards. Selecting a card appends its ID as one literal argument to
-`selectCommand`. The backend checks a fresh status response before dispatching.
+the profile list below its trigger. Selecting a row appends its ID as one literal
+argument to `selectCommand`. The backend checks a fresh status response before dispatching.
 Selection and toggle commands are serialized, and status is refreshed after
 either success or failure. The provider owns switching, protection, persistence,
 and whether selection while disconnected also connects. The shell does not

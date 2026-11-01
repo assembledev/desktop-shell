@@ -138,7 +138,7 @@ test("loader exposes API and registers shell rules and handlers", function()
   equal(s.escape.options.submap_universal, true)
   local expected = {
     "bar", "batteryAnalysis", "calendar", "trayMenu", "trayShelf", "powerMenu", "launcher", "controlCenter",
-    "network", "tailscale", "controlCenterOsd", "notificationPopups", "nowPlaying", "clipboardHistory", "cheatsheet", "windowSwitcher",
+    "network", "network-profiles", "tailscale", "controlCenterOsd", "notificationPopups", "nowPlaying", "clipboardHistory", "cheatsheet", "windowSwitcher",
   }
   equal(#s.rules, #expected)
   for index, namespace in ipairs(expected) do
@@ -332,7 +332,7 @@ test("Escape follows mapped shell surfaces and prioritizes shell popups", functi
 end)
 
 test("every bar popup takes Escape before toasts", function()
-  for _, namespace in ipairs({ "calendar", "controlCenter", "network", "tailscale", "powerMenu" }) do
+  for _, namespace in ipairs({ "calendar", "controlCenter", "network", "network-profiles", "tailscale", "powerMenu" }) do
     local toast = { namespace = "quickshell:notificationPopups", mapped = true }
     local popup = { namespace = "quickshell:" .. namespace, mapped = true }
     local s = setup({ toast, popup })

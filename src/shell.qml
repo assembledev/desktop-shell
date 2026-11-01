@@ -74,7 +74,7 @@ ShellRoot {
       tailscaleDetailsOpen: tailscaleDetails.open && tailscaleDetails.screen === screen
       onTailscaleToggleRequested: tailscaleDetails.toggleDetails(screen)
       profileDetailsId: networkProfiles.open && networkProfiles.screen === screen ? networkProfiles.controlId : ""
-      onProfilesToggleRequested: controlId => networkProfiles.toggleDetails(controlId, screen)
+      onProfilesToggleRequested: (controlId, trigger) => networkProfiles.toggleDetails(controlId, screen, trigger)
       networkDetailsOpen: networkDetails.open && networkDetails.screen === screen
       onCalendarToggleRequested: calendar.toggleCalendar(screen)
       onControlCenterToggleRequested: controlCenter.toggleOpen(false, screen)

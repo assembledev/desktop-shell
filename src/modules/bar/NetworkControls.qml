@@ -11,7 +11,7 @@ Item {
   property bool tailscaleDetailsOpen: false
   signal tailscaleDetailsRequested()
   property string profileDetailsId: ""
-  signal profilesRequested(string controlId)
+  signal profilesRequested(string controlId, var trigger)
   property bool compactLabels: false
   property int targetHeight: 37
   required property int itemPadding
@@ -143,6 +143,7 @@ Item {
         }
 
         ShellButton {
+          id: detailsArrow
           visible: hasDetails
           colors: theme
           glyph: "down"
@@ -152,7 +153,7 @@ Item {
           horizontalPadding: 2
           flatAction: true
           accent: (hasProfiles ? network.profileDetailsId === modelData.id : network.tailscaleDetailsOpen) ? theme.info : theme.textPrimary
-          onClicked: hasProfiles ? network.profilesRequested(modelData.id) : network.tailscaleDetailsRequested()
+          onClicked: hasProfiles ? network.profilesRequested(modelData.id, detailsArrow) : network.tailscaleDetailsRequested()
         }
 
         Rectangle {

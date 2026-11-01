@@ -17,6 +17,7 @@ local blurLayers = {
   "quickshell:launcher",
   "quickshell:controlCenter",
   "quickshell:network",
+  "quickshell:network-profiles",
   "quickshell:tailscale",
   "quickshell:controlCenterOsd",
   "quickshell:notificationPopups",

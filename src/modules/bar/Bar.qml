@@ -26,7 +26,7 @@ Scope {
   signal controlCenterToggleRequested
   signal tailscaleToggleRequested
   property bool tailscaleDetailsOpen: false
-  signal profilesToggleRequested(string controlId)
+  signal profilesToggleRequested(string controlId, var trigger)
   property string profileDetailsId: ""
   signal networkToggleRequested
   property bool networkDetailsOpen: false
@@ -669,7 +669,7 @@ Scope {
                 tailscaleDetailsOpen: root.tailscaleDetailsOpen
                 onTailscaleDetailsRequested: root.tailscaleToggleRequested()
                 profileDetailsId: root.profileDetailsId
-                onProfilesRequested: controlId => root.profilesToggleRequested(controlId)
+                onProfilesRequested: (controlId, trigger) => root.profilesToggleRequested(controlId, trigger)
                 itemPadding: barSpacing.itemPadding
                 itemGap: barSpacing.itemGap
                 contentGap: barSpacing.contentGap
@@ -1004,7 +1004,7 @@ Scope {
                 tailscaleDetailsOpen: root.tailscaleDetailsOpen
                 onTailscaleDetailsRequested: root.tailscaleToggleRequested()
                 profileDetailsId: root.profileDetailsId
-                onProfilesRequested: controlId => root.profilesToggleRequested(controlId)
+                onProfilesRequested: (controlId, trigger) => root.profilesToggleRequested(controlId, trigger)
                 targetHeight: root.portraitSecondaryHeight
                 itemPadding: barSpacing.itemPadding
                 itemGap: barSpacing.itemGap

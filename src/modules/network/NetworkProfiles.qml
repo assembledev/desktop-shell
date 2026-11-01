@@ -13,6 +13,7 @@ Scope {
   required property var barSurface
   property string controlId: ""
   property bool open: false
+  property real anchorCenterX: 0
   readonly property var control: controller.controls.find(item => item.id === controlId) || null
   readonly property var current: controller.status(control)
   readonly property var profiles: controller.profiles(control)
@@ -24,10 +25,11 @@ Scope {
   ScreenPlacement { id: placement; configuration: configuration; onRemoved: root.closeDetails() }
   MotionTransition { id: transition; requested: root.open }
 
-  function openDetails(controlId, screen) {
+  function openDetails(controlId, screen, trigger) {
     if (!placement.capture(screen)) return;
     root.controlId = controlId;
     if (!control) return;
+    anchorCenterX = trigger ? trigger.mapToItem(null, trigger.width / 2, trigger.height).x : root.screen.width / 2;
     window.keyboardRequested = screen === undefined;
     open = true;
     controller.statusRequested(controlId);
@@ -35,9 +37,9 @@ Scope {
       Qt.callLater(() => choices.itemAt(0)?.forceActiveFocus());
   }
   function closeDetails() { open = false; }
-  function toggleDetails(controlId, screen) {
+  function toggleDetails(controlId, screen, trigger) {
     if (open && root.controlId === controlId && placement.matches(screen)) closeDetails();
-    else openDetails(controlId, screen);
+    else openDetails(controlId, screen, trigger);
   }
   onControlChanged: { if (open && !control) closeDetails(); }
 
@@ -57,8 +59,7 @@ Scope {
       Rectangle {
         anchors.top: parent.top
         anchors.topMargin: theme.barPopoverGap
-        anchors.right: parent.right
-        anchors.rightMargin: 12
+        x: Math.max(12, Math.min(root.anchorCenterX - width / 2, window.width - width - 12))
         width: Math.min(320, Math.max(1, window.width - 24))
         height: Math.min(content.implicitHeight + 32, Math.max(1, window.height - 16))
         radius: theme.groupRadius
@@ -68,7 +69,7 @@ Scope {
         clip: true
         opacity: transition.progress
         scale: 0.94 + transition.progress * 0.06
-        transformOrigin: Item.TopRight
+        transformOrigin: Item.Top
         transform: Translate { y: (1 - transition.progress) * -10 }
         MouseArea { anchors.fill: parent; onClicked: mouse => mouse.accepted = true }
         Flickable {
@@ -82,7 +83,7 @@ Scope {
             x: 16
             y: 16
             width: parent.width - 32
-            spacing: 10
+            spacing: 6
             RowLayout {
               Layout.fillWidth: true
               Text {
@@ -104,8 +105,8 @@ Scope {
                 required property var modelData
                 readonly property bool selected: root.current.selectedProfile === modelData.id
                 Layout.fillWidth: true
-                implicitHeight: 54
-                padding: 14
+                implicitHeight: 40
+                padding: 8
                 hoverEnabled: true
                 enabled: !root.current.busy
                 Accessible.name: modelData.label
@@ -126,18 +127,16 @@ Scope {
                 }
                 background: Rectangle {
                   radius: theme.controlRadius
-                  color: choice.hovered || choice.down ? theme.surfaceHover : theme.bgMuted
-                  border.color: choice.visualFocus ? theme.accent : theme.borderMuted
-                  border.width: choice.visualFocus ? 2 : 1
+                  color: choice.hovered || choice.visualFocus ? theme.surfaceHover : "transparent"
                 }
                 HoverHandler { cursorShape: choice.enabled ? Qt.PointingHandCursor : Qt.BusyCursor }
               }
             }
             Text {
               Layout.fillWidth: true
-              visible: root.current.busy || Boolean(root.current.error)
-              text: root.current.busy ? "Switching…" : String(root.current.error || "")
-              color: root.current.error ? theme.danger : theme.textSecondary
+              visible: Boolean(root.current.error)
+              text: String(root.current.error || "")
+              color: theme.danger
               font.family: theme.uiFontFamily
               font.pixelSize: 13
               wrapMode: Text.Wrap
