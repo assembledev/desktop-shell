@@ -423,4 +423,12 @@ Surface colors include their opacity. When changing the base palette, update
 the corresponding surface values as well; they are explicit colors rather than
 being recomputed from a base color at Home Manager evaluation time.
 
+Home Manager also applies the palette and UI font to Hyprtoolkit applications,
+including `hyprpolkitagent`. Their background uses `theme.surfaceGlassStrong`,
+which defaults to approximately 86% opacity; text and control colors retain
+their own opacity. Hyprland supplies background blur. Toolkit settings can be
+overridden through Home Manager's `programs.hyprtoolkit.settings`; setting
+`programs.hyprtoolkit.enable = false` disables this export. The system
+configuration owns the authentication agent and polkit policy.
+
 See [Design notes](../DESIGN.md) for semantic roles and visual principles.

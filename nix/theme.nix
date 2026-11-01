@@ -1,7 +1,7 @@
 let
   withAlpha = alpha: color: "#${alpha}${builtins.substring 1 6 color}";
 
-  bgSolid = "#151725";
+  bgSolid = "#1a1b26";
   bgRaised = "#23283b";
   bgMuted = "#1c2030";
   bgHover = "#303650";
@@ -51,7 +51,7 @@ in
   borderSubtle = withAlpha "70" border;
 
   surfaceGlass = withAlpha "bf" bgSolid;
-  surfaceGlassStrong = withAlpha "ca" bgSolid;
+  surfaceGlassStrong = withAlpha "db" bgSolid;
   surfaceScrim = withAlpha "46" bgSolid;
   surface = withAlpha "cc" bgSolid;
   surfaceBar = withAlpha "c2" bgSolid;

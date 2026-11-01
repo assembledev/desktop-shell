@@ -16,6 +16,9 @@ let
   defaultConfig = import ./default-config.nix;
   defaultTheme = import ./theme.nix;
   themeNames = builtins.attrNames defaultTheme;
+  hyprColor =
+    color:
+    "0x${lib.optionalString (builtins.stringLength color == 7) "ff"}${lib.removePrefix "#" color}";
 
   workspaceType = types.submodule {
     options = {
@@ -641,6 +644,24 @@ in
     };
 
     fonts.fontconfig.enable = lib.mkDefault true;
+
+    programs.hyprtoolkit = {
+      enable = lib.mkDefault true;
+      package = lib.mkDefault null;
+      settings = lib.mapAttrs (_: lib.mkDefault) {
+        background = hyprColor cfg.theme.surfaceGlassStrong;
+        base = hyprColor cfg.theme.bgRaised;
+        alternate_base = hyprColor cfg.theme.bgMuted;
+        text = hyprColor cfg.theme.textSecondary;
+        bright_text = hyprColor cfg.theme.textPrimary;
+        accent = hyprColor cfg.theme.accent;
+        accent_secondary = hyprColor cfg.theme.info;
+        link_text = hyprColor cfg.theme.info;
+        font_family = cfg.theme.uiFontFamily;
+        rounding_large = 14;
+        rounding_small = 6;
+      };
+    };
 
     xdg.configFile = {
       "desktop-shell/config.json".source = configFile;

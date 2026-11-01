@@ -123,6 +123,18 @@
               }
             ];
           };
+          themedHomeConfiguration = homeConfiguration.extendModules {
+            modules = [
+              {
+                programs.desktop-shell.theme = {
+                  surfaceGlassStrong = "#db102030";
+                  accent = "#123456";
+                  uiFontFamily = "Example Sans";
+                };
+                programs.hyprtoolkit.settings.rounding_small = 9;
+              }
+            ];
+          };
           exampleHomeConfiguration = home-manager.lib.homeManagerConfiguration {
             inherit pkgs;
             modules = [
@@ -164,6 +176,12 @@
         {
           package = desktopShell;
           home-manager =
+            assert homeConfiguration.config.programs.hyprtoolkit.settings.background == "0xdb1a1b26";
+            assert homeConfiguration.config.programs.hyprtoolkit.settings.font_family == "Fira Sans";
+            assert themedHomeConfiguration.config.programs.hyprtoolkit.settings.background == "0xdb102030";
+            assert themedHomeConfiguration.config.programs.hyprtoolkit.settings.accent == "0xff123456";
+            assert themedHomeConfiguration.config.programs.hyprtoolkit.settings.font_family == "Example Sans";
+            assert themedHomeConfiguration.config.programs.hyprtoolkit.settings.rounding_small == 9;
             assert homeConfiguration.config.programs.desktop-shell.bar.networkControls == [ ];
             assert
               !(builtins.elem (toString pkgs.tailscale) (map toString homeConfiguration.config.home.packages));

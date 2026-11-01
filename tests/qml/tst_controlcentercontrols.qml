@@ -12,7 +12,7 @@ TestCase {
   visible: true
   when: windowShown
   readonly property var colors: ({
-      bgSolid: "#151725",
+      bgSolid: "#1a1b26",
       surfaceToast: "#d8191c2b",
       bgRaised: "#23283b",
       bgMuted: "#1c2030",
@@ -26,7 +26,7 @@ TestCase {
       textSecondary: "#c7ccdc",
       textMuted: "#929cb2",
       textDisabled: "#69748b",
-      textOnAccent: "#151725",
+      textOnAccent: "#1a1b26",
       accent: "#a78bfa",
       accentHover: "#c4b5fd",
       info: "#67d4e8",
