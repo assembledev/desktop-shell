@@ -13,7 +13,7 @@ case "$2" in
     count=$(cat "$TEST_NETWORK_STATE/polls")
     printf '%s' "$((count + 1))" >"$TEST_NETWORK_STATE/polls"
     snapshot=$(cat "$TEST_NETWORK_STATE/status.json")
-    if [ "$count" -eq 1 ]; then sleep 0.4; fi
+    case "$count" in 0) sleep 0.3 ;; 1) sleep 0.4 ;; esac
     printf '%s' "$snapshot"
     ;;
   select)

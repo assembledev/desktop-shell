@@ -103,7 +103,10 @@ Item {
   }
 
   function profiles(control) {
-    if (!Array.isArray(control?.selectCommand) || control.selectCommand.length === 0)
+    // Delegates can expose nested arrays as list models. Resolve capability
+    // from the configuration owned here, using the provider's identity.
+    const configured = controls.find(item => item.id === control?.id);
+    if (!Array.isArray(configured?.selectCommand) || configured.selectCommand.length === 0)
       return [];
     const choices = status(control).profiles;
     const ids = new Set();
