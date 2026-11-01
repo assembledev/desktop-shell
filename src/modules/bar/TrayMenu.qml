@@ -369,7 +369,7 @@ Scope {
 
             contentItem: ShellSymbol {
               symbol: "back"
-              size: 20
+              size: 16
               tint: theme.textSecondary
             }
 

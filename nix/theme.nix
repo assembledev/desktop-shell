@@ -27,15 +27,12 @@ in
   fontFamily = "FiraCode Nerd Font";
   uiFontFamily = "Fira Sans";
 
-  # Content hierarchy. Chromatic colors are deliberately excluded here.
   textPrimary = "#eef0f8";
   textSecondary = "#c7ccdc";
   textMuted = "#929cb2";
   textDisabled = "#69748b";
   textOnAccent = bgSolid;
 
-  # Navigation, domains, and state share one luminous aurora family. Domain
-  # accents belong on compact anchors such as icons and badges, not body text.
   accentHover = "#c4b5fd";
   info = "#67d4e8";
   special = "#d08cf3";

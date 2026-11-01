@@ -51,7 +51,7 @@ QtObject {
     try {
       const supplied = JSON.parse(raw);
 
-      // Normalize the pre-semantic palette at the raw environment boundary.
+      // Accept older field names in DESKTOP_SHELL_THEME_JSON.
       if (supplied.textPrimary === undefined && supplied.foreground !== undefined)
         supplied.textPrimary = supplied.foreground;
       if (supplied.textSecondary === undefined && supplied.text !== undefined)
@@ -134,8 +134,7 @@ QtObject {
   readonly property int controlRadius: 6
   readonly property int barPopoverGap: 2
 
-  // Runtime aliases keep direct QML consumers source-compatible while the
-  // shell itself uses only semantic roles.
+  // Aliases for older theme field names.
   readonly property color foreground: textPrimary
   readonly property color text: textSecondary
   readonly property color muted: textDisabled
