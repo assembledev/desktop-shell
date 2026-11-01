@@ -33,34 +33,22 @@ geometry, focus, and device controls in a nested or disposable Hyprland
 session when practical. Include the result and any untested interactions in
 the change description.
 
-For network-popover focus changes, run the native component regression in a
-Wayland session:
+Run the relevant regressions inside `nix develop`:
 
-```console
-$ nix develop --command bash tests/native/network-popover-focus.sh
-```
+| Change | Command |
+| --- | --- |
+| Network popup focus | `bash tests/native/network-popover-focus.sh` |
+| Calendar navigation | `bash tests/native/calendar-navigation.sh` |
+| Tray menus | `python3 tests/native/tray-menu.py` |
+| Hyprland snapshots and sockets | `python3 tests/native/hyprland-client-snapshot.py` |
+| Tailscale inbox | `bash tests/native/tailscale-model.sh` |
+| Taildrop notifications | `bash tests/native/taildrop-notification.sh` |
+| Taildrop saving | `python3 tests/native/taildrop-save.py` |
 
-It checks pointer and keyboard invocation, closing and reopening against the
-real shared overlay with fixture network state. Also check consecutive clicks
-on the actual bar trigger while keeping the pointer stationary.
-
-For Hyprland snapshot parsing and socket lifecycle changes, run the isolated
-socket regression:
-
-```console
-$ nix develop --command python3 tests/native/hyprland-client-snapshot.py
-```
-
-For Tailscale inbox detection and notification delivery, run:
-
-```console
-$ nix develop --command bash tests/native/tailscale-model.sh
-$ nix develop --command bash tests/native/taildrop-notification.sh
-$ nix develop --command python3 tests/native/taildrop-save.py
-```
-
-These use offscreen fixtures and isolated notification and portal buses. They
-do not transfer files to peers or send notifications to the running desktop.
+The network, calendar and tray tests require Wayland. For network focus changes,
+also click the bar trigger repeatedly without moving the pointer. On Hyprland,
+`python3 tests/native/tray-menu.py --pointer` tests stationary tray clicks;
+it requires `wlrctl` and moves the cursor during the test.
 
 ## Source layout
 

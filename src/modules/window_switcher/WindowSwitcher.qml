@@ -6,6 +6,7 @@ import "../common"
 
 Scope {
   id: root
+  property var taskHost: null
 
   HyprlandAdapter { id: hyprland }
 
@@ -130,7 +131,7 @@ Scope {
     // Alt-Tab chord. Preview captures remain gated by WindowSwitcherView.open.
     active: true
     asynchronous: false
-    sourceComponent: WindowSwitcherView {}
+    sourceComponent: WindowSwitcherView { taskHost: root.taskHost }
     onLoaded: flushTimer.restart()
   }
 

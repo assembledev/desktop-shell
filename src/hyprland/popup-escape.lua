@@ -1,76 +1,60 @@
-local toastDismissEvents = {
-  ["quickshell:notificationPopups"] = "desktop-shell:dismiss-notification-popups",
-  ["quickshell:nowPlaying"] = "desktop-shell:dismiss-now-playing",
-}
-local shellPopupDismissEvent = "desktop-shell:dismiss-shell-popup"
-local shellPopupNamespaces = {
+local shellTaskNamespaces = {
+  ["quickshell:launcher"] = true,
+  ["quickshell:clipboardHistory"] = true,
+  ["quickshell:wallpaperPicker"] = true,
+  ["quickshell:windowSwitcher"] = true,
+  ["quickshell:cheatsheet"] = true,
   ["quickshell:calendar"] = true,
   ["quickshell:network"] = true,
   ["quickshell:network-profiles"] = true,
   ["quickshell:tailscale"] = true,
   ["quickshell:controlCenter"] = true,
   ["quickshell:powerMenu"] = true,
+  ["quickshell:trayMenu"] = true,
 }
-local popupEscapeBind
-
-local function popupMapped(namespace, excludedLayer)
-  for _, layer in ipairs(hl.get_layers({ namespace = namespace })) do
-    if layer ~= excludedLayer and layer.mapped then
-      return true
-    end
-  end
-  return false
-end
-
-local function anyPopupMapped(namespaces, excludedLayer)
-  for namespace, _ in pairs(namespaces) do
-    if popupMapped(namespace, excludedLayer) then
-      return true
-    end
-  end
-
-  return false
-end
+local passiveDismissEvents = {
+  ["quickshell:notificationPopups"] = "desktop-shell:dismiss-notification-popups:",
+  ["quickshell:nowPlaying"] = "desktop-shell:dismiss-now-playing:",
+}
 
 local function dismissPopup()
-  if anyPopupMapped(shellPopupNamespaces) then
-    hl.dispatch(hl.dsp.event(shellPopupDismissEvent))
-  else
-    for namespace, event in pairs(toastDismissEvents) do
-      if popupMapped(namespace) then
-        hl.dispatch(hl.dsp.event(event))
+  local monitor = hl.get_active_monitor()
+  if not monitor then return { pass_event = true } end
+
+  local taskMapped = false
+  local passiveMapped = {}
+  for _, layer in ipairs(hl.get_layers({ monitor = monitor })) do
+    if layer.mapped then
+      if shellTaskNamespaces[layer.namespace] then
+        -- Lua exposes interactivity, not the keyboard-focused layer. Let an
+        -- interactive task handle Escape locally (including tray Back).
+        if layer.interactivity ~= 0 then return { pass_event = true } end
+        taskMapped = true
+      elseif passiveDismissEvents[layer.namespace] then
+        passiveMapped[layer.namespace] = true
       end
     end
   end
+
+  if taskMapped then
+    hl.dispatch(hl.dsp.event("desktop-shell:dismiss-shell-popup:" .. monitor.name))
+    return
+  end
+
+  local dismissed = false
+  for namespace in pairs(passiveMapped) do
+    hl.dispatch(hl.dsp.event(passiveDismissEvents[namespace] .. monitor.name))
+    dismissed = true
+  end
+  if not dismissed then return { pass_event = true } end
 end
 
-local function syncPopupEscapeBind(excludedLayer)
-  popupEscapeBind:set_enabled(
-    anyPopupMapped(shellPopupNamespaces, excludedLayer) or anyPopupMapped(toastDismissEvents, excludedLayer)
-  )
-end
-
-popupEscapeBind = hl.bind(
+hl.bind(
   "Escape",
   dismissPopup,
   {
-    description = "Dismiss the active desktop-shell popup",
+    description = "Dismiss desktop-shell popups on the focused output",
     dont_inhibit = true,
     submap_universal = true,
   }
 )
-
-hl.on("layer.opened", function(layer)
-  if toastDismissEvents[layer.namespace] or shellPopupNamespaces[layer.namespace] then
-    popupEscapeBind:set_enabled(true)
-  end
-end)
-
-hl.on("layer.closed", function(layer)
-  if toastDismissEvents[layer.namespace] or shellPopupNamespaces[layer.namespace] then
-    -- Hyprland emits layer.closed before marking the closing layer unmapped.
-    syncPopupEscapeBind(layer)
-  end
-end)
-
-syncPopupEscapeBind()

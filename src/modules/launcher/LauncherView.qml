@@ -14,6 +14,18 @@ import "LauncherSearch.js" as LauncherSearch
 
 Scope {
   id: root
+  property var taskHost: null
+  function cancelTask() {
+    pendingFocusTarget = null;
+    pendingProfileApplyId = "";
+    closeLauncher();
+    if (taskHost)
+      taskHost.releaseTask(root);
+  }
+  onOpenChanged: {
+    if (!open && !pendingFocusTarget && pendingProfileApplyId.length === 0 && taskHost)
+      taskHost.releaseTask(root);
+  }
 
   Theme {
     id: theme
@@ -44,6 +56,8 @@ Scope {
     onDismissed: {
       root.commitPendingFocus();
       root.commitPendingProfileApply();
+      if (!root.open && root.taskHost)
+        root.taskHost.releaseTask(root);
     }
   }
 
@@ -92,14 +106,16 @@ Scope {
   readonly property color modeAccent: mode === "focus" ? focusAccent : launchAccent
 
   function openLauncher(screen) {
+    if (!open && pendingProfileApplyId.length > 0)
+      return;
     if (!placement.capture(screen))
       return;
+    if (taskHost)
+      taskHost.requestTask(root, placement.screen);
     if (open) {
       Qt.callLater(function() { search.forceActiveFocus(); });
       return;
     }
-    if (pendingProfileApplyId.length > 0)
-      return;
     pendingFocusTarget = null;
     surfaceTransition.exitSpeedMultiplier = 1;
     open = true;

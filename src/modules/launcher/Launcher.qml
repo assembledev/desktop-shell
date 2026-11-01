@@ -6,6 +6,7 @@ import "../common"
 
 Scope {
   id: root
+  property var taskHost: null
 
   ShellConfig { id: shellConfig }
   ScreenPlacement { id: commandPlacement; configuration: shellConfig }
@@ -63,7 +64,7 @@ Scope {
     // Keep DesktopEntries warm before the first visible open.
     active: true
     asynchronous: false
-    sourceComponent: LauncherView {}
+    sourceComponent: LauncherView { taskHost: root.taskHost }
     onLoaded: flushTimer.restart()
   }
 

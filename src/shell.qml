@@ -29,21 +29,41 @@ ShellRoot {
     return bars.instances.find(bar => bar.screen === screen) || null;
   }
 
-  function closeBarPopups(except) {
-    if (except !== calendar)
-      calendar.closeCalendar();
-    if (except !== controlCenter)
-      controlCenter.open = false;
-    if (except !== networkDetails)
-      networkDetails.closeDetails();
-    if (except !== tailscaleDetails)
-      tailscaleDetails.closeDetails();
-    if (except !== networkProfiles)
-      networkProfiles.closeDetails();
-    for (const bar of bars.instances) {
-      if (bar !== except)
-        bar.power("close");
+  property var activeTasks: ({})
+
+  function activeTaskFor(screen) {
+    return activeTasks[String(screen?.name || "")] || null;
+  }
+
+  function requestTask(task, screen) {
+    const output = String(screen?.name || "");
+    if (output.length === 0)
+      return;
+    const previous = activeTasks[output];
+    if (previous === task)
+      return;
+    const next = Object.assign({}, activeTasks);
+    for (const name of Object.keys(next)) {
+      if (next[name] === task)
+        delete next[name];
     }
+    next[output] = task;
+    activeTasks = next;
+    if (previous && previous !== task)
+      previous.cancelTask();
+  }
+
+  function releaseTask(task) {
+    const next = Object.assign({}, activeTasks);
+    let changed = false;
+    for (const output of Object.keys(next)) {
+      if (next[output] === task) {
+        delete next[output];
+        changed = true;
+      }
+    }
+    if (changed)
+      activeTasks = next;
   }
 
   IpcHandler {
@@ -54,13 +74,8 @@ ShellRoot {
   BarState {
     id: barState
     onPowerRequested: action => {
-      commandPlacement.capture();
-      for (const bar of bars.instances) {
-        if (action === "close" || bar.screen !== commandPlacement.screen)
-          bar.power("close");
-        else
-          bar.power(action);
-      }
+      const screen = commandPlacement.capture();
+      root.barFor(screen)?.power(action);
     }
   }
   Variants {
@@ -71,6 +86,7 @@ ShellRoot {
       required property var modelData
       screen: modelData
       sharedState: barState
+      taskHost: root
       tailscaleDetailsOpen: tailscaleDetails.open && tailscaleDetails.screen === screen
       onTailscaleToggleRequested: tailscaleDetails.toggleDetails(screen)
       profileDetailsId: networkProfiles.open && networkProfiles.screen === screen ? networkProfiles.controlId : ""
@@ -79,19 +95,17 @@ ShellRoot {
       onCalendarToggleRequested: calendar.toggleCalendar(screen)
       onControlCenterToggleRequested: controlCenter.toggleOpen(false, screen)
       onNetworkToggleRequested: networkDetails.toggleDetails(screen)
-      onPowerMenuOpenChanged: {
-        if (powerMenuOpen)
-          root.closeBarPopups(bar);
-      }
     }
   }
   CalendarPopup {
+    taskHost: root
     id: calendar
     barSurface: root.barFor(screen)?.surface || null
   }
-  CheatSheet {}
-  ClipboardHistory {}
+  CheatSheet { taskHost: root }
+  ClipboardHistory { taskHost: root }
   ControlCenter {
+    taskHost: root
     id: controlCenter
     barSurface: root.barFor(screen)?.surface || null
   }
@@ -100,12 +114,14 @@ ShellRoot {
     onDismissRequested: id => controlCenter.dismissNotification(id)
   }
   NetworkDetails {
+    taskHost: root
     id: networkDetails
     model: barState.connection
     barSurface: root.barFor(screen)?.surface || null
     onWifiRequested: screen => controlCenter.openWifiPage(false, screen)
   }
   TailscaleDetails {
+    taskHost: root
     id: tailscaleDetails
     model: barState.tailscale
     networkController: barState.network
@@ -116,10 +132,10 @@ ShellRoot {
     onSaveRequested: files => tailscaleDetails.saveReceived(files)
   }
   NetworkProfiles {
+    taskHost: root
     id: networkProfiles
     controller: barState.network
     barSurface: root.barFor(screen)?.surface || null
-    onOpenChanged: { if (open) root.closeBarPopups(networkProfiles); }
   }
   Connections {
     target: barState.tailscale
@@ -131,45 +147,20 @@ ShellRoot {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup")
-        root.closeBarPopups();
-    }
-  }
-  Connections {
-    target: tailscaleDetails
-    function onOpenChanged() {
-      if (tailscaleDetails.open)
-        root.closeBarPopups(tailscaleDetails);
-    }
-  }
-  Connections {
-    target: networkDetails
-    function onOpenChanged() {
-      if (networkDetails.open)
-        root.closeBarPopups(networkDetails);
-    }
-  }
-  Connections {
-    target: controlCenter
-    function onOpenChanged() {
-      if (controlCenter.open)
-        root.closeBarPopups(controlCenter);
-    }
-  }
-  Connections {
-    target: calendar
-    function onOpenChanged() {
-      if (calendar.open)
-        root.closeBarPopups(calendar);
+      const prefix = "desktop-shell:dismiss-shell-popup:";
+      if (event.name === "custom" && String(event.data || "").startsWith(prefix)) {
+        const output = String(event.data).slice(prefix.length);
+        root.activeTasks[output]?.cancelTask();
+      }
     }
   }
   Connections {
     target: barState
     function onBarOpenChanged() { if (!barState.barOpen) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); networkProfiles.closeDetails(); } }
   }
-  Launcher {}
+  Launcher { taskHost: root }
   LockPreview {}
   NowPlaying {}
-  WallpaperPicker {}
-  WindowSwitcher {}
+  WallpaperPicker { taskHost: root }
+  WindowSwitcher { taskHost: root }
 }

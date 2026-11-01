@@ -15,6 +15,10 @@ import "BarLayout.js" as BarLayout
 
 Scope {
   id: root
+  property var taskHost: null
+  Component.onDestruction: { if (taskHost) taskHost.releaseTask(root); }
+  readonly property var activeTask: taskHost ? taskHost.activeTaskFor(screen) : null
+  function cancelTask() { power("close"); }
   required property var screen
   required property var sharedState
   readonly property var monitor: screen ? Hyprland.monitorFor(screen) : null
@@ -150,12 +154,12 @@ Scope {
 
   MotionTransition {
     id: trayShelfTransition
-    requested: root.barOpen && root.trayShelfOpen && root.trayOverflowCount > 0
+    requested: root.barOpen && root.trayShelfOpen && root.trayOverflowCount > 0 && (!root.activeTask || root.activeTask === trayMenuPopup)
   }
 
   MotionTransition {
     id: batteryAnalysisTransition
-    requested: root.battery.available && root.batteryAnalysisOpen && root.barOpen
+    requested: root.battery.available && root.batteryAnalysisOpen && root.barOpen && !root.activeTask
   }
 
   MotionTransition {
@@ -357,13 +361,16 @@ Scope {
   }
 
   onPowerMenuOpenChanged: {
-    if (powerMenuOpen)
-      trayMenuPopup.closeMenu();
+    if (!powerMenuOpen && taskHost)
+      taskHost.releaseTask(root);
   }
 
 
   function power(action) {
-    powerMenuOpen = action === "open" || (action === "toggle" && !powerMenuOpen);
+    const opening = action === "open" || (action === "toggle" && !powerMenuOpen);
+    if (opening && taskHost)
+      taskHost.requestTask(root, screen);
+    powerMenuOpen = opening;
   }
 
   Connections {
@@ -407,23 +414,17 @@ Scope {
           root.workspaceIconRevision++;
         });
 
-      if (event.name === "custom" && event.data === "desktop-shell:dismiss-shell-popup") {
-        root.powerMenuOpen = false;
-        trayMenuPopup.closeMenu();
-      }
     }
   }
 
   TrayMenu {
     id: trayMenuPopup
+    taskHost: root.taskHost
     shellScreen: root.screen
     barSurface: barWindow
     barVisible: root.barOpen
 
     onOpened: function (fromShelf) {
-      root.powerMenuOpen = false;
-      root.batteryAnalysisPinned = false;
-      root.batteryAnalysisOpen = false;
       root.trayOpenMenus = fromShelf ? 1 : 0;
       root.updateTrayShelfOpen();
     }
@@ -431,9 +432,6 @@ Scope {
     onClosed: function (fromShelf) {
       if (fromShelf) {
         root.trayOpenMenus = 0;
-        if (root.portraitMode)
-          root.trayShelfPinned = false;
-
         // A menu layer can cover the shelf before its hover handler receives
         // a leave event. Do not let that stale hover keep an unpinned shelf
         // open after the menu has gone away.
@@ -725,21 +723,16 @@ Scope {
                 onClicked: root.controlCenterToggleRequested()
               }
 
-              Text {
+              ShellSymbol {
                 id: powerIcon
                 Layout.preferredWidth: barSpacing.actionSize
                 Layout.preferredHeight: root.barHeight
-                text: ""
-                color: powerMouse.containsMouse || root.powerMenuOpen ? theme.dangerStrong : theme.danger
-                font.family: theme.fontFamily
-                font.pixelSize: 21
-                font.bold: true
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                topPadding: root.textOpticalYOffset
+                symbol: "power"
+                size: 21
+                tint: powerMouse.containsMouse || root.powerMenuOpen ? theme.dangerStrong : theme.danger
                 scale: powerMouse.pressed ? 0.86 : (powerMouse.containsMouse ? 1.08 : 1)
 
-                Behavior on color {
+                Behavior on tint {
                   MotionColorAnimation {
                     role: MotionNumberAnimation.Feedback
                   }
@@ -755,7 +748,7 @@ Scope {
                   anchors.fill: parent
                   hoverEnabled: true
                   cursorShape: Qt.PointingHandCursor
-                  onClicked: root.powerMenuOpen = !root.powerMenuOpen
+                  onClicked: root.power("toggle")
                 }
               }
             }
@@ -884,21 +877,16 @@ Scope {
               onClicked: root.controlCenterToggleRequested()
             }
 
-            Text {
+            ShellSymbol {
               id: portraitPowerIcon
               Layout.preferredWidth: barSpacing.actionSize
               Layout.preferredHeight: root.portraitPrimaryHeight
-              text: ""
-              color: portraitPowerMouse.containsMouse || root.powerMenuOpen ? theme.dangerStrong : theme.danger
-              font.family: theme.fontFamily
-              font.pixelSize: 21
-              font.bold: true
-              horizontalAlignment: Text.AlignHCenter
-              verticalAlignment: Text.AlignVCenter
-              topPadding: root.textOpticalYOffset
+              symbol: "power"
+              size: 21
+              tint: portraitPowerMouse.containsMouse || root.powerMenuOpen ? theme.dangerStrong : theme.danger
               scale: portraitPowerMouse.pressed ? 0.86 : (portraitPowerMouse.containsMouse ? 1.08 : 1)
 
-              Behavior on color {
+              Behavior on tint {
                 MotionColorAnimation {
                   role: MotionNumberAnimation.Feedback
                 }
@@ -914,7 +902,7 @@ Scope {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.powerMenuOpen = !root.powerMenuOpen
+                onClicked: root.power("toggle")
               }
             }
           }

@@ -12,6 +12,8 @@ import "../common"
 
 Scope {
   id: root
+  property var taskHost: null
+  function cancelTask() { closePicker(); }
 
   Theme {
     id: theme
@@ -44,6 +46,8 @@ Scope {
 
   onOpenChanged: {
     if (!open) {
+      if (taskHost)
+        taskHost.releaseTask(root);
       wipeArmed = false;
       wipeConfirmTimer.stop();
     }
@@ -138,6 +142,8 @@ Scope {
   function openPicker(screen) {
     if (!placement.capture(screen))
       return;
+    if (taskHost)
+      taskHost.requestTask(root, placement.screen);
     if (open) {
       Qt.callLater(function() { search.forceActiveFocus(); });
       return;

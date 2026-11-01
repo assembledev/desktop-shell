@@ -8,6 +8,9 @@ import "../common"
 
 Scope {
   id: root
+  property var taskHost: null
+  function cancelTask() { closeDetails(); }
+  onOpenChanged: { if (!open && taskHost) taskHost.releaseTask(root); }
 
   required property var controller
   required property var barSurface
@@ -26,9 +29,9 @@ Scope {
   MotionTransition { id: transition; requested: root.open }
 
   function openDetails(controlId, screen, trigger) {
-    if (!placement.capture(screen)) return;
+    if (!controller.controls.some(item => item.id === controlId) || !placement.capture(screen)) return;
+    if (taskHost) taskHost.requestTask(root, placement.screen);
     root.controlId = controlId;
-    if (!control) return;
     anchorCenterX = trigger ? trigger.mapToItem(null, trigger.width / 2, trigger.height).x : root.screen.width / 2;
     window.keyboardRequested = screen === undefined;
     open = true;

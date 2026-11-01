@@ -17,11 +17,13 @@ import "AudioCommands.js" as AudioCommands
 
 Scope {
   id: root
+  property var taskHost: null
+  function cancelTask() { open = false; }
 
   required property var barSurface
   readonly property var screen: placement.screen
 
-  signal notificationPopupsCloseRequested
+  signal notificationPopupsCloseRequested(string outputName)
 
   Theme {
     id: theme
@@ -1084,6 +1086,8 @@ Scope {
   function openPanel(keyboard = true, screen) {
     if (!placement.capture(screen))
       return;
+    if (taskHost)
+      taskHost.requestTask(root, placement.screen);
     mainWindow.keyboardRequested = keyboard;
     open = true;
     if (keyboard) {
@@ -1738,6 +1742,8 @@ Scope {
       invalidateBluetoothForPage();
       refreshAll();
     } else {
+      if (taskHost)
+        taskHost.releaseTask(root);
       lastBluetoothPollAt = 0;
       pendingBluetoothForgetAddress = "";
       bluetoothForgetTimer.stop();
@@ -2526,8 +2532,9 @@ Scope {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (event.name === "custom" && event.data === "desktop-shell:dismiss-notification-popups")
-        root.notificationPopupsCloseRequested();
+      const prefix = "desktop-shell:dismiss-notification-popups:";
+      if (event.name === "custom" && String(event.data || "").startsWith(prefix))
+        root.notificationPopupsCloseRequested(String(event.data).slice(prefix.length));
       else if (event.name === "custom" && event.data === "desktop-shell:control-center:toggle")
         root.toggleOpen();
     }
@@ -3091,7 +3098,7 @@ Scope {
                 text: "Reverting in " + root.displayConfirmSeconds + " seconds"
                 color: theme.textSecondary
                 font.family: theme.uiFontFamily
-                font.pixelSize: 10
+                font.pixelSize: 11
               }
             }
 
@@ -4521,6 +4528,7 @@ Scope {
       Text {
         Layout.fillWidth: true
         text: notifRow.notification?.summary || "Notification"
+        textFormat: Text.PlainText
         color: theme.textPrimary
         font.family: theme.uiFontFamily
         font.pixelSize: 13
@@ -4537,8 +4545,6 @@ Scope {
         font.family: theme.uiFontFamily
         font.pixelSize: 12
         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-        maximumLineCount: 4
-        elide: Text.ElideRight
         onLinkActivated: function (link) {
           root.openNotificationLink(link);
         }
@@ -4647,8 +4653,9 @@ Scope {
 
     Connections {
       target: root
-      function onNotificationPopupsCloseRequested() {
-        toast.close(false);
+      function onNotificationPopupsCloseRequested(outputName) {
+        if (String(toast.item?.outputName || "") === outputName)
+          toast.close(false);
       }
     }
 
@@ -4731,6 +4738,7 @@ Scope {
         }
         ColumnLayout {
           Layout.fillWidth: true
+          Layout.minimumWidth: 0
           spacing: 2
           Text {
             Layout.fillWidth: true
@@ -4744,9 +4752,13 @@ Scope {
           Text {
             Layout.fillWidth: true
             text: toast.notification?.summary || ""
+            textFormat: Text.PlainText
             color: theme.textPrimary
             font.family: theme.uiFontFamily
             font.pixelSize: 14
+            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+            maximumLineCount: 2
+            elide: Text.ElideRight
           }
         }
         IconButton {

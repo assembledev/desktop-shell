@@ -11,6 +11,9 @@ import "NetworkStatus.js" as Status
 
 Scope {
   id: root
+  property var taskHost: null
+  function cancelTask() { closeDetails(); }
+  onOpenChanged: { if (!open && taskHost) taskHost.releaseTask(root); }
 
   required property var model
   required property var barSurface
@@ -35,6 +38,8 @@ Scope {
   function openDetails(screen) {
     if (!placement.capture(screen))
       return;
+    if (taskHost)
+      taskHost.requestTask(root, placement.screen);
     feedback = "";
     copiedValue = "";
     window.keyboardRequested = screen === undefined;

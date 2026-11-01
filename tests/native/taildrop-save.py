@@ -100,7 +100,7 @@ class Portal(dbus.service.Object):
         request = Request(bus, request_path)
         requests.append(request)
         result = dbus.Dictionary({"uris": dbus.Array([(root / "saved" / name).as_uri()], signature="s")}, signature="sv")
-        GLib.timeout_add(50, lambda: request.Response(1 if expected in {"cancelled.txt", "cancel-batch.txt", "cancel-appended.txt"} else 0, result))
+        GLib.timeout_add(180 if len(seen) == 1 else 50, lambda: request.Response(1 if expected in {"cancelled.txt", "cancel-batch.txt", "cancel-appended.txt"} else 0, result))
         return request_path
 
 

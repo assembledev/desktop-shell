@@ -398,7 +398,9 @@ Received files appear in the popup's inbox. Select a file to choose its save
 location, or use **Save all** to save the current inbox in order. Each file gets
 a separate destination prompt. New arrivals can be saved afterward. Cancelling
 or a save failure stops the remaining prompts; failures produce a notification.
-Repeated Save requests join the queue without duplicating files.
+Repeated Save requests join the queue without duplicating files. If another
+panel replaces Taildrop, its save dialog stays open. Finishing the dialog does
+not reopen Taildrop.
 
 `receive` requires an absolute destination. It downloads to a temporary file,
 then replaces the destination atomically. The graphical chooser asks before

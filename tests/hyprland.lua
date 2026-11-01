@@ -15,6 +15,11 @@ end
 
 local function setup(initialLayers)
   local state = { actions = {}, events = {}, handlers = {}, timers = {}, bindings = {}, layers = initialLayers or {}, rules = {}, notifications = {}, windows = {} }
+  state.monitor = { name = "ONE" }
+  for _, layer in ipairs(state.layers) do
+    layer.monitor = layer.monitor or state.monitor
+    layer.interactivity = layer.interactivity or 0
+  end
   local function action(kind, options)
     return { kind = kind, options = options }
   end
@@ -22,6 +27,7 @@ local function setup(initialLayers)
     dsp = { window = {} },
     notification = { create = function(options) table.insert(state.notifications, options.text) end },
     get_active_window = function() return state.active end,
+    get_active_monitor = function() return state.monitor end,
     get_windows = function(options)
       local windows = {}
       for _, window in ipairs(state.windows) do
@@ -32,7 +38,9 @@ local function setup(initialLayers)
     get_layers = function(options)
       local layers = {}
       for _, layer in ipairs(state.layers) do
-        if layer.namespace == options.namespace then table.insert(layers, layer) end
+        if (not options.namespace or layer.namespace == options.namespace) and (not options.monitor or layer.monitor == options.monitor) then
+          table.insert(layers, layer)
+        end
       end
       return layers
     end,
@@ -46,7 +54,7 @@ local function setup(initialLayers)
       table.insert(state.timers, callback)
     end,
     bind = function(key, callback, options)
-      local binding = { key = key, callback = callback, options = options }
+      local binding = { key = key, callback = callback, options = options, enabled = true }
       function binding:set_enabled(enabled) self.enabled = enabled end
       table.insert(state.bindings, binding)
       return binding
@@ -110,8 +118,9 @@ local function setup(initialLayers)
     state.active = window
     return window
   end
-  function state.layer(namespace)
-    local layer = { namespace = namespace, mapped = true }
+  function state.layer(namespace, options)
+    local layer = { namespace = namespace, mapped = true, monitor = state.monitor, interactivity = 0 }
+    for key, value in pairs(options or {}) do layer[key] = value end
     table.insert(state.layers, layer)
     state.emit("layer.opened", layer)
     return layer
@@ -133,7 +142,8 @@ test("loader exposes API and registers shell rules and handlers", function()
   equal(desktopWindowPopout, nil, "legacy global must remain absent")
   equal(#s.bindings, 1)
   equal(s.escape.key, "Escape")
-  equal(s.escape.enabled, false)
+  equal(s.escape.enabled, true)
+  equal(s.escape.callback().pass_event, true)
   equal(s.escape.options.dont_inhibit, true)
   equal(s.escape.options.submap_universal, true)
   local expected = {
@@ -146,9 +156,11 @@ test("loader exposes API and registers shell rules and handlers", function()
     equal(s.rules[index].blur, true)
     equal(s.rules[index].ignore_alpha, 0.5)
   end
-  for _, event in ipairs({ "window.pin", "window.close", "window.move_to_workspace", "monitor.layout_changed", "monitor.removed", "config.reloaded", "layer.opened", "layer.closed" }) do
+  for _, event in ipairs({ "window.pin", "window.close", "window.move_to_workspace", "monitor.layout_changed", "monitor.removed", "config.reloaded" }) do
     equal(#s.handlers[event], 1, event .. " registration")
   end
+  equal(s.handlers["layer.opened"], nil, "Escape queries current state without layer event tracking")
+  equal(s.handlers["layer.closed"], nil, "Escape queries current state without layer event tracking")
 end)
 
 test("tiled pop-out returns to tiling with original geometry policy", function()
@@ -298,56 +310,124 @@ test("oversized topology warning is deduplicated and cleared on close", function
   equal(#s.notifications, 2)
 end)
 
-test("Escape detects existing mapped popups when the config loads", function()
-  local s = setup({ { namespace = "quickshell:notificationPopups", mapped = true } })
-  equal(s.escape.enabled, true)
-  s.escape.callback()
-  equal(s.events[1], "desktop-shell:dismiss-notification-popups")
-end)
-
-test("Escape follows mapped shell surfaces and prioritizes shell popups", function()
+test("Escape passes through ordinary applications when no popup is present", function()
   local s = setup()
-  local notification = s.layer("quickshell:notificationPopups")
-  equal(s.escape.enabled, true)
-  s.escape.callback()
-  equal(s.events[1], "desktop-shell:dismiss-notification-popups")
-  local popup = s.layer("quickshell:controlCenter")
-  s.escape.callback()
-  equal(s.events[2], "desktop-shell:dismiss-shell-popup")
-  -- layer.closed arrives while the closing layer is still reported mapped.
-  s.emit("layer.closed", popup)
-  equal(s.escape.enabled, true)
-  popup.mapped = false
-  s.emit("layer.closed", notification)
-  equal(s.escape.enabled, false)
-  notification.mapped = false
-  s.escape.callback()
-  equal(#s.events, 2)
+  s.window()
   s.layer("some-other-layer")
-  equal(s.escape.enabled, false)
-  local power = s.layer("quickshell:powerMenu")
-  equal(s.escape.enabled, true)
-  s.emit("layer.closed", power)
-  equal(s.escape.enabled, false)
+  equal(s.escape.callback().pass_event, true)
+  equal(#s.events, 0)
 end)
 
-test("every bar popup takes Escape before toasts", function()
-  for _, namespace in ipairs({ "calendar", "controlCenter", "network", "network-profiles", "tailscale", "powerMenu" }) do
-    local toast = { namespace = "quickshell:notificationPopups", mapped = true }
-    local popup = { namespace = "quickshell:" .. namespace, mapped = true }
-    local s = setup({ toast, popup })
-    equal(s.escape.enabled, true, namespace)
-    s.escape.callback()
-    equal(s.events[1], "desktop-shell:dismiss-shell-popup", namespace)
-    equal(#s.events, 1, "toast must remain visible while " .. namespace .. " is open")
-    s.emit("layer.closed", popup)
-    popup.mapped = false
-    equal(s.escape.enabled, true, "toast keeps Escape active after " .. namespace .. " closes")
-    s.escape.callback()
-    equal(s.events[2], "desktop-shell:dismiss-notification-popups", namespace)
-    s.emit("layer.closed", toast)
-    equal(s.escape.enabled, false, "Escape returns to applications after " .. namespace)
+local shellTasks = { "launcher", "clipboardHistory", "wallpaperPicker", "windowSwitcher", "cheatsheet", "calendar", "controlCenter", "network", "network-profiles", "tailscale", "powerMenu", "trayMenu" }
+
+test("every keyboard-inert task dismisses only the focused output", function()
+  for _, namespace in ipairs(shellTasks) do
+    local s = setup()
+    s.window() -- The last active app is also retained while a layer owns focus.
+    s.layer("quickshell:notificationPopups")
+    s.layer("quickshell:" .. namespace)
+    equal(s.escape.callback(), nil, namespace .. " consumes Escape")
+    equal(s.events[1], "desktop-shell:dismiss-shell-popup:ONE", namespace)
+    equal(#s.events, 1, "passive surfaces must remain visible")
   end
+end)
+
+test("interactive tasks keep their local Escape semantics", function()
+  for _, namespace in ipairs(shellTasks) do
+    for _, interactivity in ipairs({ 1, 2 }) do
+      local s = setup()
+      s.window()
+      s.layer("quickshell:notificationPopups")
+      s.layer("quickshell:nowPlaying")
+      s.layer("quickshell:" .. namespace, { interactivity = interactivity })
+      equal(s.escape.callback().pass_event, true, namespace)
+      equal(#s.events, 0, namespace .. " must receive its own Escape")
+    end
+  end
+end)
+
+test("tasks on other outputs neither dismiss nor block local tasks", function()
+  local s = setup()
+  local firstMonitor = s.monitor
+  s.layer("quickshell:trayMenu", { interactivity = 1 })
+  s.monitor = { name = "TWO" }
+  equal(s.escape.callback().pass_event, true)
+  local localTask = s.layer("quickshell:calendar")
+  s.escape.callback()
+  equal(s.events[1], "desktop-shell:dismiss-shell-popup:TWO")
+  localTask.mapped = false
+  equal(s.escape.callback().pass_event, true)
+  s.monitor = firstMonitor
+  equal(s.escape.callback().pass_event, true, "the first output retains local tray Back")
+  equal(#s.events, 1)
+end)
+
+test("Escape reads mapping and interactivity changes without event state", function()
+  local s = setup()
+  local task = s.layer("quickshell:network")
+  s.escape.callback()
+  equal(s.events[1], "desktop-shell:dismiss-shell-popup:ONE")
+  task.interactivity = 2
+  equal(s.escape.callback().pass_event, true)
+  task.interactivity = 0
+  task.mapped = false
+  equal(s.escape.callback().pass_event, true)
+  equal(#s.events, 1)
+  equal(#s.timers, 0, "Escape must not poll")
+end)
+
+test("transitioning tasks dispatch one scoped cancellation", function()
+  local s = setup()
+  s.layer("quickshell:calendar")
+  s.layer("quickshell:network")
+  s.escape.callback()
+  equal(#s.events, 1)
+  equal(s.events[1], "desktop-shell:dismiss-shell-popup:ONE")
+end)
+
+test("passive popups remain dismissible while an ordinary window is active", function()
+  local s = setup()
+  local window = s.window()
+  s.layer("quickshell:tailscale", { mapped = false })
+  s.layer("quickshell:notificationPopups", { interactivity = 2 })
+  s.layer("quickshell:nowPlaying")
+  equal(s.escape.callback(), nil, "visible popups consume Escape")
+  equal(s.active, window, "dismissal must not manipulate application focus")
+  equal(#s.events, 2)
+  local dispatched = {}
+  for _, event in ipairs(s.events) do dispatched[event] = true end
+  equal(dispatched["desktop-shell:dismiss-notification-popups:ONE"], true)
+  equal(dispatched["desktop-shell:dismiss-now-playing:ONE"], true)
+end)
+
+test("passive dismissal is limited to the focused output", function()
+  local s = setup()
+  s.layer("quickshell:notificationPopups")
+  s.monitor = { name = "TWO" }
+  equal(s.escape.callback().pass_event, true)
+  local popup = s.layer("quickshell:nowPlaying")
+  s.escape.callback()
+  equal(#s.events, 1)
+  equal(s.events[1], "desktop-shell:dismiss-now-playing:TWO")
+  popup.mapped = false
+  equal(s.escape.callback().pass_event, true)
+end)
+
+test("duplicate passive layers dispatch one dismissal per popup type", function()
+  local s = setup()
+  s.layer("quickshell:notificationPopups")
+  s.layer("quickshell:notificationPopups")
+  s.escape.callback()
+  equal(#s.events, 1)
+  equal(s.events[1], "desktop-shell:dismiss-notification-popups:ONE")
+end)
+
+test("Escape passes through when there is no focused output", function()
+  local s = setup()
+  s.layer("quickshell:controlCenter")
+  s.monitor = nil
+  equal(s.escape.callback().pass_event, true)
+  equal(#s.events, 0)
 end)
 
 print("Hyprland Lua: " .. tests .. " tests passed")

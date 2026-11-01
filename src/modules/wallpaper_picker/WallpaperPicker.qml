@@ -2,14 +2,24 @@ pragma ComponentBehavior: Bound
 //@ pragma DefaultEnv QS_NO_RELOAD_POPUP=1
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Window
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import Quickshell.Widgets
 import "../common"
 
 Scope {
   id: shell
+  property var taskHost: null
+  function cancelTask() {
+    if (applyPath.length > 0)
+      close();
+    else
+      cancel();
+  }
+  onOpenChanged: { if (!open && taskHost) taskHost.releaseTask(shell); }
 
   Theme {
     id: theme
@@ -139,7 +149,11 @@ Scope {
   }
 
   function openPicker(screen) {
-    if (!placement.capture(screen) || open || applyPath.length > 0)
+    if (applyPath.length > 0 || !placement.capture(screen))
+      return;
+    if (taskHost)
+      taskHost.requestTask(shell, placement.screen);
+    if (open)
       return;
     accepted = false;
     closing = false;
@@ -300,7 +314,7 @@ Scope {
       anchors.bottom: parent.bottom
       anchors.bottomMargin: 18
       width: contentWidth
-      height: 250 + (applyFeedback.visible ? 26 : 0)
+      height: 250 + (applyFeedback.visible ? applyFeedback.implicitHeight + 8 : 0)
       opacity: surfaceTransition.progress
       scale: 0.92 + surfaceTransition.progress * 0.08
       transformOrigin: Item.Bottom
@@ -373,7 +387,6 @@ Scope {
           PathAttribute { name: "tileScale"; value: 0.72 }
           PathAttribute { name: "tileZ"; value: 0 }
           PathAttribute { name: "shadeOpacity"; value: 0.28 }
-          PathAttribute { name: "labelOpacity"; value: 0.42 }
           PathPercent { value: 0 }
 
           PathLine {
@@ -384,7 +397,6 @@ Scope {
           PathAttribute { name: "tileScale"; value: 0.84 }
           PathAttribute { name: "tileZ"; value: 2 }
           PathAttribute { name: "shadeOpacity"; value: 0.14 }
-          PathAttribute { name: "labelOpacity"; value: 0.64 }
           PathPercent { value: 0.25 }
 
           PathLine {
@@ -395,7 +407,6 @@ Scope {
           PathAttribute { name: "tileScale"; value: 1.0 }
           PathAttribute { name: "tileZ"; value: 6 }
           PathAttribute { name: "shadeOpacity"; value: 0.0 }
-          PathAttribute { name: "labelOpacity"; value: 1.0 }
           PathPercent { value: 0.5 }
 
           PathLine {
@@ -406,7 +417,6 @@ Scope {
           PathAttribute { name: "tileScale"; value: 0.84 }
           PathAttribute { name: "tileZ"; value: 2 }
           PathAttribute { name: "shadeOpacity"; value: 0.14 }
-          PathAttribute { name: "labelOpacity"; value: 0.64 }
           PathPercent { value: 0.75 }
 
           PathLine {
@@ -417,7 +427,6 @@ Scope {
           PathAttribute { name: "tileScale"; value: 0.72 }
           PathAttribute { name: "tileZ"; value: 0 }
           PathAttribute { name: "shadeOpacity"; value: 0.28 }
-          PathAttribute { name: "labelOpacity"; value: 0.42 }
           PathPercent { value: 1 }
         }
 
@@ -443,7 +452,7 @@ Scope {
             MotionNumberAnimation { role: MotionNumberAnimation.Content }
           }
 
-          Rectangle {
+          ClippingRectangle {
             id: imageFrame
 
             anchors.horizontalCenter: parent.horizontalCenter
@@ -454,7 +463,7 @@ Scope {
             color: theme.surfaceMuted
             border.width: tile.PathView.isCurrentItem ? 1 : 0
             border.color: theme.borderSubtle
-            clip: true
+            contentUnderBorder: true
 
             Image {
               id: image
@@ -529,25 +538,15 @@ Scope {
             }
           }
 
-          Text {
-            font.family: theme.uiFontFamily
+          Caption {
             anchors.top: imageFrame.bottom
-            anchors.topMargin: 12
+            anchors.topMargin: 10
             anchors.horizontalCenter: parent.horizontalCenter
-            width: tile.PathView.isCurrentItem ? parent.width - 16 : imageFrame.width - 18
+            width: Math.min(implicitWidth, tile.PathView.isCurrentItem ? parent.width - 16 : imageFrame.width - 18)
             text: tile.relativePath
-            color: tile.PathView.isCurrentItem ? theme.textPrimary : theme.textMuted
-            opacity: tile.PathView.labelOpacity ?? 0.45
-            font.pointSize: 10
+            color: tile.PathView.isCurrentItem ? theme.textPrimary : theme.textSecondary
             font.weight: tile.PathView.isCurrentItem ? Font.Medium : Font.Normal
-            horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideMiddle
-            maximumLineCount: 1
-            renderType: Text.QtRendering
-
-            Behavior on opacity {
-              MotionNumberAnimation { role: MotionNumberAnimation.FocusTravel }
-            }
           }
 
           MouseArea {
@@ -562,18 +561,15 @@ Scope {
         }
       }
 
-      Text {
+      Caption {
         id: applyFeedback
-        anchors.left: parent.left
-        anchors.right: parent.right
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(implicitWidth, parent.width)
         anchors.bottom: searchWrapper.top
         anchors.bottomMargin: 8
         visible: shell.applyPath.length > 0 || shell.applyError.length > 0
         text: shell.applyPath.length > 0 ? "Applying wallpaper…" : shell.applyError
         color: shell.applyError.length > 0 ? theme.danger : theme.textSecondary
-        font.family: theme.uiFontFamily
-        font.pixelSize: 13
-        horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
       }
 
@@ -641,25 +637,38 @@ Scope {
         }
       }
 
-      Row {
+      Caption {
         anchors.centerIn: carousel
-        spacing: 14
+        width: Math.min(implicitWidth, launcher.width)
+        text: "No wallpapers found"
+        font.pixelSize: 20
+        font.weight: Font.Medium
         opacity: shell.ready && filteredModel.count === 0 ? 1 : 0
         visible: opacity > 0
 
         Behavior on opacity {
           MotionNumberAnimation { role: MotionNumberAnimation.Content }
         }
-
-        Text {
-          font.family: theme.uiFontFamily
-          anchors.verticalCenter: parent.verticalCenter
-          text: "No wallpapers found"
-          color: theme.textPrimary
-          font.pointSize: 15
-          font.weight: Font.Medium
-        }
       }
+    }
+  }
+
+  component Caption: Label {
+    color: theme.textPrimary
+    font.family: theme.uiFontFamily
+    font.pixelSize: 13
+    textFormat: Text.PlainText
+    horizontalAlignment: Text.AlignHCenter
+    leftPadding: 10
+    rightPadding: 10
+    topPadding: 4
+    bottomPadding: 4
+    elide: Text.ElideRight
+    background: Rectangle {
+      radius: theme.controlRadius
+      color: theme.surfaceToast
+      border.color: theme.borderSubtle
+      border.width: 1
     }
   }
 }

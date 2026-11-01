@@ -10,6 +10,9 @@ import "../common"
 
 Scope {
   id: root
+  property var taskHost: null
+  function cancelTask() { closeSheet(); }
+  onOpenChanged: { if (!open && taskHost) taskHost.releaseTask(root); }
 
   Theme {
     id: theme
@@ -46,7 +49,11 @@ Scope {
   ]
 
   function openSheet(screen) {
-    open = placement.capture(screen) !== null;
+    if (!placement.capture(screen))
+      return;
+    if (taskHost)
+      taskHost.requestTask(root, placement.screen);
+    open = true;
   }
 
   function closeSheet() {

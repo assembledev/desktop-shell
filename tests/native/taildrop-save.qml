@@ -8,6 +8,7 @@ ShellRoot {
   property bool waiting: false
   property bool expectOpen: false
   property bool appendedDuringSave: false
+  property bool replacedDuringChooser: false
   readonly property var names: ["readme.md", "archive.tar.gz", "cancelled.txt", "résumé #%20 [draft].tar.gz", "batch-one.tar.gz", "batch-two.md", "cancel-batch.txt", "skip-batch.md", "queued-first.txt", "queued-second.md", "running-first.txt", "running-second.md", "inbox-one.txt", "inbox-two.md", "arrived-later.txt", "failed.txt", "after-failure.md", "cancel-appended.txt", "discard-appended.md"]
   readonly property var completedCounts: [1, 2, 2, 3, 5, 5, 7, 9, 11, 12, 12]
   QtObject { id: bar; property int height: 37 }
@@ -50,6 +51,12 @@ ShellRoot {
     onTriggered: {
       if (suite.waiting) {
         suite.verify(details.open === suite.expectOpen && model.detailsActive === suite.expectOpen, "Save changed overlay navigation");
+        if (suite.step === 0 && details.dialogOpen && !suite.replacedDuringChooser) {
+          details.cancelTask();
+          suite.expectOpen = false;
+          suite.replacedDuringChooser = true;
+          suite.verify(details.dialogOpen, "task replacement abandoned the native chooser");
+        }
         if (suite.step === 7 && !suite.appendedDuringSave && !details.dialogOpen && details.receivingName === suite.names[10]) {
           suite.appendedDuringSave = true;
           details.saveReceived(suite.files([suite.names[10], suite.names[11]]));
@@ -63,6 +70,7 @@ ShellRoot {
       }
       if (suite.step === suite.completedCounts.length) {
         suite.verify(suite.appendedDuringSave, "did not exercise queuing during a running download");
+        suite.verify(suite.replacedDuringChooser, "did not replace the parent during a native chooser");
         details.open = false;
         details.saveReceived([{name:"gone.txt",size:1}]);
         suite.verify(!details.dialogOpen && details.receiveQueue.length === 0 && !details.open && details.error.length > 0, "stale notification opened a chooser or overlay");

@@ -10,6 +10,9 @@ import "../launcher/LauncherSearch.js" as LauncherSearch
 
 Scope {
   id: root
+  property var taskHost: null
+  function cancelTask() { cancel(); }
+  onSessionActiveChanged: { if (!sessionActive && taskHost) taskHost.releaseTask(root); }
 
   Theme {
     id: theme
@@ -496,9 +499,11 @@ Scope {
   function altTab(action, screen) {
     const requestedAction = action || "next";
     if (!sessionActive) {
-      if (!placement.capture(screen))
-        return;
       snapshotState();
+      if (orderedWindows().length === 0 || !placement.capture(screen))
+        return;
+      if (taskHost)
+        taskHost.requestTask(root, placement.screen);
       originalAddress = addressOf(activeWindow);
       selectedAddress = originalAddress;
       if (!advance(requestedAction))
@@ -508,6 +513,10 @@ Scope {
       return;
     }
 
+    if (!placement.capture(screen))
+      return;
+    if (taskHost)
+      taskHost.requestTask(root, placement.screen);
     advance(requestedAction);
   }
 
@@ -1023,7 +1032,7 @@ Scope {
     }
   }
 
-  component SwitcherWindowTile: Rectangle {
+  component SwitcherWindowTile: ClippingRectangle {
     id: tile
     property var workspaceItem
     property var windowData
@@ -1057,7 +1066,7 @@ Scope {
     border.width: 1
     z: dragging ? 60 : (selected ? 10 : 2)
     scale: dragging ? 1.04 : (selected ? 1.018 : 1)
-    clip: true
+    contentUnderBorder: true
 
     Behavior on scale {
       enabled: root.open || dragging
@@ -1157,17 +1166,6 @@ Scope {
         font.pixelSize: Math.min(10, Math.max(8, parent.height * 0.42))
         elide: Text.ElideRight
       }
-    }
-
-    Rectangle {
-      anchors.fill: parent
-      radius: tile.radius
-      color: "transparent"
-      border.color: theme.info
-      border.width: 1
-      visible: tile.selected
-      opacity: 0.9
-      z: 30
     }
 
     MouseArea {

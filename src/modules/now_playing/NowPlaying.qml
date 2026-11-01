@@ -100,7 +100,7 @@ Scope {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
-      if (event.name === "custom" && event.data === "desktop-shell:dismiss-now-playing")
+      if (event.name === "custom" && event.data === "desktop-shell:dismiss-now-playing:" + placement.outputName)
         root.hide();
     }
   }

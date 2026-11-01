@@ -5,6 +5,7 @@ import "../common"
 
 Scope {
   id: root
+  property var taskHost: null
 
   ShellConfig { id: shellConfig }
   ScreenPlacement { id: commandPlacement; configuration: shellConfig }
@@ -49,7 +50,7 @@ Scope {
     id: cheatsheetLoader
     active: false
     asynchronous: false
-    sourceComponent: CheatSheetView {}
+    sourceComponent: CheatSheetView { taskHost: root.taskHost }
     onLoaded: flushTimer.restart()
   }
 

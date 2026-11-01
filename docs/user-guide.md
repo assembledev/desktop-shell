@@ -67,6 +67,9 @@ address to copy it. Opening this panel also queries `ip.me` for the public IP
 address through your current connection. See [network commands](commands.md#network)
 for refresh intervals and data sources.
 
+Notification popups show compact previews. Open history to read the complete
+message; long messages scroll within the history pane.
+
 **Do Not Disturb** silences notification popups and sounds while retaining
 history. **Focus** hides the bar. These settings survive shell restarts. To
 bring back a hidden bar from a terminal:
@@ -75,10 +78,14 @@ bring back a hidden bar from a terminal:
 $ desktop-shell focus off
 ```
 
-Opening a bar popup closes the previous one. **Escape** closes the calendar,
-Control Center, network, Tailscale, or power popup before dismissing toasts.
-With no bar popup open, it dismisses notification and Now Playing popups.
-Use Control Center's back button to return from a detail page to the overview.
+Opening another panel or picker closes the previous one on that display.
+Pinned battery details and a pinned tray shelf hide temporarily and return
+afterward.
+A tray menu keeps its tray shelf visible.
+
+**Escape** closes the panel or picker on the focused display, or goes back one
+level in a tray submenu. If none is open, it dismisses notification and Now
+Playing popups. Use Control Center's back button to return to its overview.
 
 ## Clipboard and wallpapers
 
@@ -93,7 +100,8 @@ $ desktop-shell clipboard wipe
 
 Press **Super+W** for the wallpaper picker. Type to filter file names, use
 **Left/Right** or **H/L** to browse, and press **Enter** to apply an image.
-**Escape** cancels. Add images to the configured
+**Escape** cancels the preview. Once confirmed, applying the image continues
+even if you open another panel. Add images to the configured
 [wallpaper directory](configuration.md#wallpaper); its default is `~/Wallpapers`.
 
 ## Lock the session
@@ -111,6 +119,9 @@ describes the Hypridle integration.
 By default, each connected display gets a bar. Keyboard actions open on the
 display that has Hyprland focus; clicking a bar opens its menus on that display.
 Notifications appear once on the focused display and stay there until dismissed.
+The launcher and other shared panels move when opened again on another display.
+Changing focus alone leaves them in place. Disconnecting a display closes its
+panels.
 
 The wallpaper choice is shared across displays. Configure workspace placement
 and monitor rules in Hyprland, and use the shell's Display page for interactive
