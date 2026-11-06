@@ -171,7 +171,19 @@ Scope {
     navigate(menuStack.slice(0, depth - 1), -1);
   }
 
+  function focusHoveredAction() {
+    if (!expanded || !menuInputIntent.pointerActive) return;
+    for (let i = 0; i < entryRepeater.count; i++) {
+      const row = entryRepeater.itemAt(i);
+      if (row?.enabled && row.visible && row.hovered) {
+        row.forceActiveFocus(Qt.MouseFocusReason);
+        return;
+      }
+    }
+  }
+
   function focusAction(index, direction) {
+    menuInputIntent.claimKeyboard();
     menuColumn.forceLayout();
     const count = entryRepeater.count;
     for (let offset = 0; offset < count; offset++) {
@@ -249,9 +261,16 @@ Scope {
       anchors.fill: parent
       focus: root.expanded
 
+      InputIntent {
+        id: menuInputIntent
+        surface: inputLayer
+        onPointerActivity: Qt.callLater(root.focusHoveredAction)
+      }
+
       Keys.onDownPressed: root.focusAction(0, 1)
       Keys.onUpPressed: root.focusAction(entryRepeater.count - 1, -1)
       Keys.onPressed: function(event) {
+        menuInputIntent.claimKeyboard();
         if (event.key === Qt.Key_Home || event.key === Qt.Key_End) {
           root.focusAction(event.key === Qt.Key_Home ? 0 : entryRepeater.count - 1, event.key === Qt.Key_Home ? 1 : -1);
           event.accepted = true;
@@ -470,7 +489,7 @@ Scope {
                   text: modelData?.text || ""
                   focusPolicy: Qt.StrongFocus
                   hoverEnabled: true
-                  highlighted: hovered || activeFocus
+                  highlighted: (menuInputIntent.pointerActive && hovered) || activeFocus
                   padding: 0
                   indicator: null
                   arrow: null
@@ -482,6 +501,7 @@ Scope {
                   Keys.onUpPressed: root.focusAction(index - 1, -1)
                   Keys.onDownPressed: root.focusAction(index + 1, 1)
                   Keys.onRightPressed: function(event) {
+                    menuInputIntent.claimKeyboard();
                     if (entryRow.modelData?.hasChildren)
                       root.enterSubmenu(entryRow.modelData);
                     else
@@ -489,8 +509,7 @@ Scope {
                   }
 
                   onHoveredChanged: {
-                    if (hovered)
-                      forceActiveFocus(Qt.MouseFocusReason);
+                    if (hovered) root.focusHoveredAction();
                   }
                   onActiveFocusChanged: {
                     if (!activeFocus || root.depth === 0)
