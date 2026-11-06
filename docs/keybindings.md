@@ -155,3 +155,8 @@ hl.bind("SUPER + SHIFT + 2", hl.dsp.window.move({ workspace = 2, follow = false 
 ```
 
 The shell reads the resulting workspace state from Hyprland.
+
+The power menu starts on Lock when opened from a keyboard command. Up/Down
+move between available actions; Tab/Shift+Tab traverse them, and Enter or
+Space activates the focused action. Calendar controls support Tab and
+Enter/Space, alongside Left/Right for month navigation and Home for today.

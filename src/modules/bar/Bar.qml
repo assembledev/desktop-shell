@@ -393,12 +393,22 @@ Scope {
     }
   }
 
+  function movePowerFocus(direction) {
+    const actions = powerMenuColumn.children.filter(item => item.visible && item.enabled && item.activeFocusOnTab);
+    if (actions.length === 0) return;
+    const current = actions.findIndex(item => item.activeFocus);
+    const next = current < 0 ? (direction > 0 ? 0 : actions.length - 1) : (current + direction + actions.length) % actions.length;
+    actions[next].forceActiveFocus(Qt.TabFocusReason);
+  }
+
   function power(action, keyboard = false) {
     const opening = action === "open" || (action === "toggle" && !powerMenuOpen);
     if (opening && taskHost)
       taskHost.requestTask(root, screen);
     powerMenuWindow.keyboardRequested = opening && keyboard;
     powerMenuOpen = opening;
+    if (opening && keyboard)
+      Qt.callLater(() => { if (root.powerMenuOpen && powerMenuWindow.keyboardRequested) lockAction.forceActiveFocus(Qt.TabFocusReason); });
   }
 
   Connections {
@@ -1289,8 +1299,11 @@ Scope {
     presented: powerMenuTransition.presented
     surfaceNamespace: "quickshell:powerMenu"
 
-    Item {
+    FocusScope {
       id: powerLayer
+      focus: root.powerMenuOpen
+      Keys.onDownPressed: root.movePowerFocus(1)
+      Keys.onUpPressed: root.movePowerFocus(-1)
       anchors.fill: parent
 
       MouseArea {
@@ -1325,6 +1338,7 @@ Scope {
         }
 
         Flickable {
+          id: powerFlickable
           anchors.fill: parent
           contentWidth: width
           contentHeight: powerMenuColumn.implicitHeight + 26
@@ -1337,8 +1351,9 @@ Scope {
             width: parent.width - 20
             spacing: 5
 
-            PowerAction {
-              icon: ""
+            PowerMenuAction {
+              id: lockAction
+              iconText: ""
               label: "Lock"
               accent: theme.special
               onClicked: {
@@ -1347,8 +1362,8 @@ Scope {
               }
             }
 
-            PowerAction {
-              icon: "󰤄"
+            PowerMenuAction {
+              iconText: "󰤄"
               label: "Sleep"
               accent: theme.info
               onClicked: {
@@ -1357,9 +1372,9 @@ Scope {
               }
             }
 
-            PowerAction {
+            PowerMenuAction {
               visible: root.batteryState.available && root.canHibernate
-              icon: "󰒲"
+              iconText: "󰒲"
               label: "Hibernate"
               accent: theme.info
               onClicked: {
@@ -1368,8 +1383,8 @@ Scope {
               }
             }
 
-            PowerAction {
-              icon: ""
+            PowerMenuAction {
+              iconText: ""
               label: "Restart"
               accent: theme.warning
               onClicked: {
@@ -1378,8 +1393,8 @@ Scope {
               }
             }
 
-            PowerAction {
-              icon: ""
+            PowerMenuAction {
+              iconText: ""
               label: "Shutdown"
               accent: theme.danger
               danger: true
@@ -1930,78 +1945,13 @@ Scope {
     }
   }
 
-  component PowerAction: Rectangle {
-    id: action
-    property string icon
-    property string label
-    property color accent: theme.accent
-    property bool danger: false
-    signal clicked
 
-    Layout.fillWidth: true
-    Layout.preferredHeight: 42
-    radius: 9
-    color: powerHover.containsMouse ? (danger ? Qt.alpha(theme.danger, 0.14) : theme.surfaceAccent) : "transparent"
-    border.color: "transparent"
-    border.width: 0
-    scale: powerHover.pressed ? 0.97 : 1
-
-    Behavior on color {
-      MotionColorAnimation {
-        role: MotionNumberAnimation.Feedback
-      }
-    }
-    Behavior on scale {
-      MotionNumberAnimation {
-        role: MotionNumberAnimation.Feedback
-      }
-    }
-
-    RowLayout {
-      anchors.fill: parent
-      anchors.leftMargin: 8
-      anchors.rightMargin: 8
-      spacing: 10
-
-      Rectangle {
-        Layout.preferredWidth: 28
-        Layout.preferredHeight: 28
-        radius: 8
-        color: Qt.alpha(action.accent, powerHover.containsMouse ? 0.25 : 0.15)
-
-        Behavior on color {
-          MotionColorAnimation {
-            role: MotionNumberAnimation.Feedback
-          }
-        }
-
-        Text {
-          anchors.centerIn: parent
-          text: action.icon
-          color: action.accent
-          font.family: theme.fontFamily
-          font.pixelSize: 14
-          font.bold: true
-        }
-      }
-
-      Text {
-        text: action.label
-        color: theme.textPrimary
-        font.family: theme.uiFontFamily
-        font.pixelSize: 13
-        font.bold: true
-        Layout.fillWidth: true
-        elide: Text.ElideRight
-      }
-    }
-
-    MouseArea {
-      id: powerHover
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: action.clicked()
+  component PowerMenuAction: PowerAction {
+    colors: theme
+    onActiveFocusChanged: if (activeFocus) {
+      const top = y + powerMenuColumn.y;
+      powerFlickable.contentY = Math.max(0, Math.min(top, Math.max(powerFlickable.contentY, top + height - powerFlickable.height)));
     }
   }
+
 }

@@ -73,6 +73,8 @@ Scope {
     window.keyboardRequested = screen === undefined;
     resetToToday();
     open = true;
+    if (window.keyboardRequested)
+      Qt.callLater(() => { if (root.open && window.keyboardRequested) previousMonth.forceActiveFocus(Qt.TabFocusReason); });
   }
 
   function closeCalendar() {
@@ -262,7 +264,9 @@ Scope {
                 spacing: 8
 
                 CalendarButton {
-                  icon: "back"
+                  id: previousMonth
+                  glyph: "back"
+                  tooltip: "Previous month"
                   onClicked: root.changeMonth(-1)
                 }
 
@@ -275,17 +279,11 @@ Scope {
                   font.bold: true
                   horizontalAlignment: Text.AlignHCenter
                   elide: Text.ElideRight
-
-                  MouseArea {
-                    anchors.fill: parent
-                    enabled: !root.currentMonth
-                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    onClicked: root.resetToToday()
-                  }
                 }
 
                 CalendarButton {
-                  icon: "right"
+                  glyph: "right"
+                  tooltip: "Next month"
                   onClicked: root.changeMonth(1)
                 }
               }
@@ -393,23 +391,18 @@ Scope {
                 }
               }
 
-              Text {
+              ShellButton {
+                colors: theme
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredHeight: 12
-                text: "Return to today"
-                color: theme.accent
+                Layout.preferredHeight: 20
+                label: "Return to today"
+                enabled: !root.currentMonth
                 opacity: root.currentMonth ? 0 : 1
-                font.family: theme.uiFontFamily
-                font.pixelSize: 10
-                font.bold: true
-
-                MouseArea {
-                  anchors.fill: parent
-                  anchors.margins: -8
-                  enabled: !root.currentMonth
-                  cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                  onClicked: root.resetToToday()
-                }
+                flatAction: true
+                verticalPadding: 2
+                Keys.onReturnPressed: click()
+                Keys.onEnterPressed: click()
+                onClicked: root.resetToToday()
               }
             }
           }
@@ -418,42 +411,11 @@ Scope {
     }
   }
 
-  component CalendarButton: Rectangle {
-    id: button
-
-    required property string icon
-    signal clicked
-
+  component CalendarButton: ShellButton {
+    colors: theme
     Layout.preferredWidth: 34
     Layout.preferredHeight: 30
-    radius: 9
-    color: mouse.containsMouse ? theme.surfaceHover : theme.surfaceMuted
-    border.color: mouse.containsMouse ? theme.accent : theme.borderMuted
-    border.width: 1
-    scale: mouse.pressed ? 0.92 : 1
-
-    Behavior on color {
-      MotionColorAnimation { role: MotionNumberAnimation.Feedback }
-    }
-    Behavior on scale {
-      MotionNumberAnimation { role: MotionNumberAnimation.Feedback }
-    }
-
-    ShellSymbol {
-      anchors.centerIn: parent
-      symbol: button.icon
-      size: 16
-      tint: mouse.containsMouse ? theme.accent : theme.textMuted
-    }
-
-    MouseArea {
-      id: mouse
-
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: button.clicked()
-    }
-
+    Keys.onReturnPressed: click()
+    Keys.onEnterPressed: click()
   }
 }
