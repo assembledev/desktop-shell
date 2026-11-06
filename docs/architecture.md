@@ -52,6 +52,8 @@ and ranks the current index.
 moves using compositor events and uses standard desktop-entry metadata for
 window identity. The CLI's profile inspection takes a separate snapshot;
 launch acceptance and verified placement are distinct results.
+An apply that encounters an earlier launch still opening retains its workspace
+targets and waits within that launch's reservation deadline before proceeding.
 
 `src/hyprland/init.lua` loads blur rules for shell layers, contextual popup
 Escape handling, and the `desktopShell.windowPopout` API. Home Manager installs
@@ -83,10 +85,10 @@ and OSD items without duplicating models or polling.
 
 Display changes are one validated transaction through Hyprland's Lua monitor
 API. Before applying, the backend records the previous layout in the runtime
-directory and arms a transient systemd timer. Confirmation cancels the timer
-and saves the layout for the physical-output set; expiry or rejection restores
-the previous layout. Restoring startup rules removes the saved profile for that
-set and reloads Hyprland.
+directory and arms a transient systemd timer. Confirmation requires the tested
+physical-output set to remain unchanged. It saves the layout for that set and
+cancels the timer; expiry or rejection restores the previous layout. Restoring
+startup rules removes the saved profile for that set and reloads Hyprland.
 
 ## Desktop services and commands
 

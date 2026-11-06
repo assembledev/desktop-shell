@@ -771,6 +771,15 @@ jq -e '
   ([.outputs[] | select(.name == "DP-5")][0].mirror == "eDP-1")
 ' <<<"$duplicate_layout" >/dev/null
 
+# Editing duplicated outputs must retain their mirror relationship.
+duplicate_snapshot="$(jq -nc --argjson snapshot "$display_snapshot" --argjson layout "$duplicate_layout" '
+  $snapshot | .outputs |= map(. as $output | . + ($layout.outputs[] | select(.name == $output.name)))
+')"
+display_layout_from_request "$duplicate_snapshot" \
+  '{"preset":"custom","changes":{"eDP-1":{"scale":1.5},"DP-5":{"mode":"1920x1080@60.00","scale":1.5}}}' |
+  jq -e '.outputs[0].scale == 1.5 and .outputs[1].scale == 1.5 and
+    .outputs[1].mode == "1920x1080@60.00" and .outputs[1].mirror == "eDP-1"' >/dev/null
+
 internal_layout="$(
   display_layout_from_request "$display_snapshot" '{"preset":"internal","primary":"DP-5"}'
 )"
@@ -842,6 +851,30 @@ grep -F -- '--on-active=20s' "$systemd_run_args" >/dev/null
 PATH="$test_bin:$PATH" display_keep "$display_token"
 test ! -e "$display_pending_file"
 jq -e '(.profiles | length == 1) and .profiles[0].outputs[1].transform == 1' "$display_profiles_file" >/dev/null
+
+# A topology change during confirmation must not replace a valid saved profile
+# or discard the pending rollback. Cover both removal and addition of an output.
+cp "$monitors_json" "$test_root/connected-monitors.json"
+cp "$display_profiles_file" "$test_root/saved-profiles.json"
+for topology_change in unplug plug; do
+  apply_result="$(PATH="$test_bin:$PATH" display_apply_request '{"preset":"extend","primary":"eDP-1"}')"
+  display_token="$(jq -r '.token' <<<"$apply_result")"
+  if [ "$topology_change" = unplug ]; then
+    jq '.[0:1]' "$test_root/connected-monitors.json" >"$monitors_json"
+  else
+    jq '. + [.[1] | .id = 2 | .name = "DP-7" | .serial = "OTHER"]' \
+      "$test_root/connected-monitors.json" >"$monitors_json"
+  fi
+  if PATH="$test_bin:$PATH" display_keep "$display_token" 2>"$test_root/display-error"; then
+    printf 'confirmation must fail when connected displays change\n' >&2
+    exit 1
+  fi
+  grep -F 'connected displays changed' "$test_root/display-error" >/dev/null
+  cmp "$display_profiles_file" "$test_root/saved-profiles.json"
+  test -r "$display_pending_file"
+  cp "$test_root/connected-monitors.json" "$monitors_json"
+  PATH="$test_bin:$PATH" display_rollback "$display_token"
+done
 
 jq 'map(if .name == "DP-5" then .name = "DP-6" else . end)' "$monitors_json" >"$monitors_json.next"
 mv "$monitors_json.next" "$monitors_json"

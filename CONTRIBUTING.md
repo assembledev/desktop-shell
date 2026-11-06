@@ -43,6 +43,7 @@ Run the relevant regressions inside `nix develop`:
 | Calendar navigation | `bash tests/native/calendar-navigation.sh` |
 | Tray menus | `python3 tests/native/tray-menu.py` |
 | Hyprland snapshots and sockets | `python3 tests/native/hyprland-client-snapshot.py` |
+| Launch profile switching | `python3 tests/native/profile-controller.py` |
 | Tailscale inbox | `bash tests/native/tailscale-model.sh` |
 | Taildrop notifications | `bash tests/native/taildrop-notification.sh` |
 | Taildrop saving | `python3 tests/native/taildrop-save.py` |

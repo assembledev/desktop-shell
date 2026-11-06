@@ -156,9 +156,28 @@ TestCase {
 
     const duplicate = ProfileLogic.reconcilePlan(entries, applications, [], first.leases, 1001, 15000);
     compare(duplicate.launches.length, 0);
+    compare(duplicate.waitingUntil, 16000);
 
     const retry = ProfileLogic.reconcilePlan(entries, applications, [], first.leases, 16001, 15000);
     compare(retry.launches.length, 1);
+    compare(retry.waitingUntil, 0);
+  }
+
+  function test_profile_switch_waits_for_launch_then_moves_to_new_target() {
+    const first = ProfileLogic.reconcilePlan(entries, applications, [], {}, 1000, 15000);
+    const nextEntries = [{ id: "chatgpt.desktop", workspace: 4 }];
+    const waiting = ProfileLogic.reconcilePlan(nextEntries, applications, [], first.leases, 2000, 15000);
+    compare(waiting.launches.length, 0);
+    compare(waiting.moves.length, 0);
+    compare(waiting.waitingUntil, 16000);
+
+    const opened = ProfileLogic.reconcilePlan(nextEntries, applications, [{
+      address: "0x2", class: "chatgpt", workspace: { id: 1 }
+    }], waiting.leases, 3000, 15000);
+    compare(opened.waitingUntil, 0);
+    compare(opened.launches.length, 0);
+    compare(opened.moves.length, 1);
+    compare(opened.moves[0].workspace, 4);
   }
 
   function test_usage_history_merges_launches_without_losing_disk_state() {

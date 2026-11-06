@@ -53,6 +53,7 @@ function reconcilePlan(entries, applications, windows, leases, now, leaseMs) {
   const moves = [];
   const launches = [];
   const nextLeases = Object.assign({}, leases || {});
+  let waitingUntil = 0;
 
   for (const spec of entries) {
     const app = applicationForEntryId(applications, spec.id);
@@ -71,8 +72,11 @@ function reconcilePlan(entries, applications, windows, leases, now, leaseMs) {
 
     if (Object.prototype.hasOwnProperty.call(nextLeases, spec.id)) {
       const startedAt = Number(nextLeases[spec.id]);
-      if (Number.isFinite(startedAt) && now - startedAt < leaseMs)
+      if (Number.isFinite(startedAt) && now - startedAt < leaseMs) {
+        const deadline = startedAt + leaseMs;
+        waitingUntil = waitingUntil > 0 ? Math.min(waitingUntil, deadline) : deadline;
         continue;
+      }
     }
 
     nextLeases[spec.id] = now;
@@ -82,7 +86,8 @@ function reconcilePlan(entries, applications, windows, leases, now, leaseMs) {
   return {
     launches: launches,
     moves: moves,
-    leases: nextLeases
+    leases: nextLeases,
+    waitingUntil: waitingUntil
   };
 }
 

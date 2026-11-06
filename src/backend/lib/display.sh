@@ -220,8 +220,7 @@ display_layout_from_request() {
             . + {
               mode: ($change.mode // .mode),
               scale: ($change.scale // .scale),
-              position: ($change.position // .position),
-              mirror: ""
+              position: ($change.position // .position)
             }
           end
       ]
@@ -433,7 +432,9 @@ display_keep() (
   snapshot="$(display_snapshot_json)" || return
   resolved="$(
     jq -nce --argjson desired "$desired" --argjson snapshot "$snapshot" '
-      {
+      if $desired.topology != $snapshot.topology then
+        error("connected displays changed; test the layout again")
+      else {
         topology: $desired.topology,
         primary: $desired.primary,
         outputs: [
@@ -444,9 +445,9 @@ display_keep() (
               position: (if ($requested.position | startswith("auto")) then $actual.position else $requested.position end)
             }
         ]
-      }
+      } end
     '
-  )"
+  )" || return
   profile="$(display_profile_from_layout "$resolved")"
   display_profiles_init
   profiles_tmp="$(mktemp "$display_state_dir/.profiles.XXXXXX")"

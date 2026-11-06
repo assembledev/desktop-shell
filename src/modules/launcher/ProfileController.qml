@@ -67,6 +67,7 @@ Scope {
   property var moveQueue: []
   property var currentMove: null
   property var pendingLaunches: []
+  property double launchWaitDeadline: 0
 
   HyprlandAdapter { id: hyprland }
   HyprlandClientSnapshot {
@@ -197,6 +198,9 @@ Scope {
     moveQueue = [];
     pendingLaunches = [];
     moveTimeout.stop();
+    launchWait.stop();
+    if (attempt === 1)
+      launchWaitDeadline = 0;
 
     if (!clientSnapshot.request())
       retryApply("native snapshot request is already active");
@@ -213,6 +217,8 @@ Scope {
   function finishApply(success) {
     const profileId = activeProfileId;
     moveTimeout.stop();
+    launchWait.stop();
+    launchWaitDeadline = 0;
     activeProfileId = "";
     applyAttempt = 0;
     plannedLaunchIds = [];
@@ -251,15 +257,31 @@ Scope {
     if (activeProfileId.length === 0)
       return;
 
+    const now = Date.now();
+    if (launchWaitDeadline > 0 && now >= launchWaitDeadline) {
+      console.error("launcher: profile " + activeProfileId + " timed out waiting for an earlier launch");
+      finishApply(false);
+      return;
+    }
+
     const entries = profileApplications(activeProfileId);
     const plan = ProfileLogic.reconcilePlan(
       entries,
       applications,
       current,
       launchLeases,
-      Date.now(),
+      now,
       launchLeaseMs
     );
+    // Keep this apply and its workspace targets until earlier launches appear.
+    // Do not reserve or dispatch the rest of the plan while it is waiting.
+    if (plan.waitingUntil > 0) {
+      launchWaitDeadline = launchWaitDeadline > 0
+        ? Math.min(launchWaitDeadline, plan.waitingUntil) : plan.waitingUntil;
+      launchWait.restart();
+      return;
+    }
+    launchWaitDeadline = 0;
     launchLeases = plan.leases;
     plannedLaunchIds = plan.launches.map(function(launch) { return launch.id; });
     requestedMoves = ProfileLogic.orderedMoves(plan.moves, activeWindowAddress());
@@ -312,6 +334,16 @@ Scope {
                  + " applied moved=" + requestedMoves.length
                  + " launched=" + pendingLaunches.length);
     finishApply(true);
+  }
+
+  Timer {
+    id: launchWait
+    interval: 250
+    repeat: false
+    onTriggered: {
+      if (!clientSnapshot.request())
+        root.retryApply("native snapshot request is already active");
+    }
   }
 
   Timer {
