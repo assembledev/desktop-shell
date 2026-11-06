@@ -147,6 +147,8 @@ Scope {
     requested: root.open
     presented: surfaceTransition.presented
     surfaceNamespace: "quickshell:calendar"
+    popupContent: panel
+    onDismissRequested: root.closeCalendar()
 
     Item {
       id: inputLayer

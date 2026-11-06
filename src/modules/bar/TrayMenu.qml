@@ -254,6 +254,8 @@ Scope {
     requested: root.expanded
     presented: surfaceTransition.presented
     surfaceNamespace: "quickshell:trayMenu"
+    popupContent: menuCard
+    onDismissRequested: root.closeMenu()
     margins.top: 0
 
     FocusScope {

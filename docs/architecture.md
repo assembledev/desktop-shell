@@ -79,9 +79,16 @@ The host owns UPower refresh and critical-action policy; see
 
 `ScreenPlacement.qml` captures the output when a surface opens and invalidates
 it when that output disappears. `BarOverlayWindow.qml` owns the layer surface
-and input focus: pointer opens keep the bar trigger reachable; keyboard opens
-request keyboard focus. Per-output views present their assigned notifications
-and OSD items without duplicating models or polling.
+and input focus. Pointer opens stay keyboard-inert until the pointer enters the
+card; keyboard opens acquire focus immediately. Interactive cards use a native
+Hyprland focus grab with only the card accepting input. Bars on every output
+and visible tray shelves remain reachable. Outside clicks dismiss through the
+grab; closing releases input immediately even while the card fades. External
+choosers suspend the grab and hide the content without unmapping the layer,
+then restore the original input intent on return. Without the native grab,
+the layer retains its output-local dismissal area and keyboard-focus policy.
+Per-output views present their assigned notifications and OSD items without
+duplicating models or polling.
 
 `BarPopupPlacement.qml` places contextual cards below the complete bar, centered
 on the invoking control's layout rectangle and clamped to a 12-pixel output

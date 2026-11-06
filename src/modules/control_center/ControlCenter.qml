@@ -2547,6 +2547,8 @@ Scope {
     requested: root.open
     presented: mainSurfaceTransition.presented
     surfaceNamespace: "quickshell:controlCenter"
+    popupContent: panel
+    onDismissRequested: root.open = false
 
     InputIntent {
       id: mainInputIntent

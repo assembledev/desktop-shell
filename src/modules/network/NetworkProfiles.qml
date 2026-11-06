@@ -65,6 +65,8 @@ Scope {
     requested: root.open
     presented: transition.presented
     surfaceNamespace: "quickshell:network-profiles"
+    popupContent: panel
+    onDismissRequested: root.closeDetails()
 
     MouseArea { anchors.fill: parent; enabled: root.open; onClicked: root.closeDetails() }
     FocusScope {
@@ -72,6 +74,7 @@ Scope {
       focus: root.open
       Shortcut { sequence: "Esc"; enabled: root.open; onActivated: root.closeDetails() }
       Rectangle {
+        id: panel
         x: popupPlacement.x
         y: popupPlacement.y
         width: popupPlacement.width

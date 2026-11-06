@@ -134,6 +134,8 @@ Scope {
     requested: root.open
     presented: transition.presented
     surfaceNamespace: "quickshell:network"
+    popupContent: panel
+    onDismissRequested: root.closeDetails()
 
     MouseArea {
       anchors.fill: parent

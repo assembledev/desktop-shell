@@ -192,9 +192,12 @@ Scope {
     id: window
     barSurface: root.barSurface
     targetScreen: root.screen
-    requested: root.open && !root.dialogOpen
-    presented: transition.presented && !root.dialogOpen
+    requested: root.open
+    presented: transition.presented
+    suspended: root.dialogOpen
     surfaceNamespace: "quickshell:tailscale"
+    popupContent: panel
+    onDismissRequested: root.closeDetails()
     MouseArea { anchors.fill: parent; enabled: root.open; onClicked: root.closeDetails() }
     FocusScope {
       anchors.fill: parent

@@ -54,6 +54,7 @@ Scope {
   }
 
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
+  readonly property var popupInputWindows: trayShelfTransition.presented ? [barWindow, trayShelfWindow] : [barWindow]
   readonly property var surface: barWindow
   property bool compact: Quickshell.env("DESKTOP_SHELL_BAR_COMPACT") === "1"
   property bool showVram: Quickshell.env("DESKTOP_SHELL_BAR_SHOW_VRAM") !== "0"
@@ -484,6 +485,7 @@ Scope {
 
   PanelWindow {
     id: barWindow
+    readonly property var popupPeers: root.taskHost?.popupInputWindows || root.popupInputWindows
     function popupTrigger(kind) {
       let item;
       if (kind === "calendar") item = root.portraitMode ? portraitClockTarget : clockTarget;
@@ -1106,7 +1108,7 @@ Scope {
     }
 
     mask: Region {
-      item: root.trayShelfPinned ? trayShelfBox : trayShelfDismissLayer
+      item: root.trayShelfPinned || root.trayOpenMenus > 0 ? trayShelfBox : trayShelfDismissLayer
     }
 
     Item {
@@ -1298,6 +1300,8 @@ Scope {
     requested: root.powerMenuOpen
     presented: powerMenuTransition.presented
     surfaceNamespace: "quickshell:powerMenu"
+    popupContent: powerMenuBox
+    onDismissRequested: root.power("close")
 
     FocusScope {
       id: powerLayer

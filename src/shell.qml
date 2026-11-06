@@ -29,6 +29,13 @@ ShellRoot {
     return bars.instances.find(bar => bar.screen === screen) || null;
   }
 
+  readonly property var popupInputWindows: {
+    let windows = [];
+    for (const bar of bars.instances)
+      windows = windows.concat(bar.popupInputWindows);
+    return windows;
+  }
+
   property var activeTasks: ({})
 
   function activeTaskFor(screen) {
