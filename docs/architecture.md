@@ -66,6 +66,15 @@ workspace placement, and layout policy. See [Keybindings](keybindings.md).
 and command endpoints have one owner rather than one per bar. The control
 center owns one notification server and shared event models.
 
+`BatteryState.qml` observes Quickshell's native UPower display device. The main
+bar owns a separate `BatteryHistory.qml`, which records native energy updates
+through the drain-history accumulator. The standalone lock process only observes. History writes preserve event order and
+do not delay live presentation. Observed boot and rolling-hour averages survive
+shell restarts; sleep, clock discontinuities and missing observations reset the
+measurement baseline. The shell has no battery poller or sysfs battery reader.
+The host owns UPower refresh and critical-action policy; see
+[system prerequisites](installation.md#session-and-system-services).
+
 `ScreenPlacement.qml` captures the output when a surface opens and invalidates
 it when that output disappears. `BarOverlayWindow.qml` owns popover geometry
 and input focus: pointer opens keep the bar trigger reachable; keyboard opens
@@ -82,7 +91,7 @@ set and reloads Hyprland.
 ## Desktop services and commands
 
 The shell reads current state from PipeWire, NetworkManager, BlueZ, MPRIS,
-and Hyprland. hyprpaper applies wallpapers; cliphist stores clipboard content.
+UPower, and Hyprland. hyprpaper applies wallpapers; cliphist stores clipboard content.
 Optional Tailscale controls use LocalAPI for status and peers and the CLI for
 supported actions.
 

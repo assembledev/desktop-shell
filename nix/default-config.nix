@@ -51,6 +51,11 @@
     networkControls = [ ];
   };
 
+  battery = {
+    lowPercentage = 30;
+    criticalPercentage = 15;
+  };
+
   keyboard.layoutLabels = [ "EN" ];
 
   browserTabs = {

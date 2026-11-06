@@ -29,12 +29,28 @@ calendar_popup() {
   quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml call calendar toggle >/dev/null 2>&1
 }
 
+session_capabilities() {
+  local answer
+  answer="$(busctl --system --timeout=2s call org.freedesktop.login1 \
+    /org/freedesktop/login1 org.freedesktop.login1.Manager CanHibernate 2>/dev/null || true)"
+  case "$answer" in
+    's "yes"' | 's "challenge"') printf '{"hibernate":true}\n' ;;
+    *) printf '{"hibernate":false}\n' ;;
+  esac
+}
+
 session_action() {
   case "${1:-}" in
     lock) "$desktop_shell_executable" lock ;;
     sleep) systemctl suspend ;;
+    capabilities) session_capabilities ;;
+    hibernate)
+      # Lock confirmation is required even if the desktop idle daemon is absent.
+      lock_screen lock && systemctl hibernate
+      ;;
     restart) systemctl reboot ;;
     shutdown) systemctl poweroff ;;
+    *) return 2 ;;
   esac
 }
 

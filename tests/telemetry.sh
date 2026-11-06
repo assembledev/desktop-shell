@@ -8,18 +8,18 @@ state_dir="$test_root/state"
 desktop_shell_state_dir="$state_dir"
 system_sys_root="$test_root/sys"
 system_proc_root="$test_root/proc"
-mkdir -p "$state_dir" "$system_sys_root/class/power_supply" "$system_proc_root/sys/kernel/random" "$test_root/bin"
+mkdir -p "$state_dir" "$system_sys_root" "$system_proc_root/sys/kernel/random" "$test_root/bin"
 TEST_JQ="$(command -v jq)"
 export TEST_JQ
 export TEST_JQ_CALLS="$test_root/jq-calls"
 export TEST_GPU_CALLS="$test_root/gpu-calls"
-export TEST_SAMPLE_TIME=4000
+TEST_SAMPLE_TIME=4000
+battery_status=Discharging
+battery_energy=40000000
+battery_continuous=false
 # Generated script expands these variables when invoked.
 # shellcheck disable=SC2016
 printf '%s\n' "#!$(command -v bash)" 'printf "call\n" >>"$TEST_JQ_CALLS"' 'exec "$TEST_JQ" "$@"' >"$test_root/bin/jq"
-# Generated script expands these variables when invoked.
-# shellcheck disable=SC2016
-printf '%s\n' "#!$(command -v bash)" 'printf "%s\n" "$TEST_SAMPLE_TIME"' >"$test_root/bin/date"
 # Generated script expands these variables when invoked.
 # shellcheck disable=SC2016
 printf '%s\n' "#!$(command -v bash)" 'touch "$TEST_GPU_CALLS"' 'printf "1024, 4096\n"' >"$test_root/bin/nvidia-smi"
@@ -30,84 +30,79 @@ source "$source_root/src/backend/lib/metrics.sh"
 
 sample_battery() {
   : >"$TEST_JQ_CALLS"
-  battery_json >"$test_root/battery.json"
+  battery_analysis "{\"now\":$TEST_SAMPLE_TIME,\"continuous\":$battery_continuous,\"status\":\"$battery_status\",\"energyUwh\":$battery_energy}" >"$test_root/battery.json"
   test "$(wc -l <"$TEST_JQ_CALLS")" -eq 1 || {
-    printf 'battery sampling must use one JSON processor\n' >&2
+    printf 'battery history must use one JSON processor\n' >&2
     exit 1
   }
 }
 
-sample_battery
-"$TEST_JQ" -e '.available == false' "$test_root/battery.json" >/dev/null
-bat_dir="$system_sys_root/class/power_supply/BAT0"
-mkdir -p "$bat_dir"
-printf '80\n' >"$bat_dir/capacity"
-printf 'Discharging\n' >"$bat_dir/status"
-printf '40000000\n' >"$bat_dir/energy_now"
-printf '6000000\n' >"$bat_dir/power_now"
 printf 'test-boot\n' >"$system_proc_root/sys/kernel/random/boot_id"
 sample_battery
-"$TEST_JQ" -e '.analysis.estimateSeconds == 24000 and .analysis.estimateText == "6h 40m" and .analysis.currentDraw == "6.0 W" and .analysis.bootSeconds == 0' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.bootSeconds == 0 and .bootWh == 0' "$test_root/battery.json" >/dev/null
 
-# Quantized energy readings still contribute elapsed discharge time. Until
-# energy changes, the remaining-time estimate uses the reported current draw.
-export TEST_SAMPLE_TIME=4030
+# Quantized native readings contribute elapsed time without inventing energy.
+battery_continuous=true
+TEST_SAMPLE_TIME=4030
 sample_battery
-"$TEST_JQ" -e '.analysis.bootSeconds == 30 and .analysis.hourSeconds == 30 and .analysis.bootWh == 0 and .analysis.estimateSeconds == 24000' "$test_root/battery.json" >/dev/null
-export TEST_SAMPLE_TIME=4060
-printf '39900000\n' >"$bat_dir/energy_now"
+"$TEST_JQ" -e '.bootSeconds == 30 and .hourSeconds == 30 and .bootWh == 0' "$test_root/battery.json" >/dev/null
+TEST_SAMPLE_TIME=4060
+battery_energy=39900000
 sample_battery
-"$TEST_JQ" -e '.analysis.bootSeconds == 60 and .analysis.hourSeconds == 60 and .analysis.bootWh == 0.1 and .analysis.bootAverage == "6.0 W" and .analysis.hourAverage == "6.0 W" and .analysis.estimateSeconds == 23940 and .analysis.estimateText == "6h 39m"' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.bootSeconds == 60 and .bootWh == 0.1 and .hourAverage == "6.0 W"' "$test_root/battery.json" >/dev/null
 
-# Ignore suspend gaps and charging transitions rather than inventing draw.
-export TEST_SAMPLE_TIME=4300
-printf '39000000\n' >"$bat_dir/energy_now"
+# Suspend, observer restart and wall-clock jumps invalidate only the baseline.
+TEST_SAMPLE_TIME=4300
+battery_energy=39000000
+battery_continuous=false
 sample_battery
-"$TEST_JQ" -e '.analysis.bootSeconds == 60 and .analysis.bootWh == 0.1' "$test_root/battery.json" >/dev/null
-printf 'Charging\n' >"$bat_dir/status"
+"$TEST_JQ" -e '.bootSeconds == 60 and .bootWh == 0.1' "$test_root/battery.json" >/dev/null
+battery_status=External
+battery_continuous=true
 sample_battery
-"$TEST_JQ" -e '.analysis.estimateText == "charging" and .analysis.currentDraw == "--" and .analysis.estimateSeconds == 0' "$test_root/battery.json" >/dev/null
+TEST_SAMPLE_TIME=4330
+battery_status=Discharging
+sample_battery
+TEST_SAMPLE_TIME=4360
+battery_energy=39100000
+sample_battery
+"$TEST_JQ" -e '.bootSeconds == 60 and .bootWh == 0.1' "$test_root/battery.json" >/dev/null
+TEST_SAMPLE_TIME=4390
+battery_energy=39000000
+sample_battery
+"$TEST_JQ" -e '.bootSeconds == 90 and .bootWh == 0.2' "$test_root/battery.json" >/dev/null
 
-# Charging-to-discharge transitions and rising energy reset the baseline
-# without adding time or negative consumption; subsequent samples still count.
-export TEST_SAMPLE_TIME=4330
-printf 'Discharging\n' >"$bat_dir/status"
+# A five-minute awake interval between hardware updates is valid.
+TEST_SAMPLE_TIME=4690
+battery_energy=38500000
 sample_battery
-"$TEST_JQ" -e '.analysis.bootSeconds == 60 and .analysis.bootWh == 0.1' "$test_root/battery.json" >/dev/null
-export TEST_SAMPLE_TIME=4360
-printf '39100000\n' >"$bat_dir/energy_now"
-sample_battery
-"$TEST_JQ" -e '.analysis.bootSeconds == 60 and .analysis.bootWh == 0.1' "$test_root/battery.json" >/dev/null
-export TEST_SAMPLE_TIME=4390
-printf '39000000\n' >"$bat_dir/energy_now"
-sample_battery
-"$TEST_JQ" -e '.analysis.bootSeconds == 90 and .analysis.bootWh == 0.2' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.bootSeconds == 390 and .bootWh == 0.7' "$test_root/battery.json" >/dev/null
+previous_state="$(cat "$state_dir/battery-drain.json")"
+if battery_analysis '{"now":4700,"continuous":true,"status":"Discharging","energyUwh":-1}' >/dev/null 2>&1; then
+  printf 'invalid battery sample accepted\n' >&2
+  exit 1
+fi
+test "$(cat "$state_dir/battery-drain.json")" = "$previous_state"
 
-# Keep only the overlapping part of a sample at the rolling-hour boundary,
-# including elapsed time from unchanged energy readings.
-export TEST_SAMPLE_TIME=4300
-printf 'Charging\n' >"$bat_dir/status"
-printf '%s\n' '{"bootId":"test-boot","lastTs":4300,"lastEnergyUwh":39000000,"lastStatus":"Charging","totalWh":1,"totalSeconds":120,"history":[{"start":640,"end":760,"seconds":120,"wh":0},{"start":760,"end":790,"seconds":30,"wh":0.15}]}' >"$state_dir/battery-drain.json"
+# A backward clock jump drops future-dated rolling samples, not boot totals.
+TEST_SAMPLE_TIME=4000
+battery_continuous=false
 sample_battery
-"$TEST_JQ" -e '.analysis.hourSeconds == 90 and .analysis.hourWh == 0.15 and .analysis.hourAverage == "6.0 W"' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.bootWh == 0.7 and .bootSeconds == 390 and .hourSeconds == 0' "$test_root/battery.json" >/dev/null
+battery_continuous=true
+
+# Rolling-hour overlap, boot reset and damaged persistent state.
+TEST_SAMPLE_TIME=4300
+battery_status=External
+printf '%s\n' '{"bootId":"test-boot","lastTs":4300,"lastEnergyUwh":39000000,"lastStatus":"External","totalWh":1,"totalSeconds":120,"history":[{"start":640,"end":760,"seconds":120,"wh":0},{"start":760,"end":790,"seconds":30,"wh":0.15}]}' >"$state_dir/battery-drain.json"
+sample_battery
+"$TEST_JQ" -e '.hourSeconds == 90 and .hourWh == 0.15 and .hourAverage == "6.0 W"' "$test_root/battery.json" >/dev/null
 printf 'new-boot\n' >"$system_proc_root/sys/kernel/random/boot_id"
 sample_battery
-"$TEST_JQ" -e '.analysis.bootWh == 0 and .analysis.hourSeconds == 0' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.bootWh == 0 and .hourSeconds == 0' "$test_root/battery.json" >/dev/null
 printf '{broken' >"$state_dir/battery-drain.json"
 sample_battery
-"$TEST_JQ" -e '.analysis.bootWh == 0' "$test_root/battery.json" >/dev/null
-
-# Devices reporting charge/voltage instead of energy remain supported.
-rm "$bat_dir/energy_now" "$bat_dir/power_now"
-printf '4000000\n' >"$bat_dir/charge_now"
-printf '10000000\n' >"$bat_dir/voltage_now"
-printf 'Discharging\n' >"$bat_dir/status"
-sample_battery
-"$TEST_JQ" -e '.power == "" and .analysis.estimateSeconds == 0' "$test_root/battery.json" >/dev/null
-"$TEST_JQ" -e '.lastEnergyUwh == 40000000' "$state_dir/battery-drain.json" >/dev/null
-printf 'Full\n' >"$bat_dir/status"
-sample_battery
-"$TEST_JQ" -e '.analysis.estimateText == "full"' "$test_root/battery.json" >/dev/null
+"$TEST_JQ" -e '.bootWh == 0' "$test_root/battery.json" >/dev/null
 
 # CPU deltas, memory formatting, and GPU visibility keep their JSON contract.
 printf 'cpu 100 0 100 800 0 0 0 0\n' >"$system_proc_root/stat"
@@ -146,12 +141,13 @@ test ! -e "$cli_state/desktop-shell/preferences"
 test ! -e "$cli_state/desktop-shell/clipboard-previews"
 test ! -e "$cli_state/desktop-shell/wallpaper"
 
-# Battery sampling has no configuration dependency, even when config is broken.
+# Native battery history has no configuration or sysfs dependency.
 printf '{broken' >"$config_file"
 DESKTOP_SHELL_CONFIG="$config_file" XDG_STATE_HOME="$cli_state" \
   DESKTOP_SHELL_SYS_ROOT="$system_sys_root" DESKTOP_SHELL_PROC_ROOT="$system_proc_root" \
-  bash "$source_root/src/backend/desktop-shell.sh" bar battery-json >"$test_root/cli-battery.json"
-"$TEST_JQ" -e '.available == true and .status == "Full"' "$test_root/cli-battery.json" >/dev/null
+  bash "$source_root/src/backend/desktop-shell.sh" bar battery-analysis \
+  '{"now":5000,"continuous":false,"status":"Discharging","energyUwh":40000000}' >"$test_root/cli-battery.json"
+"$TEST_JQ" -e '.bootWh == 0 and .bootSeconds == 0' "$test_root/cli-battery.json" >/dev/null
 
 # Explicit false must disable workspace icon work; omission keeps the default.
 for policy in false true null; do

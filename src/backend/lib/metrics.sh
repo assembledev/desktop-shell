@@ -50,60 +50,7 @@ metrics_json() {
   ' "$system_proc_root/meminfo"
 }
 
-battery_energy_uwh() {
-  bat="$1"
-
-  if [ -r "$bat/energy_now" ]; then
-    IFS= read -r energy <"$bat/energy_now" 2>/dev/null || energy=0
-    printf '%s\n' "$energy"
-    return
-  fi
-
-  if [ -r "$bat/charge_now" ] && [ -r "$bat/voltage_now" ]; then
-    IFS= read -r charge_uah <"$bat/charge_now" 2>/dev/null || charge_uah=0
-    IFS= read -r voltage_uv <"$bat/voltage_now" 2>/dev/null || voltage_uv=0
-    awk -v charge="$charge_uah" -v voltage="$voltage_uv" 'BEGIN {
-      if (charge > 0 && voltage > 0) {
-        printf "%.0f\n", charge * voltage / 1000000
-      } else {
-        printf "0\n"
-      }
-    }'
-    return
-  fi
-
-  printf '0\n'
-}
-
-battery_json() {
-  bat=""
-  for candidate in "$system_sys_root"/class/power_supply/BAT*; do
-    if [ -e "$candidate" ]; then
-      bat="$candidate"
-      break
-    fi
-  done
-
-  if [ -z "$bat" ]; then
-    jq -nc '{available: false, capacity: 0, status: "", power: ""}'
-    return
-  fi
-
-  IFS= read -r capacity <"$bat/capacity" 2>/dev/null || capacity=0
-  IFS= read -r status <"$bat/status" 2>/dev/null || status=Unknown
-  energy_uwh="$(battery_energy_uwh "$bat")"
-  case "$capacity" in "" | *[!0-9]*) capacity=0 ;; esac
-  case "$energy_uwh" in "" | *[!0-9]*) energy_uwh=0 ;; esac
-
-  has_power=false
-  power_uw=0
-  if [ -r "$bat/power_now" ]; then
-    has_power=true
-    IFS= read -r power_uw <"$bat/power_now" 2>/dev/null || power_uw=0
-    case "$power_uw" in "" | *[!0-9]*) power_uw=0 ;; esac
-  fi
-
-  now="$(date +%s)"
+battery_analysis() {
   IFS= read -r boot_id <"$system_proc_root/sys/kernel/random/boot_id" 2>/dev/null || boot_id=unknown
   state_file="$desktop_shell_state_dir/battery-drain.json"
   lock_file="$desktop_shell_state_dir/battery-drain.lock"
@@ -115,16 +62,10 @@ battery_json() {
     state="$(<"$state_file")"
   fi
 
-  # Compute history and presentation together rather than reparsing each field.
   result="$(jq -nc \
     --arg state "$state" \
     --arg bootId "$boot_id" \
-    --arg status "$status" \
-    --argjson hasPower "$has_power" \
-    --argjson now "$now" \
-    --argjson energy "$energy_uwh" \
-    --argjson powerUw "$power_uw" \
-    --argjson capacity "$capacity" \
+    --argjson sample "${1:?battery sample is required}" \
     -f "${BASH_SOURCE[0]%/*}/battery-analysis.jq")" || return
   tmp_state="$(mktemp "$desktop_shell_state_dir/battery-drain.XXXXXX")"
   printf '%s\n' "${result%%$'\n'*}" >"$tmp_state"

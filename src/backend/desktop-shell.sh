@@ -450,10 +450,10 @@ if [ "${1:-}" = alttab ] && [ -n "${DESKTOP_SHELL_QML:-}" ] && command -v quicks
   esac
 fi
 
-# Periodic telemetry needs only its own state and, for metrics, the GPU policy.
+# Telemetry needs only its own state and, for metrics, the GPU policy.
 # Keep it independent of unrelated backend setup.
 case "${1:-}:${2:-}" in
-  metrics:* | bar:battery-json)
+  metrics:* | bar:battery-analysis)
     desktop_shell_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/desktop-shell"
     state_dir="$desktop_shell_state_dir"
     system_sys_root="${DESKTOP_SHELL_SYS_ROOT:-/sys}"
@@ -472,7 +472,8 @@ case "${1:-}:${2:-}" in
       ' "$config_file")" || exit 1
       metrics_json
     else
-      battery_json
+      [ "$#" -eq 3 ] || exit 2
+      battery_analysis "$3"
     fi
     exit
     ;;
@@ -917,7 +918,7 @@ case "${1:-help}" in
         session_action "${3:-}"
         ;;
       *)
-        printf 'usage: desktop-shell bar [show|hide|restore|battery-json|keyboard-json|calendar|session]\n' >&2
+        printf 'usage: desktop-shell bar [show|hide|restore|battery-analysis|keyboard-json|calendar|session]\n' >&2
         exit 2
         ;;
     esac

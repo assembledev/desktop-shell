@@ -411,3 +411,11 @@ by default. Override toolkit settings through
 polkit policy in NixOS.
 
 See [Design notes](../DESIGN.md) for the shell's visual guidelines.
+
+## Battery warnings
+
+`battery.lowPercentage` and `battery.criticalPercentage` select warning colors
+and notification thresholds (defaults 30 and 15). Critical must be below low.
+These are presentation settings; the system owns UPower's critical action and
+its percentage. Derive the warning settings from the same system policy as
+shown in [Installation](installation.md#session-and-system-services).

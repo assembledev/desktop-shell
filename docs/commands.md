@@ -256,7 +256,8 @@ exists. `clear` uses the UI's existing undo window and final-dismiss behavior.
 
 ### Battery warnings
 
-While discharging, the battery turns yellow at 30% and red at 15%. Yellow
+While discharging, the battery turns yellow at the configured low percentage
+and red at the critical percentage (30% and 15% by default). Yellow
 produces a silent, low-urgency popup that expires normally. Red produces a
 critical notification with sound and a popup that stays until dismissed or
 charging starts. Both respect DND: they remain in history without a popup or
@@ -266,6 +267,16 @@ Each level warns once per discharge cycle, including when the shell starts
 with a low battery. Starting at red skips the yellow warning. Charging rearms
 the warnings and removes the previous battery notification. Systems without a
 battery do not emit warnings.
+
+The bar and lock screen receive native UPower updates. External power without
+active charging (including charge limits) clears discharge warnings. The detail
+panel uses UPower for remaining time and current draw; last-hour and since-boot
+averages cover observed discharge intervals, excluding sleep and charging.
+
+The power menu offers Hibernate on laptops when logind reports it available.
+Availability is checked when the menu opens. The action confirms the compositor
+lock before requesting `systemctl hibernate`; the host owns resume storage and
+automatic critical-battery actions.
 
 ## Volume shortcuts and brightness
 

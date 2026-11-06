@@ -138,7 +138,8 @@ Scope {
     precision: SystemClock.Seconds
   }
 
-  BatteryState { id: batterySampler }
+  BatteryState { id: batterySampler; statistics: batteryHistory.data }
+  BatteryHistory { id: batteryHistory; sample: batterySampler.telemetry }
 
   KeyboardState { id: keyboardSampler }
 

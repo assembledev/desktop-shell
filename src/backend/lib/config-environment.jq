@@ -10,6 +10,8 @@ if type != "object" then error("configuration must be an object") else . end |
   DESKTOP_SHELL_BAR_COMPACT: (if .bar.compact // false then "1" else "0" end),
   DESKTOP_SHELL_BAR_SHOW_VRAM: (if .bar.showVram == false then "0" else "1" end),
   DESKTOP_SHELL_BAR_WORKSPACE_ICONS: (if .bar.workspaceIcons == false then "0" else "1" end),
+  DESKTOP_SHELL_BATTERY_LOW: ((.battery.lowPercentage // 30) | config_integer),
+  DESKTOP_SHELL_BATTERY_CRITICAL: ((.battery.criticalPercentage // 15) | config_integer),
   DESKTOP_SHELL_KEYBOARD_LABELS_JSON: (.keyboard.layoutLabels // ["EN"] | tojson),
   DESKTOP_SHELL_BROWSER_TABS: (if .browserTabs.enable // false then "1" else "0" end),
   DESKTOP_SHELL_BROWSER_ENTRY_ID: (.browserTabs.desktopEntryId | config_string),

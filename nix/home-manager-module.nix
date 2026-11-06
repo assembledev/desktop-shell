@@ -227,6 +227,7 @@ let
         workspaceIcons
         ;
     };
+    battery = { inherit (cfg.battery) lowPercentage criticalPercentage; };
     keyboard.layoutLabels = cfg.keyboard.layoutLabels;
     browserTabs = {
       inherit (cfg.browserTabs)
@@ -448,6 +449,19 @@ in
       };
     };
 
+    battery = {
+      lowPercentage = mkOption {
+        type = types.ints.between 1 100;
+        default = defaultConfig.battery.lowPercentage;
+        description = "Battery percentage at which the low warning is shown.";
+      };
+      criticalPercentage = mkOption {
+        type = types.ints.between 1 100;
+        default = defaultConfig.battery.criticalPercentage;
+        description = "Battery percentage at which the persistent critical warning is shown.";
+      };
+    };
+
     keyboard.layoutLabels = mkOption {
       type = types.nonEmptyListOf (types.strMatching "^.{1,4}$");
       default = defaultConfig.keyboard.layoutLabels;
@@ -545,6 +559,11 @@ in
 
   config = mkIf cfg.enable {
     assertions = [
+      {
+        assertion = cfg.battery.criticalPercentage < cfg.battery.lowPercentage;
+        message = "Desktop Shell critical battery percentage must be below the low percentage.";
+      }
+
       {
         assertion =
           let

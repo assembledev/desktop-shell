@@ -37,6 +37,8 @@ Run the relevant regressions inside `nix develop`:
 
 | Change | Command |
 | --- | --- |
+| Battery model and history | `python3 tests/native/battery-state.py` |
+| Battery notifications | `bash tests/native/battery-notifications.sh` |
 | Network popup focus | `bash tests/native/network-popover-focus.sh` |
 | Calendar navigation | `bash tests/native/calendar-navigation.sh` |
 | Tray menus | `python3 tests/native/tray-menu.py` |

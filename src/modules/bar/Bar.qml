@@ -76,6 +76,7 @@ Scope {
   readonly property bool notificationUnread: sharedState.notificationUnread
   readonly property bool dnd: sharedState.dnd
   property bool powerMenuOpen: false
+  property bool canHibernate: false
   property bool batterySegmentHovered: false
   property bool batteryPanelHovered: false
   property bool batteryAnalysisPinned: false
@@ -361,10 +362,26 @@ Scope {
   }
 
   onPowerMenuOpenChanged: {
+    if (powerMenuOpen) {
+      canHibernate = false;
+      if (batteryState.available)
+        powerCapabilities.running = true;
+    }
     if (!powerMenuOpen && taskHost)
       taskHost.releaseTask(root);
   }
 
+
+  Process {
+    id: powerCapabilities
+    command: [root.backend, "bar", "session", "capabilities"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        try { root.canHibernate = JSON.parse(text).hibernate === true; }
+        catch (error) { root.canHibernate = false; }
+      }
+    }
+  }
 
   function power(action) {
     const opening = action === "open" || (action === "toggle" && !powerMenuOpen);
@@ -1265,6 +1282,17 @@ Scope {
             onClicked: {
               root.powerMenuOpen = false;
               Quickshell.execDetached([root.backend, "bar", "session", "sleep"]);
+            }
+          }
+
+          PowerAction {
+            visible: root.batteryState.available && root.canHibernate
+            icon: "󰒲"
+            label: "Hibernate"
+            accent: theme.info
+            onClicked: {
+              root.powerMenuOpen = false;
+              Quickshell.execDetached([root.backend, "bar", "session", "hibernate"]);
             }
           }
 

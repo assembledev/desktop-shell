@@ -85,11 +85,22 @@ Enable the desktop services you need in your system configuration:
 
 | Feature | System service |
 | --- | --- |
+| Battery and charger data | `services.upower.enable = true`; choose its critical-battery action explicitly |
 | Wi-Fi and network details | `networking.networkmanager.enable = true` |
 | Audio | PipeWire with WirePlumber; see [PipeWire](https://wiki.nixos.org/wiki/PipeWire) |
 | Bluetooth | `hardware.bluetooth.enable = true` |
 | Wallpaper | hyprpaper; enabled by the example |
 | File choosers, including Taildrop save | A configured desktop portal with a file chooser backend |
+
+UPower is the source of battery state and time estimates. Keep its normal
+refresh behavior; Desktop Shell subscribes to changes without its own polling.
+The shell modules do not enable UPower or select sleep/shutdown actions. Configure
+those in the host, and pass `services.upower.percentageLow` and
+`percentageCritical` into the matching `programs.desktop-shell.battery`
+Home Manager options. For reporting without automatic actions, use
+`services.upower.criticalPowerAction = "Ignore"` and
+`services.upower.allowRiskyCriticalPowerAction = true`. A configured Hibernate
+action can fall back to power-off if logind reports hibernation unavailable.
 
 Keep one owner for clipboard capture, Bluetooth pairing, the bar, and desktop
 notifications. The module starts its own clipboard watchers and Blueman pairing

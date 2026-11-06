@@ -1,45 +1,47 @@
 import QtQuick
 import Quickshell
-import Quickshell.Io
+import Quickshell.Services.UPower
 import "BatteryStatus.js" as BatteryStatus
 
 Scope {
   id: root
 
-  property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
-  property bool active: true
-  property var data: ({ available: false, capacity: 0, status: "", power: "" })
-  readonly property bool available: Boolean(data.available)
+  property var statistics: ({})
+  property int lowPercentage: Number(Quickshell.env("DESKTOP_SHELL_BATTERY_LOW") || 30)
+  property int criticalPercentage: Number(Quickshell.env("DESKTOP_SHELL_BATTERY_CRITICAL") || 15)
+  readonly property UPowerDevice device: UPower.displayDevice
+  readonly property bool available: device.ready && device.isLaptopBattery && device.isPresent
+  readonly property var telemetry: ({
+    available: available,
+    capacity: available ? Math.round(device.percentage * 100) : 0,
+    status: powerStatus(),
+    onBattery: UPower.onBattery,
+    energy: available ? device.energy : 0,
+    changeRate: available ? Math.abs(device.changeRate) : 0,
+    timeToEmpty: available ? device.timeToEmpty : 0,
+    power: available ? Math.abs(device.changeRate).toFixed(1) + "W" : "",
+    lowPercentage: lowPercentage,
+    criticalPercentage: criticalPercentage
+  })
+  readonly property var data: Object.assign({}, telemetry, {
+    analysis: BatteryStatus.analysis(telemetry, statistics)
+  })
   readonly property string icon: BatteryStatus.icon(data)
   readonly property string label: BatteryStatus.capacity(data) + "%"
   readonly property string severity: BatteryStatus.severity(data)
 
-  function refresh() {
-    if (active)
-      sample.running = true;
-  }
-
-  Timer {
-    interval: 30000
-    running: root.active
-    repeat: true
-    triggeredOnStart: true
-    onTriggered: root.refresh()
-  }
-
-  Process {
-    id: sample
-    command: [root.backend, "bar", "battery-json"]
-    stdout: StdioCollector {
-      onStreamFinished: {
-        try {
-          const next = JSON.parse(text);
-          if (next && typeof next.available === "boolean")
-            root.data = next;
-        } catch (error) {
-          console.warn("battery: invalid sample: " + error);
-        }
-      }
+  function powerStatus() {
+    if (!available)
+      return "";
+    switch (device.state) {
+    case UPowerDeviceState.Charging: return "Charging";
+    case UPowerDeviceState.FullyCharged: return "Full";
+    case UPowerDeviceState.PendingCharge: return "Not charging";
+    case UPowerDeviceState.Discharging:
+    case UPowerDeviceState.Empty:
+    case UPowerDeviceState.PendingDischarge: return "Discharging";
+    default: return "Unknown";
     }
   }
+
 }

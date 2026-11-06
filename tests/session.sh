@@ -6,6 +6,28 @@ source "$source_root/src/backend/lib/session.sh"
 test_root="$(mktemp -d)"
 trap 'rm -rf -- "$test_root"' EXIT
 
+# Capability failures hide Hibernate; no action may run before lock confirmation.
+(
+  busctl() { printf '%s\n' "$capability"; }
+  for capability in 's "yes"' 's "challenge"'; do
+    session_capabilities | jq -e '.hibernate == true' >/dev/null
+  done
+  for capability in 's "na"' 's "no"' ''; do
+    session_capabilities | jq -e '.hibernate == false' >/dev/null
+  done
+  lock_screen() {
+    printf 'lock\n' >>"$test_root/power-actions"
+    return "$lock_result"
+  }
+  systemctl() { printf '%s\n' "$*" >>"$test_root/power-actions"; }
+  lock_result=1
+  if session_action hibernate; then exit 1; fi
+  test "$(cat "$test_root/power-actions")" = lock
+  lock_result=0
+  session_action hibernate
+  test "$(cat "$test_root/power-actions")" = $'lock\nlock\nhibernate'
+)
+
 ensure_hypr_env() { :; }
 hyprctl() { printf '%s\n' "$device_json"; }
 device_json='{"keyboards":[{"main":true,"name":"test","layout":"us,ru","active_layout_index":1}]}'

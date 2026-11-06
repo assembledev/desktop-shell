@@ -6,7 +6,8 @@ function capacity(data) {
 }
 
 function externallyPowered(data) {
-  return data.status === "Charging" || data.status === "Full";
+  return typeof data.onBattery === "boolean" ? !data.onBattery
+    : data.status === "Charging" || data.status === "Full";
 }
 
 function icon(data) {
@@ -20,5 +21,27 @@ function icon(data) {
 function severity(data) {
   if (externallyPowered(data))
     return "normal";
-  return capacity(data) <= 15 ? "critical" : capacity(data) <= 30 ? "low" : "normal";
+  const low = Number(data.lowPercentage ?? 30);
+  const critical = Number(data.criticalPercentage ?? 15);
+  return capacity(data) <= critical ? "critical" : capacity(data) <= low ? "low" : "normal";
+}
+
+function duration(seconds) {
+  if (!(seconds > 0))
+    return "--";
+  const minutes = Math.round(seconds / 60);
+  return minutes >= 60 ? Math.floor(minutes / 60) + "h "
+    + String(minutes % 60).padStart(2, "0") + "m" : minutes + "m";
+}
+
+function analysis(data, drain) {
+  const discharging = data.status === "Discharging" && !externallyPowered(data);
+  const seconds = discharging ? Math.max(0, Math.round(data.timeToEmpty || 0)) : 0;
+  return Object.assign({}, drain, {
+    estimateSeconds: seconds,
+    estimateText: data.status === "Charging" ? "charging"
+      : data.status === "Full" ? "full"
+      : externallyPowered(data) ? "plugged in" : duration(seconds),
+    currentDraw: discharging && data.changeRate > 0 ? data.changeRate.toFixed(1) + " W" : "--"
+  });
 }

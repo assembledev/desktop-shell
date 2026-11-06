@@ -12,7 +12,7 @@ Scope {
     id: theme
   }
 
-  // The standalone process owns polling lifetime; start before lock surfaces appear.
+  // The standalone process observes native power state before surfaces appear.
   BatteryState {
     id: batteryState
   }
