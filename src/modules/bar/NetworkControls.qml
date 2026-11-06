@@ -9,7 +9,7 @@ Item {
   required property var controller
   property var tailscaleModel: null
   property bool tailscaleDetailsOpen: false
-  signal tailscaleDetailsRequested()
+  signal tailscaleDetailsRequested(var trigger)
   property string profileDetailsId: ""
   signal profilesRequested(string controlId, var trigger)
   property bool compactLabels: false
@@ -37,6 +37,14 @@ Item {
     return Object.assign({}, current, {active:tailscaleModel.connected,
       login:tailscaleModel.data.state === "NeedsLogin" || tailscaleModel.data.state === "NeedsMachineAuth"});
   }
+  function popupTrigger(controlId) {
+    for (let i = 0; i < providers.count; i++) {
+      const provider = providers.itemAt(i);
+      if (provider?.modelData.id === controlId && provider.detailsTrigger.visible)
+        return provider.detailsTrigger;
+    }
+    return null;
+  }
   function activate(control) { controller.activate(control); }
 
   RowLayout {
@@ -49,6 +57,7 @@ Item {
       model: network.controls
 
       delegate: RowLayout {
+        readonly property alias detailsTrigger: detailsArrow
         required property int index
         required property var modelData
 
@@ -153,7 +162,7 @@ Item {
           horizontalPadding: 2
           flatAction: true
           accent: (hasProfiles ? network.profileDetailsId === modelData.id : network.tailscaleDetailsOpen) ? theme.info : theme.textPrimary
-          onClicked: hasProfiles ? network.profilesRequested(modelData.id, detailsArrow) : network.tailscaleDetailsRequested()
+          onClicked: hasProfiles ? network.profilesRequested(modelData.id, detailsArrow) : network.tailscaleDetailsRequested(detailsArrow)
         }
 
         Rectangle {

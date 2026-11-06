@@ -75,7 +75,7 @@ ShellRoot {
     id: barState
     onPowerRequested: action => {
       const screen = commandPlacement.capture();
-      root.barFor(screen)?.power(action);
+      root.barFor(screen)?.power(action, true);
     }
   }
   Variants {
@@ -88,13 +88,13 @@ ShellRoot {
       sharedState: barState
       taskHost: root
       tailscaleDetailsOpen: tailscaleDetails.open && tailscaleDetails.screen === screen
-      onTailscaleToggleRequested: tailscaleDetails.toggleDetails(screen)
+      onTailscaleToggleRequested: trigger => tailscaleDetails.toggleDetails(screen, trigger)
       profileDetailsId: networkProfiles.open && networkProfiles.screen === screen ? networkProfiles.controlId : ""
       onProfilesToggleRequested: (controlId, trigger) => networkProfiles.toggleDetails(controlId, screen, trigger)
       networkDetailsOpen: networkDetails.open && networkDetails.screen === screen
-      onCalendarToggleRequested: calendar.toggleCalendar(screen)
+      onCalendarToggleRequested: trigger => calendar.toggleCalendar(screen, trigger)
       onControlCenterToggleRequested: controlCenter.toggleOpen(false, screen)
-      onNetworkToggleRequested: networkDetails.toggleDetails(screen)
+      onNetworkToggleRequested: trigger => networkDetails.toggleDetails(screen, trigger)
     }
   }
   CalendarPopup {
@@ -156,7 +156,7 @@ ShellRoot {
   }
   Connections {
     target: barState
-    function onBarOpenChanged() { if (!barState.barOpen) { networkDetails.closeDetails(); tailscaleDetails.closeDetails(); networkProfiles.closeDetails(); } }
+    function onBarOpenChanged() { if (!barState.barOpen) { calendar.closeCalendar(); networkDetails.closeDetails(); tailscaleDetails.closeDetails(); networkProfiles.closeDetails(); } }
   }
   Launcher { taskHost: root }
   LockPreview {}

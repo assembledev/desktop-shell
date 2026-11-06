@@ -17,6 +17,7 @@ Scope {
   onOpenChanged: { if (!open && taskHost) taskHost.releaseTask(root); }
   required property var model
   required property var networkController
+  property Item popupAnchor: null
   required property var barSurface
   property bool open: false
   property string page: "peers"
@@ -54,9 +55,10 @@ Scope {
   Binding { target: root.model; property: "detailsActive"; value: root.open }
   Timer { id: feedback; interval: 1800; onTriggered: root.copied = "" }
 
-  function openDetails(screen) {
+  function openDetails(screen, trigger) {
     if (!placement.capture(screen)) return;
     if (taskHost) taskHost.requestTask(root, placement.screen);
+    popupAnchor = trigger || barSurface?.popupTrigger?.("tailscale") || null;
     window.keyboardRequested = screen === undefined;
     error = "";
     open = true;
@@ -64,9 +66,9 @@ Scope {
   // A platform chooser owns its request until accepted/rejected. Closing a
   // shell surface must not abandon a portal request or its external window.
   function closeDetails() { open = false; }
-  function toggleDetails(screen) {
+  function toggleDetails(screen, trigger) {
     if (open && placement.matches(screen)) closeDetails();
-    else openDetails(screen);
+    else openDetails(screen, trigger);
   }
   function showPeer(id) {
     model.selectedId = id;
@@ -174,6 +176,18 @@ Scope {
     }
   }
 
+  BarPopupPlacement {
+    id: popupPlacement
+    trigger: root.popupAnchor
+    screenWidth: root.screen?.width || 0
+    screenHeight: root.screen?.height || 0
+    barHeight: root.barSurface?.height || 0
+    preferredWidth: 416
+    gap: theme.barPopoverGap
+    active: root.open
+    onAnchorLost: root.closeDetails()
+  }
+
   BarOverlayWindow {
     id: window
     barSurface: root.barSurface
@@ -188,12 +202,10 @@ Scope {
       Shortcut { sequence: "Esc"; enabled: root.open; onActivated: root.closeDetails() }
       Rectangle {
         id: panel
-        anchors.top: parent.top
-        anchors.topMargin: theme.barPopoverGap
-        anchors.right: parent.right
-        anchors.rightMargin: 12
-        width: Math.min(416, Math.max(1, window.width - 24))
-        height: Math.min(content.implicitHeight + 32, Math.max(1, window.height - 16))
+        x: popupPlacement.x
+        y: popupPlacement.y
+        width: popupPlacement.width
+        height: Math.min(content.implicitHeight + 32, popupPlacement.maximumHeight)
         radius: theme.groupRadius
         color: theme.surface
         border.color: theme.borderMuted
@@ -201,7 +213,7 @@ Scope {
         clip: true
         opacity: transition.progress
         scale: 0.94 + transition.progress * 0.06
-        transformOrigin: Item.TopRight
+        transformOrigin: Item.Top
         transform: Translate { y: (1 - transition.progress) * -10 }
         MouseArea { anchors.fill: parent; onClicked: mouse => mouse.accepted = true }
         Flickable {

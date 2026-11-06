@@ -16,7 +16,7 @@ Scope {
   required property var barSurface
   property string controlId: ""
   property bool open: false
-  property real anchorCenterX: 0
+  property Item popupAnchor: null
   readonly property var control: controller.controls.find(item => item.id === controlId) || null
   readonly property var current: controller.status(control)
   readonly property var profiles: controller.profiles(control)
@@ -32,7 +32,7 @@ Scope {
     if (!controller.controls.some(item => item.id === controlId) || !placement.capture(screen)) return;
     if (taskHost) taskHost.requestTask(root, placement.screen);
     root.controlId = controlId;
-    anchorCenterX = trigger ? trigger.mapToItem(null, trigger.width / 2, trigger.height).x : root.screen.width / 2;
+    popupAnchor = trigger || barSurface?.popupTrigger?.(controlId) || null;
     window.keyboardRequested = screen === undefined;
     open = true;
     controller.statusRequested(controlId);
@@ -45,6 +45,18 @@ Scope {
     else openDetails(controlId, screen, trigger);
   }
   onControlChanged: { if (open && !control) closeDetails(); }
+
+  BarPopupPlacement {
+    id: popupPlacement
+    trigger: root.popupAnchor
+    screenWidth: root.screen?.width || 0
+    screenHeight: root.screen?.height || 0
+    barHeight: root.barSurface?.height || 0
+    preferredWidth: 320
+    gap: theme.barPopoverGap
+    active: root.open
+    onAnchorLost: root.closeDetails()
+  }
 
   BarOverlayWindow {
     id: window
@@ -60,11 +72,10 @@ Scope {
       focus: root.open
       Shortcut { sequence: "Esc"; enabled: root.open; onActivated: root.closeDetails() }
       Rectangle {
-        anchors.top: parent.top
-        anchors.topMargin: theme.barPopoverGap
-        x: Math.max(12, Math.min(root.anchorCenterX - width / 2, window.width - width - 12))
-        width: Math.min(320, Math.max(1, window.width - 24))
-        height: Math.min(content.implicitHeight + 32, Math.max(1, window.height - 16))
+        x: popupPlacement.x
+        y: popupPlacement.y
+        width: popupPlacement.width
+        height: Math.min(content.implicitHeight + 32, popupPlacement.maximumHeight)
         radius: theme.groupRadius
         color: theme.surface
         border.color: theme.borderMuted

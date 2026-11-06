@@ -23,20 +23,16 @@ Scope {
   property bool rendered: false
   property bool expanded: false
   property bool sourceFromShelf: false
-  property real anchorCenterX: 0
-  property real anchorBottomY: 0
+  property Item popupAnchor: null
+  property Item sourceShelf: null
   property var menuStack: []
   property int navigationDirection: 1
-  readonly property int edgeMargin: 12
-  readonly property real availableWidth: Number(menuWindow.width || shellScreen?.width || 0)
-  readonly property real availableHeight: Number(menuWindow.height || shellScreen?.height || 0)
-  readonly property int menuWidth: Math.max(180, Math.min(332, availableWidth - edgeMargin * 2))
-  readonly property real menuTop: Number(barSurface?.height || 0) + Math.max(theme.barPopoverGap, anchorBottomY + theme.barPopoverGap)
-  readonly property int maximumListHeight: Math.max(38, availableHeight - menuTop - 82)
+  readonly property real menuWidth: popupPlacement.width
+  readonly property real menuTop: popupPlacement.y
+  readonly property real maximumListHeight: Math.max(0, popupPlacement.maximumHeight - 70)
   readonly property int listHeight: Math.min(menuColumn.implicitHeight, maximumListHeight)
   readonly property int menuHeight: 70 + listHeight
-  readonly property real menuX: clamp(anchorCenterX - menuWidth + 24,
-    edgeMargin, availableWidth - menuWidth - edgeMargin)
+  readonly property real menuX: popupPlacement.x
   readonly property int depth: menuStack.length
   readonly property var activeMenu: depth > 0 ? menuStack[depth - 1].handle : null
   readonly property string applicationTitle: {
@@ -71,11 +67,22 @@ Scope {
     }
   }
 
-  function clamp(value, minimum, maximum) {
-    return Math.max(minimum, Math.min(value, Math.max(minimum, maximum)));
+  BarPopupPlacement {
+    id: popupPlacement
+    trigger: root.popupAnchor
+    belowItem: root.sourceShelf
+    sourceTop: root.barSurface?.height || 0
+    surfaceTop: 0
+    screenWidth: root.shellScreen?.width || 0
+    screenHeight: root.shellScreen?.height || 0
+    barHeight: root.barSurface?.height || 0
+    preferredWidth: 332
+    gap: theme.barPopoverGap
+    active: root.expanded
+    onAnchorLost: root.closeMenu()
   }
 
-  function openFor(item, centerX, bottomY, fromShelf) {
+  function openFor(item, trigger, shelf) {
     if (!item || !item.hasMenu)
       return;
 
@@ -89,9 +96,9 @@ Scope {
     pageTransition.stop();
     menuStack = [];
     trayItem = item;
-    sourceFromShelf = Boolean(fromShelf);
-    anchorCenterX = Number(centerX || 0);
-    anchorBottomY = Number.isFinite(Number(bottomY)) ? Number(bottomY) : 0;
+    sourceFromShelf = shelf !== null;
+    popupAnchor = trigger;
+    sourceShelf = shelf;
     menuStack = [{ handle: item.menu, title: "", focusIndex: 0 }];
     menuPage.opacity = 1;
     menuPage.x = 0;
@@ -274,7 +281,7 @@ Scope {
         clip: true
         opacity: surfaceTransition.progress
         scale: 0.9 + surfaceTransition.progress * 0.1
-        transformOrigin: Item.TopRight
+        transformOrigin: Item.Top
 
         Behavior on height {
           MotionNumberAnimation { role: MotionNumberAnimation.Content }

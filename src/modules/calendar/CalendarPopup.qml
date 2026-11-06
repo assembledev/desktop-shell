@@ -13,6 +13,7 @@ Scope {
   function cancelTask() { closeCalendar(); }
   onOpenChanged: { if (!open && taskHost) taskHost.releaseTask(root); }
 
+  property Item popupAnchor: null
   required property var barSurface
   readonly property var screen: placement.screen
 
@@ -63,11 +64,12 @@ Scope {
       monthTransition.restart();
   }
 
-  function openCalendar(screen) {
+  function openCalendar(screen, trigger) {
     if (!placement.capture(screen))
       return;
     if (taskHost)
       taskHost.requestTask(root, placement.screen);
+    popupAnchor = trigger || barSurface?.popupTrigger?.("calendar") || null;
     window.keyboardRequested = screen === undefined;
     resetToToday();
     open = true;
@@ -78,11 +80,11 @@ Scope {
     open = false;
   }
 
-  function toggleCalendar(screen) {
+  function toggleCalendar(screen, trigger) {
     if (open && placement.matches(screen))
       closeCalendar();
     else
-      openCalendar(screen);
+      openCalendar(screen, trigger);
   }
 
   function refreshToday() {
@@ -122,6 +124,18 @@ Scope {
     from: root.monthDirection * 18
     to: 0
     role: MotionNumberAnimation.Content
+  }
+
+  BarPopupPlacement {
+    id: popupPlacement
+    trigger: root.popupAnchor
+    screenWidth: root.screen?.width || 0
+    screenHeight: root.screen?.height || 0
+    barHeight: root.barSurface?.height || 0
+    preferredWidth: 390
+    gap: theme.barPopoverGap
+    active: root.open
+    onAnchorLost: root.closeCalendar()
   }
 
   BarOverlayWindow {
@@ -174,11 +188,10 @@ Scope {
         Rectangle {
           id: panel
 
-          width: Math.min(390, window.width - 24)
-          height: content.implicitHeight + 32
-          anchors.top: parent.top
-          anchors.topMargin: theme.barPopoverGap
-          anchors.horizontalCenter: parent.horizontalCenter
+          width: popupPlacement.width
+          height: Math.min(content.implicitHeight + 32, popupPlacement.maximumHeight)
+          x: popupPlacement.x
+          y: popupPlacement.y
           radius: 14
           color: Qt.alpha(theme.bgSolid, 0.86)
           border.color: theme.borderSubtle
@@ -198,132 +211,97 @@ Scope {
             }
           }
 
-          ColumnLayout {
-            id: content
-
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 16
-            spacing: 14
-            opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.14) / 0.86))
-
+          Flickable {
+            anchors.fill: parent
+            contentWidth: width
+            contentHeight: content.implicitHeight + 32
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
             ColumnLayout {
-              Layout.fillWidth: true
-              spacing: 2
+              id: content
 
-              Text {
+              x: 16
+              y: 16
+              width: parent.width - 32
+              spacing: 14
+              opacity: Math.max(0, Math.min(1, (surfaceTransition.progress - 0.14) / 0.86))
+
+              ColumnLayout {
                 Layout.fillWidth: true
-                text: Qt.formatDate(root.today, "dddd").toUpperCase()
-                color: theme.utility
-                font.family: theme.uiFontFamily
-                font.pixelSize: 11
-                font.bold: true
-                elide: Text.ElideRight
-              }
+                spacing: 2
 
-              Text {
-                Layout.fillWidth: true
-                text: Qt.formatDate(root.today, "d MMMM yyyy")
-                color: theme.textPrimary
-                font.family: theme.uiFontFamily
-                font.pixelSize: 22
-                font.bold: true
-                elide: Text.ElideRight
-              }
-            }
+                Text {
+                  Layout.fillWidth: true
+                  text: Qt.formatDate(root.today, "dddd").toUpperCase()
+                  color: theme.utility
+                  font.family: theme.uiFontFamily
+                  font.pixelSize: 11
+                  font.bold: true
+                  elide: Text.ElideRight
+                }
 
-            Rectangle {
-              Layout.fillWidth: true
-              Layout.preferredHeight: 1
-              color: theme.borderSubtle
-            }
-
-            RowLayout {
-              Layout.fillWidth: true
-              spacing: 8
-
-              CalendarButton {
-                icon: "back"
-                onClicked: root.changeMonth(-1)
-              }
-
-              Text {
-                Layout.fillWidth: true
-                text: Qt.formatDate(new Date(root.viewYear, root.viewMonth, 1), "MMMM yyyy")
-                color: theme.textSecondary
-                font.family: theme.uiFontFamily
-                font.pixelSize: 15
-                font.bold: true
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-
-                MouseArea {
-                  anchors.fill: parent
-                  enabled: !root.currentMonth
-                  cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                  onClicked: root.resetToToday()
+                Text {
+                  Layout.fillWidth: true
+                  text: Qt.formatDate(root.today, "d MMMM yyyy")
+                  color: theme.textPrimary
+                  font.family: theme.uiFontFamily
+                  font.pixelSize: 22
+                  font.bold: true
+                  elide: Text.ElideRight
                 }
               }
 
-              CalendarButton {
-                icon: "right"
-                onClicked: root.changeMonth(1)
-              }
-            }
-
-            GridLayout {
-              id: calendarGrid
-              Layout.fillWidth: true
-              Layout.preferredHeight: 262
-              columns: 2
-              columnSpacing: 6
-              rowSpacing: 4
-
-              Text {
-                Layout.preferredWidth: 24
-                Layout.preferredHeight: 24
-                text: "#"
-                color: theme.textMuted
-                font.family: theme.uiFontFamily
-                font.pixelSize: 9
-                font.bold: true
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-              }
-
-              DayOfWeekRow {
-                id: weekDays
-
+              Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 24
-                locale: Qt.locale()
-                spacing: 0
+                Layout.preferredHeight: 1
+                color: theme.borderSubtle
+              }
 
-                delegate: Text {
-                  required property string narrowName
+              RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
 
-                  text: narrowName.toUpperCase()
-                  color: theme.textMuted
+                CalendarButton {
+                  icon: "back"
+                  onClicked: root.changeMonth(-1)
+                }
+
+                Text {
+                  Layout.fillWidth: true
+                  text: Qt.formatDate(new Date(root.viewYear, root.viewMonth, 1), "MMMM yyyy")
+                  color: theme.textSecondary
                   font.family: theme.uiFontFamily
-                  font.pixelSize: 10
+                  font.pixelSize: 15
                   font.bold: true
                   horizontalAlignment: Text.AlignHCenter
-                  verticalAlignment: Text.AlignVCenter
+                  elide: Text.ElideRight
+
+                  MouseArea {
+                    anchors.fill: parent
+                    enabled: !root.currentMonth
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: root.resetToToday()
+                  }
+                }
+
+                CalendarButton {
+                  icon: "right"
+                  onClicked: root.changeMonth(1)
                 }
               }
 
-              WeekNumberColumn {
-                Layout.preferredWidth: 24
-                Layout.fillHeight: true
-                month: root.viewMonth
-                year: root.viewYear
-                locale: weekDays.locale
+              GridLayout {
+                id: calendarGrid
+                Layout.fillWidth: true
+                Layout.preferredHeight: 262
+                columns: 2
+                columnSpacing: 6
+                rowSpacing: 4
 
-                delegate: Text {
-                  required property int weekNumber
-
-                  text: weekNumber
+                Text {
+                  Layout.preferredWidth: 24
+                  Layout.preferredHeight: 24
+                  text: "#"
                   color: theme.textMuted
                   font.family: theme.uiFontFamily
                   font.pixelSize: 9
@@ -331,66 +309,107 @@ Scope {
                   horizontalAlignment: Text.AlignHCenter
                   verticalAlignment: Text.AlignVCenter
                 }
-              }
 
-              MonthGrid {
-                id: monthGrid
+                DayOfWeekRow {
+                  id: weekDays
 
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                month: root.viewMonth
-                year: root.viewYear
-                locale: weekDays.locale
-                spacing: 0
+                  Layout.fillWidth: true
+                  Layout.preferredHeight: 24
+                  locale: Qt.locale()
+                  spacing: 0
 
-                delegate: Item {
-                  id: dayCell
+                  delegate: Text {
+                    required property string narrowName
 
-                  required property var model
-                  readonly property bool isToday: dayCell.model.day === root.today.getDate()
-                    && dayCell.model.month === root.today.getMonth()
-                    && dayCell.model.year === root.today.getFullYear()
+                    text: narrowName.toUpperCase()
+                    color: theme.textMuted
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: 10
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                  }
+                }
 
-                  opacity: dayCell.model.month === root.viewMonth ? 1 : 0.34
+                WeekNumberColumn {
+                  Layout.preferredWidth: 24
+                  Layout.fillHeight: true
+                  month: root.viewMonth
+                  year: root.viewYear
+                  locale: weekDays.locale
 
-                  Rectangle {
-                    anchors.centerIn: parent
-                    width: 30
-                    height: 30
-                    radius: 9
-                    color: dayCell.isToday ? theme.accent : "transparent"
+                  delegate: Text {
+                    required property int weekNumber
 
-                    Text {
+                    text: weekNumber
+                    color: theme.textMuted
+                    font.family: theme.uiFontFamily
+                    font.pixelSize: 9
+                    font.bold: true
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                  }
+                }
+
+                MonthGrid {
+                  id: monthGrid
+
+                  Layout.fillWidth: true
+                  Layout.fillHeight: true
+                  month: root.viewMonth
+                  year: root.viewYear
+                  locale: weekDays.locale
+                  spacing: 0
+
+                  delegate: Item {
+                    id: dayCell
+
+                    required property var model
+                    readonly property bool isToday: dayCell.model.day === root.today.getDate()
+                      && dayCell.model.month === root.today.getMonth()
+                      && dayCell.model.year === root.today.getFullYear()
+
+                    opacity: dayCell.model.month === root.viewMonth ? 1 : 0.34
+
+                    Rectangle {
                       anchors.centerIn: parent
-                      text: dayCell.model.day
-                      color: dayCell.isToday ? theme.textOnAccent : theme.textSecondary
-                      font.family: theme.uiFontFamily
-                      font.pixelSize: 12
-                      font.bold: dayCell.isToday
-                      horizontalAlignment: Text.AlignHCenter
-                      verticalAlignment: Text.AlignVCenter
+                      width: 30
+                      height: 30
+                      radius: 9
+                      color: dayCell.isToday ? theme.accent : "transparent"
+
+                      Text {
+                        anchors.centerIn: parent
+                        text: dayCell.model.day
+                        color: dayCell.isToday ? theme.textOnAccent : theme.textSecondary
+                        font.family: theme.uiFontFamily
+                        font.pixelSize: 12
+                        font.bold: dayCell.isToday
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                      }
                     }
                   }
                 }
               }
-            }
 
-            Text {
-              Layout.alignment: Qt.AlignHCenter
-              Layout.preferredHeight: 12
-              text: "Return to today"
-              color: theme.accent
-              opacity: root.currentMonth ? 0 : 1
-              font.family: theme.uiFontFamily
-              font.pixelSize: 10
-              font.bold: true
+              Text {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredHeight: 12
+                text: "Return to today"
+                color: theme.accent
+                opacity: root.currentMonth ? 0 : 1
+                font.family: theme.uiFontFamily
+                font.pixelSize: 10
+                font.bold: true
 
-              MouseArea {
-                anchors.fill: parent
-                anchors.margins: -8
-                enabled: !root.currentMonth
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: root.resetToToday()
+                MouseArea {
+                  anchors.fill: parent
+                  anchors.margins: -8
+                  enabled: !root.currentMonth
+                  cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                  onClicked: root.resetToToday()
+                }
               }
             }
           }

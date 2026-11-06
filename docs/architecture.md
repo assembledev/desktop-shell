@@ -78,10 +78,23 @@ The host owns UPower refresh and critical-action policy; see
 [system prerequisites](installation.md#session-and-system-services).
 
 `ScreenPlacement.qml` captures the output when a surface opens and invalidates
-it when that output disappears. `BarOverlayWindow.qml` owns popover geometry
+it when that output disappears. `BarOverlayWindow.qml` owns the layer surface
 and input focus: pointer opens keep the bar trigger reachable; keyboard opens
 request keyboard focus. Per-output views present their assigned notifications
 and OSD items without duplicating models or polling.
+
+`BarPopupPlacement.qml` places contextual cards below the complete bar, centered
+on the invoking control's layout rectangle and clamped to a 12-pixel output
+inset. It reads logical coordinates from the item ancestry, so layout changes
+update placement without following visual scale or transform animations. Card
+widths remain stable as content changes; bounded content scrolls downward.
+Keyboard invocations use the corresponding visible control on the captured
+output, falling back to the output center when there is no control. Removing
+or hiding an invocation's control closes its card. Tray menus use the selected
+cell as their horizontal anchor and the shelf bottom as their attachment edge;
+the shelf's surface offset is converted to output coordinates once. The control
+center remains a right drawer, full tools keep their own placement, and passive
+notifications and OSD items follow their separate presentation contracts.
 
 Display changes are one validated transaction through Hyprland's Lua monitor
 API. Before applying, the backend records the previous layout in the runtime

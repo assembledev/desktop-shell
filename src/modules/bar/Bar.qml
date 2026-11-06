@@ -26,13 +26,13 @@ Scope {
   readonly property var clock: sharedState.clockState
   readonly property var batteryState: sharedState.batteryState
   readonly property var keyboardState: sharedState.keyboardState
-  signal calendarToggleRequested
+  signal calendarToggleRequested(var trigger)
   signal controlCenterToggleRequested
-  signal tailscaleToggleRequested
+  signal tailscaleToggleRequested(var trigger)
   property bool tailscaleDetailsOpen: false
   signal profilesToggleRequested(string controlId, var trigger)
   property string profileDetailsId: ""
-  signal networkToggleRequested
+  signal networkToggleRequested(var trigger)
   property bool networkDetailsOpen: false
 
   Theme {
@@ -141,12 +141,11 @@ Scope {
   readonly property var trayInlineItems: trayItems.slice(0, trayInlineCount)
   readonly property var trayOverflowItems: trayItems.slice(trayInlineCount)
   readonly property int trayOverflowCount: trayOverflowItems.length
-  readonly property int trayShelfColumns: Math.min(portraitMode ? 5 : 8, Math.max(1, trayOverflowCount))
+  readonly property int trayShelfColumns: Math.max(1, Math.min(portraitMode ? 5 : 8, Math.max(1, trayOverflowCount), Math.floor((Number(screen?.width || 0) - 44 + trayShelfSpacing) / (trayIconSize + trayShelfSpacing))))
   readonly property int trayShelfRows: Math.max(1, Math.ceil(trayOverflowCount / trayShelfColumns))
   readonly property int trayShelfSpacing: portraitMode ? 8 : 12
   readonly property int trayShelfWidth: trayShelfColumns * trayIconSize + Math.max(0, trayShelfColumns - 1) * trayShelfSpacing + 20
   readonly property int trayShelfHeight: trayShelfRows * trayIconSize + Math.max(0, trayShelfRows - 1) * trayShelfSpacing + 20
-  readonly property real trayShelfRightMargin: portraitMode ? barSpacing.portraitEdgeInset + Number(portraitFixedStatusRow.implicitWidth || 0) + barSpacing.groupGap : barSpacing.edgeInset + Number(rightStatusRow.implicitWidth || 0) + barSpacing.groupGap
 
   MotionTransition {
     id: barTransition
@@ -349,6 +348,17 @@ Scope {
     }
   }
 
+  onBarOpenChanged: {
+    if (!barOpen) {
+      power("close");
+      trayMenuPopup.closeImmediately();
+      trayShelfPinned = false;
+      trayShelfOpen = false;
+      batteryAnalysisPinned = false;
+      batteryAnalysisOpen = false;
+    }
+  }
+
   onPortraitModeChanged: {
     trayMenuPopup.closeImmediately();
     root.trayTriggerHovered = false;
@@ -383,10 +393,11 @@ Scope {
     }
   }
 
-  function power(action) {
+  function power(action, keyboard = false) {
     const opening = action === "open" || (action === "toggle" && !powerMenuOpen);
     if (opening && taskHost)
       taskHost.requestTask(root, screen);
+    powerMenuWindow.keyboardRequested = opening && keyboard;
     powerMenuOpen = opening;
   }
 
@@ -463,6 +474,13 @@ Scope {
 
   PanelWindow {
     id: barWindow
+    function popupTrigger(kind) {
+      let item;
+      if (kind === "calendar") item = root.portraitMode ? portraitClockTarget : clockTarget;
+      else if (kind === "network") item = root.portraitMode ? portraitConnection : desktopConnection;
+      else item = (root.portraitMode ? portraitNetworkControls : desktopNetworkControls).popupTrigger(kind);
+      return root.barOpen && item?.visible ? item : null;
+    }
     screen: root.screen
     visible: true
     color: "transparent"
@@ -610,7 +628,7 @@ Scope {
           MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.calendarToggleRequested()
+            onClicked: root.calendarToggleRequested(clockTarget)
           }
         }
 
@@ -640,6 +658,7 @@ Scope {
               }
 
               TrayOverflowButton {
+                id: desktopOverflow
                 visible: root.trayOverflowCount > 0
                 items: root.trayOverflowItems
                 onHoveredChanged: {
@@ -682,7 +701,7 @@ Scope {
                 controller: root.sharedState.network
                 tailscaleModel: root.sharedState.tailscale
                 tailscaleDetailsOpen: root.tailscaleDetailsOpen
-                onTailscaleDetailsRequested: root.tailscaleToggleRequested()
+                onTailscaleDetailsRequested: trigger => root.tailscaleToggleRequested(trigger)
                 profileDetailsId: root.profileDetailsId
                 onProfilesRequested: (controlId, trigger) => root.profilesToggleRequested(controlId, trigger)
                 itemPadding: barSpacing.itemPadding
@@ -731,7 +750,7 @@ Scope {
                 label: keyboardState.label
               }
 
-              ConnectionSegment {}
+              ConnectionSegment { id: desktopConnection }
 
               NotificationSegment {
                 icon: root.notificationStatus.text || ""
@@ -867,7 +886,7 @@ Scope {
             MouseArea {
               anchors.fill: parent
               cursorShape: Qt.PointingHandCursor
-              onClicked: root.calendarToggleRequested()
+              onClicked: root.calendarToggleRequested(portraitClockTarget)
             }
           }
 
@@ -884,7 +903,7 @@ Scope {
               targetHeight: root.portraitPrimaryHeight
             }
 
-            ConnectionSegment { targetHeight: root.portraitPrimaryHeight }
+            ConnectionSegment { id: portraitConnection; targetHeight: root.portraitPrimaryHeight }
 
             NotificationSegment {
               icon: root.notificationStatus.text || ""
@@ -970,6 +989,7 @@ Scope {
                 }
 
                 TrayOverflowButton {
+                  id: portraitOverflow
                   visible: root.trayOverflowCount > 0
                   items: root.trayOverflowItems
                   onHoveredChanged: {
@@ -1004,10 +1024,11 @@ Scope {
               }
 
               NetworkControls {
+                id: portraitNetworkControls
                 controller: root.sharedState.network
                 tailscaleModel: root.sharedState.tailscale
                 tailscaleDetailsOpen: root.tailscaleDetailsOpen
-                onTailscaleDetailsRequested: root.tailscaleToggleRequested()
+                onTailscaleDetailsRequested: trigger => root.tailscaleToggleRequested(trigger)
                 profileDetailsId: root.profileDetailsId
                 onProfilesRequested: (controlId, trigger) => root.profilesToggleRequested(controlId, trigger)
                 targetHeight: root.portraitSecondaryHeight
@@ -1017,6 +1038,7 @@ Scope {
               }
 
               BarSegment {
+                id: portraitBattery
                 visible: root.battery.available
                 icon: batteryState.icon
                 label: batteryState.label
@@ -1038,6 +1060,18 @@ Scope {
         }
       }
     }
+  }
+
+  BarPopupPlacement {
+    id: shelfPlacement
+    trigger: root.portraitMode ? portraitOverflow : desktopOverflow
+    screenWidth: root.screen?.width || 0
+    screenHeight: root.screen?.height || 0
+    barHeight: root.barHeight
+    preferredWidth: root.trayShelfWidth
+    gap: theme.barPopoverGap
+    active: root.trayShelfOpen
+    onAnchorLost: { root.trayShelfPinned = false; root.trayShelfOpen = false; }
   }
 
   PanelWindow {
@@ -1078,19 +1112,18 @@ Scope {
 
     Rectangle {
       id: trayShelfBox
-      width: root.trayShelfWidth
-      height: root.trayShelfHeight
-      anchors.top: parent.top
-      anchors.topMargin: theme.barPopoverGap
-      anchors.right: parent.right
-      anchors.rightMargin: root.trayShelfRightMargin
+      width: shelfPlacement.width
+      height: Math.min(root.trayShelfHeight, shelfPlacement.maximumHeight)
+      clip: true
+      x: shelfPlacement.x
+      y: shelfPlacement.y
       radius: 12
       color: theme.surface
       border.color: theme.borderSubtle
       border.width: 1
       opacity: trayShelfTransition.progress
       scale: 0.9 + trayShelfTransition.progress * 0.1
-      transformOrigin: Item.TopRight
+      transformOrigin: Item.Top
       transform: Translate {
         y: (1 - trayShelfTransition.progress) * -10
       }
@@ -1102,22 +1135,42 @@ Scope {
         }
       }
 
-      GridLayout {
-        anchors.centerIn: parent
-        columns: root.trayShelfColumns
-        columnSpacing: root.trayShelfSpacing
-        rowSpacing: root.trayShelfSpacing
+      Flickable {
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: root.trayShelfHeight
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        GridLayout {
+          x: 10
+          y: 10
+          columns: root.trayShelfColumns
+          columnSpacing: root.trayShelfSpacing
+          rowSpacing: root.trayShelfSpacing
 
-        Repeater {
-          model: root.trayOverflowItems
-          delegate: TrayIcon {
-            required property SystemTrayItem modelData
-            item: modelData
-            trackShelfMenu: true
+          Repeater {
+            model: root.trayOverflowItems
+            delegate: TrayIcon {
+              required property SystemTrayItem modelData
+              item: modelData
+              trackShelfMenu: true
+            }
           }
         }
       }
     }
+  }
+
+  BarPopupPlacement {
+    id: batteryPlacement
+    trigger: root.portraitMode ? portraitBattery : batterySegmentLoader
+    screenWidth: root.screen?.width || 0
+    screenHeight: root.screen?.height || 0
+    barHeight: root.barHeight
+    preferredWidth: 232
+    gap: theme.barPopoverGap
+    active: root.batteryAnalysisOpen
+    onAnchorLost: { root.batteryAnalysisPinned = false; root.batteryAnalysisOpen = false; }
   }
 
   PanelWindow {
@@ -1126,13 +1179,13 @@ Scope {
     visible: batteryAnalysisTransition.presented
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
-    implicitWidth: 250
-    implicitHeight: batteryAnalysisBox.height + 4
+    implicitHeight: batteryAnalysisBox.height + theme.barPopoverGap + 12
     WlrLayershell.namespace: "quickshell:batteryAnalysis"
     WlrLayershell.layer: WlrLayer.Overlay
 
     anchors {
       top: true
+      left: true
       right: true
     }
 
@@ -1146,19 +1199,18 @@ Scope {
 
     Rectangle {
       id: batteryAnalysisBox
-      width: 232
-      height: batteryAnalysisColumn.implicitHeight + 20
-      anchors.top: parent.top
-      anchors.topMargin: theme.barPopoverGap
-      anchors.right: parent.right
-      anchors.rightMargin: 9
+      clip: true
+      width: batteryPlacement.width
+      height: Math.min(batteryAnalysisColumn.implicitHeight + 20, batteryPlacement.maximumHeight)
+      x: batteryPlacement.x
+      y: batteryPlacement.y
       radius: 12
       color: theme.surface
       border.color: theme.borderSubtle
       border.width: 1
       opacity: batteryAnalysisTransition.progress
       scale: 0.9 + batteryAnalysisTransition.progress * 0.1
-      transformOrigin: Item.TopRight
+      transformOrigin: Item.Top
       transform: Translate {
         y: (1 - batteryAnalysisTransition.progress) * -10
       }
@@ -1173,44 +1225,61 @@ Scope {
         }
       }
 
-      ColumnLayout {
-        id: batteryAnalysisColumn
+      Flickable {
         anchors.fill: parent
-        anchors.leftMargin: 11
-        anchors.rightMargin: 11
-        anchors.topMargin: 10
-        anchors.bottomMargin: 10
-        spacing: 7
+        contentWidth: width
+        contentHeight: batteryAnalysisColumn.implicitHeight + 20
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        ColumnLayout {
+          id: batteryAnalysisColumn
+          x: 11
+          y: 10
+          width: parent.width - 22
+          spacing: 7
 
-        BatteryMetricRow {
-          icon: "󰔟"
-          label: "Remaining"
-          value: root.batteryMetric("estimateText")
-          accent: theme.info
-        }
+          BatteryMetricRow {
+            icon: "󰔟"
+            label: "Remaining"
+            value: root.batteryMetric("estimateText")
+            accent: theme.info
+          }
 
-        BatteryMetricRow {
-          icon: "󱐋"
-          label: "Now"
-          value: root.batteryMetric("currentDraw")
-          accent: theme.resource
-        }
+          BatteryMetricRow {
+            icon: "󱐋"
+            label: "Now"
+            value: root.batteryMetric("currentDraw")
+            accent: theme.resource
+          }
 
-        BatteryMetricRow {
-          icon: "󰔚"
-          label: "Last hour"
-          value: root.batteryMetric("hourAverage")
-          accent: theme.utility
-        }
+          BatteryMetricRow {
+            icon: "󰔚"
+            label: "Last hour"
+            value: root.batteryMetric("hourAverage")
+            accent: theme.utility
+          }
 
-        BatteryMetricRow {
-          icon: "󰥔"
-          label: "Since boot"
-          value: root.batteryMetric("bootAverage")
-          accent: theme.special
+          BatteryMetricRow {
+            icon: "󰥔"
+            label: "Since boot"
+            value: root.batteryMetric("bootAverage")
+            accent: theme.special
+          }
         }
       }
     }
+  }
+
+  BarPopupPlacement {
+    id: powerPlacement
+    trigger: root.portraitMode ? portraitPowerIcon : powerIcon
+    screenWidth: root.screen?.width || 0
+    screenHeight: root.screen?.height || 0
+    barHeight: root.barHeight
+    preferredWidth: 226
+    gap: theme.barPopoverGap
+    active: root.powerMenuOpen
+    onAnchorLost: { root.power("close"); }
   }
 
   BarOverlayWindow {
@@ -1232,19 +1301,18 @@ Scope {
 
       Rectangle {
         id: powerMenuBox
-        width: 226
-        height: powerMenuColumn.implicitHeight + 26
-        anchors.top: parent.top
-        anchors.topMargin: theme.barPopoverGap
-        anchors.right: parent.right
-        anchors.rightMargin: 8
+        clip: true
+        width: powerPlacement.width
+        height: Math.min(powerMenuColumn.implicitHeight + 26, powerPlacement.maximumHeight)
+        x: powerPlacement.x
+        y: powerPlacement.y
         radius: 12
         color: theme.surface
         border.color: theme.borderSubtle
         border.width: 1
         opacity: powerMenuTransition.progress
         scale: 0.9 + powerMenuTransition.progress * 0.1
-        transformOrigin: Item.TopRight
+        transformOrigin: Item.Top
         transform: Translate {
           y: (1 - powerMenuTransition.progress) * -10
         }
@@ -1256,64 +1324,69 @@ Scope {
           }
         }
 
-        ColumnLayout {
-          id: powerMenuColumn
+        Flickable {
           anchors.fill: parent
-          anchors.leftMargin: 10
-          anchors.rightMargin: 10
-          anchors.topMargin: 13
-          anchors.bottomMargin: 10
-          spacing: 5
+          contentWidth: width
+          contentHeight: powerMenuColumn.implicitHeight + 26
+          boundsBehavior: Flickable.StopAtBounds
+          ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+          ColumnLayout {
+            id: powerMenuColumn
+            x: 10
+            y: 13
+            width: parent.width - 20
+            spacing: 5
 
-          PowerAction {
-            icon: ""
-            label: "Lock"
-            accent: theme.special
-            onClicked: {
-              root.powerMenuOpen = false;
-              Quickshell.execDetached([root.backend, "lock"]);
+            PowerAction {
+              icon: ""
+              label: "Lock"
+              accent: theme.special
+              onClicked: {
+                root.powerMenuOpen = false;
+                Quickshell.execDetached([root.backend, "lock"]);
+              }
             }
-          }
 
-          PowerAction {
-            icon: "󰤄"
-            label: "Sleep"
-            accent: theme.info
-            onClicked: {
-              root.powerMenuOpen = false;
-              Quickshell.execDetached([root.backend, "bar", "session", "sleep"]);
+            PowerAction {
+              icon: "󰤄"
+              label: "Sleep"
+              accent: theme.info
+              onClicked: {
+                root.powerMenuOpen = false;
+                Quickshell.execDetached([root.backend, "bar", "session", "sleep"]);
+              }
             }
-          }
 
-          PowerAction {
-            visible: root.batteryState.available && root.canHibernate
-            icon: "󰒲"
-            label: "Hibernate"
-            accent: theme.info
-            onClicked: {
-              root.powerMenuOpen = false;
-              Quickshell.execDetached([root.backend, "bar", "session", "hibernate"]);
+            PowerAction {
+              visible: root.batteryState.available && root.canHibernate
+              icon: "󰒲"
+              label: "Hibernate"
+              accent: theme.info
+              onClicked: {
+                root.powerMenuOpen = false;
+                Quickshell.execDetached([root.backend, "bar", "session", "hibernate"]);
+              }
             }
-          }
 
-          PowerAction {
-            icon: ""
-            label: "Restart"
-            accent: theme.warning
-            onClicked: {
-              root.powerMenuOpen = false;
-              Quickshell.execDetached([root.backend, "bar", "session", "restart"]);
+            PowerAction {
+              icon: ""
+              label: "Restart"
+              accent: theme.warning
+              onClicked: {
+                root.powerMenuOpen = false;
+                Quickshell.execDetached([root.backend, "bar", "session", "restart"]);
+              }
             }
-          }
 
-          PowerAction {
-            icon: ""
-            label: "Shutdown"
-            accent: theme.danger
-            danger: true
-            onClicked: {
-              root.powerMenuOpen = false;
-              Quickshell.execDetached([root.backend, "bar", "session", "shutdown"]);
+            PowerAction {
+              icon: ""
+              label: "Shutdown"
+              accent: theme.danger
+              danger: true
+              onClicked: {
+                root.powerMenuOpen = false;
+                Quickshell.execDetached([root.backend, "bar", "session", "shutdown"]);
+              }
             }
           }
         }
@@ -1404,7 +1477,7 @@ Scope {
     symbolSize: 20
     iconColor: root.networkDetailsOpen ? theme.info : root.sharedState.connection.connected ? theme.textPrimary : theme.textMuted
     clickable: true
-    onClicked: root.networkToggleRequested()
+    onClicked: root.networkToggleRequested(connectionSegment)
     ShellToolTip {
       anchorItem: connectionSegment
       text: root.sharedState.connection.tooltip
@@ -1746,9 +1819,7 @@ Scope {
     }
 
     function openMenu() {
-      const point = trayIcon.mapToItem(null, trayIcon.width / 2, trayIcon.height);
-      const bottom = trayIcon.trackShelfMenu ? Math.max(point.y, root.trayShelfHeight + theme.barPopoverGap) : 0;
-      trayMenuPopup.openFor(trayIcon.item, point.x, bottom, trayIcon.trackShelfMenu);
+      trayMenuPopup.openFor(trayIcon.item, trayIcon, trayIcon.trackShelfMenu ? trayShelfBox : null);
     }
 
     onClicked: function (mouse) {
