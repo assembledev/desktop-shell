@@ -337,6 +337,8 @@
             pkgs.runCommand "desktop-shell-browser-tab-bridge-check"
               {
                 nativeBuildInputs = [
+                  pkgs.quickshell
+                  pkgs.jq
                   pkgs.python3
                   pkgs.nodejs
                   pkgs.unzip
@@ -355,6 +357,7 @@
                 python3 -c \
                   'source = open("${self}/browser-extension/native-host.py", encoding="utf-8").read(); compile(source, "native-host.py", "exec")'
                 node ${self}/tests/browser-tab-bridge.js ${self}
+                python3 ${self}/tests/native/browser-tabs-startup.py ${self}
                 unzip -tqq ${browserTabBridge.unsignedExtension}
                 touch "$out"
               '';

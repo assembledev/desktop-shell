@@ -36,9 +36,11 @@ $XDG_RUNTIME_DIR/desktop-shell/
 └── browser-tabs.sock
 ```
 
-The directory is mode `0700`. The snapshot is removed when the browser-native
-connection closes. Activation requests include a per-connection session ID so
-stale launcher results cannot address a later browser session.
+The directory is mode `0700`. `desktop-shell run` creates it before starting
+QML, so the launcher can watch for a browser connection even when the browser
+starts later. The snapshot is removed when the browser-native connection closes.
+Activation requests include a per-connection session ID so stale launcher results
+cannot address a later browser session.
 
 ## Installation
 

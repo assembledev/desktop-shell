@@ -536,6 +536,8 @@ case "${1:-help}" in
     esac
     ;;
   run)
+    # FileView can watch a missing snapshot only when its parent already exists.
+    install -d -m 0700 "${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/desktop-shell"
     mkdir -p "$preferences_state_dir"
     export CONTROL_CENTER_BACKEND="$desktop_shell_executable"
     export WALLPAPER_PICKER_BACKEND="$desktop_shell_executable"
