@@ -42,6 +42,13 @@ Scope {
     function focus(): void { root.enqueue("openFocusLauncher"); }
     function close(): void { root.enqueue("closeLauncher"); }
     function toggle(): void { root.enqueue("toggleLauncher"); }
+    function browserStatus(): string {
+      const view = launcherLoader.item;
+      return JSON.stringify({ ready: view !== null, enabled: view?.browserTabsEnabled || false,
+        connected: view?.browserTabState?.connected === true,
+        session: view?.browserTabState?.session || "",
+        generatedAt: view?.browserTabState?.generatedAt || 0 });
+    }
     function profileReady(profile: string): bool { return root.profileReady(profile); }
     function applyProfile(profile: string): void { root.enqueue("applyProfile", profile); }
     function profileStatus(profile: string, refresh: bool): string {

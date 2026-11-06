@@ -8,8 +8,8 @@ $ desktop-shell status
 $ desktop-shell logs
 ```
 
-`doctor` checks the configuration and compositor connection. `status` and `logs`
-inspect the systemd user service. For live logs, use `desktop-shell logs --follow`.
+`doctor` reports [configuration and runtime readiness](commands.md#lifecycle).
+`status` and `logs` inspect the systemd user service. For live logs, use `desktop-shell logs --follow`.
 
 ## The shell does not start
 

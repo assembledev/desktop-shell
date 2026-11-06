@@ -19,14 +19,15 @@ MAX_CLIENT_MESSAGE_BYTES = 64 * 1024
 ACTIVATION_TIMEOUT_SECONDS = 5
 
 
-def runtime_paths() -> tuple[Path, Path, Path, Path]:
+def runtime_paths(create: bool = True) -> tuple[Path, Path, Path, Path]:
     runtime_root = os.environ.get("XDG_RUNTIME_DIR")
     if not runtime_root:
         raise RuntimeError("XDG_RUNTIME_DIR is not set")
 
     state_dir = Path(runtime_root) / "desktop-shell"
-    state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    os.chmod(state_dir, 0o700)
+    if create:
+        state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        os.chmod(state_dir, 0o700)
     return (
         state_dir / "browser-tabs.json",
         state_dir / "browser-tabs.sock",
@@ -209,7 +210,16 @@ class BrowserTabBridge:
             try:
                 request = read_client_message(client)
                 command = request.get("command")
-                if command == "activate":
+                if command == "status":
+                    response = {
+                        "ok": True,
+                        "connected": True,
+                        "version": 1,
+                        "session": self.session,
+                        "generatedAt": self.generated_at,
+                        "tabCount": len(self.tabs),
+                    }
+                elif command == "activate":
                     response = self.activate(request)
                 else:
                     response = {"ok": False, "error": "unknown browser bridge command"}
@@ -312,6 +322,23 @@ def client_activate(session: str, tab_id: int, window_id: int) -> int:
     return 1
 
 
+def client_status() -> int:
+    state_path, socket_path, _, _ = runtime_paths(create=False)
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+        client.settimeout(2)
+        try:
+            client.connect(str(socket_path))
+            send_client_message(client, {"command": "status"})
+            response = read_client_message(client)
+        except (FileNotFoundError, ConnectionRefusedError):
+            response = {"connected": False, "snapshotPresent": state_path.exists()}
+        except OSError:
+            print("browser bridge status unavailable or timed out", file=sys.stderr)
+            return 1
+    print(encode_json(response).decode("utf-8"))
+    return 0
+
+
 def parse_client_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["activate"])
@@ -322,6 +349,8 @@ def parse_client_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "status":
+        return client_status() if len(sys.argv) == 2 else 2
     if len(sys.argv) > 1 and sys.argv[1] == "activate":
         args = parse_client_args()
         return client_activate(args.session, args.tab_id, args.window_id)

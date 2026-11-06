@@ -25,11 +25,15 @@ shell, missing command endpoint, or malformed IPC reply returns exit status 3.
 | `desktop-shell status` | Print the service state |
 | `desktop-shell logs` | Show the last 200 service log lines |
 | `desktop-shell logs --follow` | Follow service logs |
-| `desktop-shell doctor` | Check configuration, commands, Hyprland, and service state |
+| `desktop-shell doctor` | Check configuration, service, shell IPC, and browser-tab readiness |
 
 `status` returns success only while the service is active; an inactive service
 returns status `3`. `doctor` reports each check separately and returns non-zero
-when a required command or the active Hyprland instance cannot be reached.
+when configuration is invalid, a prerequisite is missing, the service is inactive,
+shell IPC is unavailable, or enabled browser-tab state is inconsistent. Probes
+have bounded timeouts and do not initialize runtime state. A closed browser is
+reported as disconnected without failing an otherwise healthy shell. See
+[browser-tab diagnostics](browser-tabs.md) for bridge states.
 `restart` restarts the shell user service.
 
 `run` and `lock-run` are service implementation commands. Use

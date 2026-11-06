@@ -76,7 +76,13 @@ $ desktop-shell browser-tabs state-path
 
 The printed snapshot appears only while the extension is connected. If it does
 not, run `desktop-shell doctor` and inspect the browser's extension diagnostics
-for a native-host registration error.
+for a native-host registration error. The doctor distinguishes disabled integration,
+a disconnected browser, a stale snapshot left by a disconnected host, missing or
+invalid snapshot data, and state that the running launcher has not loaded. A
+ready result means the host, snapshot, and launcher agree on the connection and
+snapshot revision; it does not test tab activation. Snapshot comparison can race
+an update, so rerun a mismatch before treating it as persistent. Diagnostics
+never print tab titles or URLs.
 
 ## Compatibility
 

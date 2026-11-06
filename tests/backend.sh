@@ -357,6 +357,25 @@ lifecycle_cli() {
     PATH="$test_bin:$PATH" \
     bash "$source_root/src/backend/desktop-shell.sh" "$@"
 }
+printf '#!%s\n' "$(command -v bash)" >"$test_bin/quickshell"
+cat >>"$test_bin/quickshell" <<'SH'
+case "$*" in
+  *'call desktopShell ping')
+    [ "${DESKTOP_SHELL_TEST_IPC_FAIL:-0}" = 0 ] || exit 1
+    if [ "${DESKTOP_SHELL_TEST_IPC_HANG:-0}" = 1 ]; then sleep 10; fi
+    printf '%s\n' "${DESKTOP_SHELL_TEST_PING:-true}"
+    ;;
+  *'call launcher browserStatus')
+    if [ -n "${DESKTOP_SHELL_TEST_BROWSER_VIEW:-}" ]; then
+      printf '%s\n' "$DESKTOP_SHELL_TEST_BROWSER_VIEW"
+    else
+      printf '%s\n' '{"ready":true,"enabled":false}'
+    fi
+    ;;
+  *) exit 1 ;;
+esac
+SH
+chmod +x "$test_bin/quickshell"
 printf '{\n' >"$config_fixture"
 lifecycle_cli status | grep -Fx 'desktop-shell.service: active' >/dev/null
 for action in start stop restart logs; do lifecycle_cli "$action"; done
@@ -370,6 +389,22 @@ grep -Fx 'service: active' "$test_root/doctor-output" >/dev/null
 printf '{}\n' >"$config_fixture"
 lifecycle_cli doctor >"$test_root/doctor-output"
 grep -F 'config: ok' "$test_root/doctor-output" >/dev/null
+grep -Fx 'shell-ipc: ready' "$test_root/doctor-output" >/dev/null
+for failure in service ipc malformed-ping timeout; do
+  export DESKTOP_SHELL_TEST_SERVICE_INACTIVE=0 DESKTOP_SHELL_TEST_IPC_FAIL=0 DESKTOP_SHELL_TEST_PING=true DESKTOP_SHELL_TEST_IPC_HANG=0
+  case "$failure" in
+    service) export DESKTOP_SHELL_TEST_SERVICE_INACTIVE=1 ;;
+    ipc) export DESKTOP_SHELL_TEST_IPC_FAIL=1 ;;
+    malformed-ping) export DESKTOP_SHELL_TEST_PING=not-json ;;
+    timeout) export DESKTOP_SHELL_TEST_IPC_HANG=1 ;;
+  esac
+  if lifecycle_cli doctor >"$test_root/doctor-output"; then
+    printf 'doctor must fail for %s\n' "$failure" >&2
+    exit 1
+  fi
+done
+unset DESKTOP_SHELL_TEST_IPC_FAIL DESKTOP_SHELL_TEST_PING DESKTOP_SHELL_TEST_IPC_HANG
+export DESKTOP_SHELL_TEST_SERVICE_INACTIVE=0
 inactive_status=0
 DESKTOP_SHELL_TEST_SERVICE_INACTIVE=1 lifecycle_cli status >"$test_root/lifecycle-status" || inactive_status="$?"
 test "$inactive_status" = 3
@@ -381,6 +416,59 @@ grep -Fx -- '--user-unit desktop-shell.service --no-pager -n 200' "$lifecycle_ca
 test ! -e "$test_root/lifecycle-home"
 test ! -e "$test_root/lifecycle-state"
 test ! -e "$test_root/lifecycle-runtime"
+# Browser diagnostics compare host, disk and launcher without displaying tab data.
+printf '{"browserTabs":{"enable":true}}\n' >"$config_fixture"
+printf '#!%s\n' "$(command -v bash)" >"$test_bin/browser-status"
+cat >>"$test_bin/browser-status" <<'SH'
+test "$1" = status
+printf '%s\n' "$DESKTOP_SHELL_TEST_BROWSER_HOST"
+SH
+chmod +x "$test_bin/browser-status"
+export DESKTOP_SHELL_BROWSER_BRIDGE="$test_bin/browser-status"
+export DESKTOP_SHELL_TEST_BROWSER_VIEW='{"ready":true,"enabled":true,"connected":false}'
+export DESKTOP_SHELL_TEST_BROWSER_HOST='{"connected":false,"snapshotPresent":false}'
+lifecycle_cli doctor >"$test_root/doctor-output"
+grep -F 'browser-tabs: disconnected' "$test_root/doctor-output" >/dev/null
+test ! -e "$test_root/lifecycle-runtime"
+for failure in stale unloaded malformed config-mismatch initial-snapshot; do
+  export DESKTOP_SHELL_TEST_BROWSER_VIEW='{"ready":true,"enabled":true,"connected":false}'
+  export DESKTOP_SHELL_TEST_BROWSER_HOST='{"connected":false,"snapshotPresent":false}'
+  case "$failure" in
+    initial-snapshot) export DESKTOP_SHELL_TEST_BROWSER_HOST='{"connected":true,"generatedAt":0}' ;;
+    stale) export DESKTOP_SHELL_TEST_BROWSER_HOST='{"connected":false,"snapshotPresent":true}' ;;
+    unloaded) export DESKTOP_SHELL_TEST_BROWSER_VIEW='{"ready":false,"enabled":true}' ;;
+    malformed) export DESKTOP_SHELL_TEST_BROWSER_HOST='invalid-json' ;;
+    config-mismatch) export DESKTOP_SHELL_TEST_BROWSER_VIEW='{"ready":true,"enabled":false}' ;;
+  esac
+  if lifecycle_cli doctor >"$test_root/doctor-output"; then
+    printf 'doctor must fail for browser %s\n' "$failure" >&2
+    exit 1
+  fi
+done
+mkdir -p "$test_root/lifecycle-runtime/desktop-shell"
+browser_snapshot="$test_root/lifecycle-runtime/desktop-shell/browser-tabs.json"
+printf '%s\n' '{"version":1,"connected":true,"session":"test","generatedAt":123,"tabs":[{"title":"private-test-title"}]}' >"$browser_snapshot"
+export DESKTOP_SHELL_TEST_BROWSER_VIEW='{"ready":true,"enabled":true,"connected":true,"session":"test","generatedAt":123}'
+export DESKTOP_SHELL_TEST_BROWSER_HOST='{"ok":true,"version":1,"connected":true,"session":"test","generatedAt":123}'
+lifecycle_cli doctor >"$test_root/doctor-output"
+grep -F 'browser-tabs: ready' "$test_root/doctor-output" >/dev/null
+! grep -F 'private-test-title' "$test_root/doctor-output"
+for failure in missing invalid outdated-view; do
+  case "$failure" in
+    missing) mv "$browser_snapshot" "$browser_snapshot.saved" ;;
+    invalid) printf '{' >"$browser_snapshot" ;;
+    outdated-view)
+      mv "$browser_snapshot.saved" "$browser_snapshot"
+      export DESKTOP_SHELL_TEST_BROWSER_VIEW='{"ready":true,"enabled":true,"connected":true,"session":"old","generatedAt":123}'
+      ;;
+  esac
+  if lifecycle_cli doctor >"$test_root/doctor-output"; then
+    printf 'doctor must fail for browser %s\n' "$failure" >&2
+    exit 1
+  fi
+done
+unset DESKTOP_SHELL_TEST_BROWSER_VIEW DESKTOP_SHELL_TEST_BROWSER_HOST DESKTOP_SHELL_BROWSER_BRIDGE
+printf '{}\n' >"$config_fixture"
 rm "$test_bin/systemctl" "$test_bin/journalctl"
 
 fast_ipc_args="$test_root/fast-ipc-args"

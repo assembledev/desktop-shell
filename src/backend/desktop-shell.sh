@@ -32,46 +32,8 @@ service_status() {
   return 3
 }
 
-doctor() {
-  # shellcheck source=lib/hypr-environment.sh
-  source "${BASH_SOURCE[0]%/*}/lib/hypr-environment.sh"
-  failures=0
-  desktop_shell_config="${DESKTOP_SHELL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/desktop-shell/config.json}"
-  if [ ! -r "$desktop_shell_config" ]; then
-    desktop_shell_config="${DESKTOP_SHELL_DEFAULT_CONFIG:?DESKTOP_SHELL_DEFAULT_CONFIG is not set}"
-  fi
-  if jq -je -f "${BASH_SOURCE[0]%/*}/lib/config-environment.jq" "$desktop_shell_config" >/dev/null 2>&1; then
-    printf 'config: ok (%s)\n' "$desktop_shell_config"
-  else
-    printf 'config: invalid (%s)\n' "$desktop_shell_config"
-    failures=$((failures + 1))
-  fi
-
-  for command in quickshell hyprctl jq systemctl; do
-    if command -v "$command" >/dev/null 2>&1; then
-      printf '%s: ok\n' "$command"
-    else
-      printf '%s: missing\n' "$command"
-      failures=$((failures + 1))
-    fi
-  done
-
-  ensure_hypr_env
-  if hyprctl version >/dev/null 2>&1; then
-    printf 'hyprland: reachable\n'
-  else
-    printf 'hyprland: not reachable\n'
-    failures=$((failures + 1))
-  fi
-
-  if systemctl --user --quiet is-active desktop-shell.service; then
-    printf 'service: active\n'
-  else
-    printf 'service: inactive\n'
-  fi
-
-  [ "$failures" -eq 0 ]
-}
+# shellcheck source=lib/doctor.sh
+source "${BASH_SOURCE[0]%/*}/lib/doctor.sh"
 
 # Service recovery and diagnostics remain usable when configuration is broken.
 case "${1:-}" in

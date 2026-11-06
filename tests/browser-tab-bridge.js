@@ -88,6 +88,12 @@ failed.reconnect(2000);
 
 const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "browser-bridge-test-"));
 try {
+  const disconnected = spawnSync("python3", [path.join(sourceRoot, "browser-extension/native-host.py"), "status"], {
+    env: { ...process.env, XDG_RUNTIME_DIR: runtimeRoot }, timeout: 5000
+  });
+  assert.equal(disconnected.status, 0, disconnected.stderr.toString());
+  assert.deepEqual(JSON.parse(disconnected.stdout), { connected: false, snapshotPresent: false });
+  assert.deepEqual(fs.readdirSync(runtimeRoot), [], "status must not initialize runtime state");
   const host = spawnSync("python3", [path.join(sourceRoot, "browser-extension/native-host.py")], {
     input: Buffer.alloc(0),
     env: { ...process.env, XDG_RUNTIME_DIR: runtimeRoot },
@@ -117,6 +123,17 @@ async function checkHostTermination(signal, partialMessage) {
       exited.then(() => { throw new Error(`host exited before readiness: ${stderr}`); })
     ]);
     assert.equal(fs.existsSync(path.join(runtimeRoot, "desktop-shell/browser-tabs.json")), true);
+    const before = fs.readFileSync(path.join(runtimeRoot, "desktop-shell/browser-tabs.json"));
+    const status = spawnSync("python3", [path.join(sourceRoot, "browser-extension/native-host.py"), "status"], {
+      env: { ...process.env, XDG_RUNTIME_DIR: runtimeRoot }, timeout: 5000
+    });
+    assert.equal(status.status, 0, status.stderr.toString());
+    const metadata = JSON.parse(status.stdout);
+    assert.equal(metadata.connected, true);
+    assert.equal(metadata.session, JSON.parse(before).session);
+    assert.equal(metadata.generatedAt, JSON.parse(before).generatedAt);
+    assert.equal("tabs" in metadata, false, "diagnostics must not expose tab content");
+    assert.deepEqual(fs.readFileSync(path.join(runtimeRoot, "desktop-shell/browser-tabs.json")), before);
     if (partialMessage.length)
       host.stdin.write(partialMessage);
     host.kill(signal);
