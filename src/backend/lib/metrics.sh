@@ -1,20 +1,7 @@
 #!/usr/bin/env bash
 
-metrics_json() {
-  cpu_file="$state_dir/cpu"
-  read -r _ user nice system idle iowait irq softirq steal _ <"$system_proc_root/stat"
-  steal="${steal:-0}"
-  total=$((user + nice + system + idle + iowait + irq + softirq + steal))
-  idle_all=$((idle + iowait))
-  old_total="$total"
-  old_idle="$idle_all"
-  if [ -f "$cpu_file" ]; then
-    read -r old_total old_idle <"$cpu_file" || true
-  fi
-  printf '%s %s\n' "$total" "$idle_all" >"$cpu_file"
-  total_diff=$((total - old_total))
-  idle_diff=$((idle_all - old_idle))
-
+vram_json() {
+  local query_vram runtime_status gpu_status vram_used vram_total vram_line
   # Hidden VRAM and runtime-suspended GPUs must not trigger an NVIDIA query.
   query_vram="${DESKTOP_SHELL_BAR_SHOW_VRAM:-1}"
   for runtime_status in "$system_sys_root"/module/nvidia/drivers/pci:nvidia/*/power/runtime_status; do
@@ -28,26 +15,16 @@ metrics_json() {
   vram_used=""
   vram_total=""
   if [ "$query_vram" != 0 ] && command -v nvidia-smi >/dev/null 2>&1; then
-    vram_line="$(nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null || true)"
+    vram_line="$(timeout --kill-after=1s 3s nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null || true)"
     IFS=, read -r vram_used vram_total <<<"$vram_line"
   fi
-
-  # Read memory once and format all numeric fields in the same process.
-  awk -v totalDiff="$total_diff" -v idleDiff="$idle_diff" \
-    -v gpuUsed="$vram_used" -v gpuTotal="$vram_total" '
-    /^MemTotal:/ { memTotal = $2 }
-    /^MemAvailable:/ { memAvailable = $2 }
-    END {
-      cpu = totalDiff > 0 ? 1 - idleDiff / totalDiff : 0
-      used = memTotal - memAvailable
-      ram = memTotal > 0 ? used / memTotal : 0
-      hasGpu = gpuTotal + 0 > 0
-      vram = hasGpu ? gpuUsed / gpuTotal : 0
-      vramText = hasGpu ? sprintf("%.1f/%.0fG", gpuUsed / 1024, gpuTotal / 1024) : "--"
-      printf "{\"cpu\":%.3f,\"ram\":%.3f,\"ramText\":\"%.1f/%.0fG\",\"hasVram\":%s,\"vram\":%.3f,\"vramText\":\"%s\"}\n", \
-        cpu, ram, used / 1024 / 1024, memTotal / 1024 / 1024, hasGpu ? "true" : "false", vram, vramText
-    }
-  ' "$system_proc_root/meminfo"
+  awk -v used="$vram_used" -v total="$vram_total" 'BEGIN {
+    numeric = "^[[:space:]]*[0-9]+([.][0-9]+)?[[:space:]]*$"
+    available = used ~ numeric && total ~ numeric && total + 0 > 0 && used + 0 <= total + 0
+    ratio = available ? used / total : 0
+    label = available ? sprintf("%.1f/%.0fG", used / 1024, total / 1024) : "--"
+    printf "{\"hasVram\":%s,\"vram\":%.3f,\"vramText\":\"%s\"}\n", available ? "true" : "false", ratio, label
+  }'
 }
 
 battery_analysis() {

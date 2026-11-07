@@ -11,7 +11,7 @@ Lifecycle: start [--foreground], stop, restart, status, logs [--follow], doctor
 Surfaces: open, close, toggle, launcher, cheatsheet, pick, lock, clipboard, bar
 Desktop: audio, wifi, network, tailscale, media, dnd, notifications, profile, display, focus
 Devices: brightness, volume, bluetooth, power, network-control
-Inspection: config, metrics, system status-json, browser-tabs, ipc
+Inspection: config, system status-json, browser-tabs, ipc
 Wallpaper: list-json, current, set <path>, preview <path>, apply
 Navigation: alttab <next|prev|commit|cancel>, direction <l|r|u|d>
 
@@ -89,8 +89,8 @@ HELP
     network-control)
       printf '%s\n' 'Usage: desktop-shell network-control <status|toggle> <id>' 'Inspects or toggles a configured custom, Tailscale or systemd-service provider; does not grant extra privileges.'
       ;;
-    config | ipc | browser-tabs | metrics | system)
-      printf '%s\n' 'Inspection commands:' '  config path | config show' '  ipc list | ipc call <target> <method> [arguments...]' '  browser-tabs state-path' '  metrics | system status-json' 'Raw IPC and browser-tabs activate are internal/debug interfaces; prefer named commands.'
+    config | ipc | browser-tabs | system)
+      printf '%s\n' 'Inspection commands:' '  config path | config show' '  ipc list | ipc call <target> <method> [arguments...]' '  browser-tabs state-path' '  system status-json' 'Raw IPC and browser-tabs activate are internal/debug interfaces; prefer named commands.'
       ;;
     start | stop | restart | status | logs | doctor)
       printf '%s\n' 'Lifecycle: start [--foreground], stop, restart, status, logs [--follow], doctor' 'status exits 3 while inactive. restart affects only desktop-shell.service.'

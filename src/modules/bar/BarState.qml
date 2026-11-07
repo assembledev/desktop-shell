@@ -12,7 +12,11 @@ Scope {
   property string backend: Quickshell.env("DESKTOP_SHELL_BACKEND")
   property string stateDir: Quickshell.env("CONTROL_CENTER_STATE_DIR")
   property string preferencesDir: Quickshell.env("DESKTOP_SHELL_PREFERENCES_DIR")
-  property var metrics: ({ ramText: "--", hasVram: false, vramText: "--" })
+  property bool metricsVisible: false
+  property bool vramVisible: false
+  readonly property var metrics: ({ ram: ram.data.ram, ramText: ram.data.ramText,
+    hasVram: vram.data.hasVram, vram: vram.data.vram, vramText: vram.data.vramText })
+  property double previousClockTick: 0
   property var notificationStatus: ({ text: "", class: "normal", tooltip: "Control center" })
   property bool notificationUnread: false
   property bool dnd: false
@@ -53,21 +57,7 @@ Scope {
   }
 
   Component.onCompleted: {
-    refreshTelemetry();
     updateNotificationStatus();
-  }
-
-  function parseJson(text, fallback) {
-    const rawText = String(text || "").trim();
-    if (!rawText)
-      return fallback;
-
-    try {
-      return JSON.parse(rawText);
-    } catch (error) {
-      console.error("bar: JSON parse failed: " + error);
-      return fallback;
-    }
   }
 
   function updateNotificationStatus() {
@@ -128,7 +118,8 @@ Scope {
   }
 
   function refreshTelemetry() {
-    metricsProc.running = true;
+    ram.refresh();
+    vram.refresh();
   }
 
   SystemClock {
@@ -151,11 +142,19 @@ Scope {
     onTriggered: root.updateRecordingElapsed()
   }
 
-  Timer {
-    interval: 30000
-    running: true
-    repeat: true
-    onTriggered: root.refreshTelemetry()
+  RamState { id: ram; active: root.metricsVisible }
+  VramState { id: vram; backend: root.backend; active: root.metricsVisible && root.vramVisible }
+
+  Connections {
+    target: clock
+    function onDateChanged() {
+      const now = clock.date.getTime();
+      // Reuse the existing second clock to refresh after suspend or a long
+      // event-loop pause. No additional resume monitor or periodic wakeup.
+      if (root.previousClockTick > 0 && now - root.previousClockTick > 2000)
+        root.refreshTelemetry();
+      root.previousClockTick = now;
+    }
   }
 
   FileView {
@@ -202,11 +201,4 @@ Scope {
     objects: root.microphoneLinks
   }
 
-  Process {
-    id: metricsProc
-    command: [backend, "metrics"]
-    stdout: StdioCollector {
-      onStreamFinished: root.metrics = root.parseJson(text, root.metrics)
-    }
-  }
 }

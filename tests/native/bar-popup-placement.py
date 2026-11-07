@@ -91,6 +91,8 @@ with tempfile.TemporaryDirectory(prefix="popup-headless-") as tmp:
       root.check(bar !== null, "missing bar");
       root.check(shellConfig.screens.some(s => s.name === "HEADLESS-2" && s.width === 600 && s.height > s.width), "portrait fractional scaling missing");
       if (step === 0) {
+        root.check(barState.metricsVisible, "visible landscape consumer did not enable shared RAM");
+        root.check(bar.metricsVisible === !bar.portraitMode, "portrait bar enabled hidden resource metrics");
         root.check(bar.surface.popupTrigger("network") !== null, "missing network anchor");
         networkDetails.openDetails(screen, bar.surface.popupTrigger("network"));
       } else if (step === 1) {
@@ -107,6 +109,7 @@ with tempfile.TemporaryDirectory(prefix="popup-headless-") as tmp:
         root.check(calendar.open && calendar.popupAnchor !== null, "fallback control anchor missing");
         barState.barOpen = false;
         root.check(!calendar.open, "concealed bar kept calendar open");
+        root.check(!barState.metricsVisible && !barState.vramVisible, "hidden bars kept resource collectors enabled");
         if (screenIndex + 1 === shellConfig.screens.length) {
           root.check(shellConfig.screens.length === 2, "missing mixed-scale output");
           console.log("PASS full shell placement smoke"); Qt.quit();

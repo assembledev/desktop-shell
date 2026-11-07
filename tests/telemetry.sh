@@ -22,7 +22,7 @@ battery_continuous=false
 printf '%s\n' "#!$(command -v bash)" 'printf "call\n" >>"$TEST_JQ_CALLS"' 'exec "$TEST_JQ" "$@"' >"$test_root/bin/jq"
 # Generated script expands these variables when invoked.
 # shellcheck disable=SC2016
-printf '%s\n' "#!$(command -v bash)" 'touch "$TEST_GPU_CALLS"' 'printf "1024, 4096\n"' >"$test_root/bin/nvidia-smi"
+printf '%s\n' "#!$(command -v bash)" 'touch "$TEST_GPU_CALLS"' 'sleep "${TEST_GPU_DELAY:-0}"' 'printf "1024, 4096\n"' >"$test_root/bin/nvidia-smi"
 chmod +x "$test_root/bin/"*
 export PATH="$test_root/bin:$PATH"
 # shellcheck source=../src/backend/lib/metrics.sh
@@ -104,42 +104,36 @@ printf '{broken' >"$state_dir/battery-drain.json"
 sample_battery
 "$TEST_JQ" -e '.bootWh == 0' "$test_root/battery.json" >/dev/null
 
-# CPU deltas, memory formatting, and GPU visibility keep their JSON contract.
-printf 'cpu 100 0 100 800 0 0 0 0\n' >"$system_proc_root/stat"
-printf 'MemTotal: 8388608 kB\nMemAvailable: 4194304 kB\n' >"$system_proc_root/meminfo"
+# GPU collection has no CPU/RAM reads or persistent sampling state.
 export DESKTOP_SHELL_BAR_SHOW_VRAM=0
-metrics_json >"$test_root/metrics.json"
+vram_json >"$test_root/vram.json"
 test ! -e "$TEST_GPU_CALLS"
-"$TEST_JQ" -e '.cpu == 0 and .ram == 0.5 and .ramText == "4.0/8G" and .hasVram == false' "$test_root/metrics.json" >/dev/null
-printf 'cpu 150 0 100 850 0 0 0 0\n' >"$system_proc_root/stat"
+"$TEST_JQ" -e 'keys == ["hasVram","vram","vramText"] and .hasVram == false' "$test_root/vram.json" >/dev/null
 export DESKTOP_SHELL_BAR_SHOW_VRAM=1
-metrics_json >"$test_root/metrics.json"
+vram_json >"$test_root/vram.json"
 test -e "$TEST_GPU_CALLS"
-"$TEST_JQ" -e '.cpu == 0.5 and .hasVram == true and .vram == 0.25 and .vramText == "1.0/4G"' "$test_root/metrics.json" >/dev/null
-rm "$TEST_GPU_CALLS"
+"$TEST_JQ" -e '.hasVram and .vram == 0.25 and .vramText == "1.0/4G"' "$test_root/vram.json" >/dev/null
 mkdir -p "$system_sys_root/module/nvidia/drivers/pci:nvidia/test/power"
 printf 'suspended\n' >"$system_sys_root/module/nvidia/drivers/pci:nvidia/test/power/runtime_status"
-metrics_json >"$test_root/metrics.json"
+rm "$TEST_GPU_CALLS"
+vram_json >"$test_root/vram.json"
+"$TEST_JQ" -e '.hasVram == false' "$test_root/vram.json" >/dev/null
 test ! -e "$TEST_GPU_CALLS"
-"$TEST_JQ" -e '.hasVram == false' "$test_root/metrics.json" >/dev/null
 printf 'active\n' >"$system_sys_root/module/nvidia/drivers/pci:nvidia/test/power/runtime_status"
-metrics_json >"$test_root/metrics.json"
-test -e "$TEST_GPU_CALLS"
-"$TEST_JQ" -e '.hasVram == true' "$test_root/metrics.json" >/dev/null
+TEST_GPU_DELAY=10 vram_json >"$test_root/vram.json"
+"$TEST_JQ" -e '.hasVram == false' "$test_root/vram.json" >/dev/null
 
-# Exercise the real CLI: telemetry must not initialize unrelated shell state.
+# Exercise the bar command with no procfs and no existing state directory.
 cli_state="$test_root/cli-state"
 config_file="$test_root/cli-config.json"
 printf '%s\n' '{"bar":{"showVram":false,"workspaceIcons":false}}' >"$config_file"
 rm -f "$TEST_GPU_CALLS"
 DESKTOP_SHELL_CONFIG="$config_file" XDG_STATE_HOME="$cli_state" \
-  DESKTOP_SHELL_SYS_ROOT="$system_sys_root" DESKTOP_SHELL_PROC_ROOT="$system_proc_root" \
-  bash "$source_root/src/backend/desktop-shell.sh" metrics >"$test_root/cli-metrics.json"
-"$TEST_JQ" -e '.hasVram == false and .ram == 0.5' "$test_root/cli-metrics.json" >/dev/null
+  DESKTOP_SHELL_SYS_ROOT="$system_sys_root" DESKTOP_SHELL_PROC_ROOT="$test_root/missing-proc" \
+  bash "$source_root/src/backend/desktop-shell.sh" bar vram-json >"$test_root/vram.json"
+"$TEST_JQ" -e '.hasVram == false' "$test_root/vram.json" >/dev/null
+test ! -e "$cli_state"
 test ! -e "$TEST_GPU_CALLS"
-test ! -e "$cli_state/desktop-shell/preferences"
-test ! -e "$cli_state/desktop-shell/clipboard-previews"
-test ! -e "$cli_state/desktop-shell/wallpaper"
 
 # Native battery history has no configuration or sysfs dependency.
 printf '{broken' >"$config_file"

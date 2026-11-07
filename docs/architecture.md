@@ -68,6 +68,19 @@ workspace placement, and layout policy. See [Keybindings](keybindings.md).
 and command endpoints have one owner rather than one per bar. The control
 center owns one notification server and shared event models.
 
+`RamState.qml` reads `/proc/meminfo` asynchronously inside Quickshell. It
+publishes `MemTotal - MemAvailable` every five seconds while at least one
+landscape bar is shown, and refreshes when that consumer becomes visible.
+`VramState.qml` has a separate 30-second collector and runs only when a visible
+consumer enables VRAM. Its NVIDIA query is bounded to three seconds and skips
+runtime-suspended GPUs. Hiding stops new queries; a bounded query already in
+flight can finish, and its result is ignored while hidden. A slow or failed
+GPU query does not delay RAM. The bar
+collectors read no CPU counters and write no sampling history. The existing clock
+refreshes both after a resume or event-loop gap, on its next second tick.
+Visibility means shown bar surfaces; occlusion by a separate session lock is
+not observable through this visibility contract.
+
 `BatteryState.qml` observes Quickshell's native UPower display device. The main
 bar owns a separate `BatteryHistory.qml`, which records native energy updates
 through the drain-history accumulator. The standalone lock process only observes. History writes preserve event order and

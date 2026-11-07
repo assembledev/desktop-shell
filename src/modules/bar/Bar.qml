@@ -70,6 +70,8 @@ Scope {
   readonly property string clockText: Qt.formatDateTime(clock.date, "ddd, MMM dd HH:mm")
   readonly property string clockTimeText: Qt.formatDateTime(clock.date, "HH:mm")
   readonly property string clockDateText: Qt.formatDateTime(clock.date, "ddd, MMM d")
+  readonly property bool metricsVisible: root.barOpen && !root.portraitMode && barWindow.backingWindowVisible
+  readonly property bool vramVisible: root.metricsVisible && root.showVram
   readonly property var metrics: sharedState.metrics
   readonly property var battery: batteryState.data
 

@@ -333,6 +333,19 @@
                 touch "$out"
               '';
 
+          resource-telemetry =
+            pkgs.runCommand "desktop-shell-resource-telemetry-check"
+              {
+                nativeBuildInputs = [
+                  pkgs.quickshell
+                  pkgs.python3
+                ];
+              }
+              ''
+                python3 ${self}/tests/native/resource-telemetry.py ${self}
+                touch "$out"
+              '';
+
           browser-tab-bridge =
             pkgs.runCommand "desktop-shell-browser-tab-bridge-check"
               {

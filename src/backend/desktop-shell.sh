@@ -412,29 +412,30 @@ if [ "${1:-}" = alttab ] && [ -n "${DESKTOP_SHELL_QML:-}" ] && command -v quicks
   esac
 fi
 
-# Telemetry needs only its own state and, for metrics, the GPU policy.
-# Keep it independent of unrelated backend setup.
+# Bar collectors load only the state and configuration they actually need.
 case "${1:-}:${2:-}" in
-  metrics:* | bar:battery-analysis)
-    desktop_shell_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/desktop-shell"
-    state_dir="$desktop_shell_state_dir"
-    system_sys_root="${DESKTOP_SHELL_SYS_ROOT:-/sys}"
-    system_proc_root="${DESKTOP_SHELL_PROC_ROOT:-/proc}"
-    mkdir -p "$state_dir"
+  bar:vram-json | bar:battery-analysis)
     # shellcheck source=lib/metrics.sh
     source "${BASH_SOURCE[0]%/*}/lib/metrics.sh"
-    if [ "$1" = metrics ]; then
+    if [ "$2" = vram-json ]; then
+      [ "$#" -eq 2 ] || exit 2
+      system_sys_root="${DESKTOP_SHELL_SYS_ROOT:-/sys}"
       config_file="${DESKTOP_SHELL_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/desktop-shell/config.json}"
       if [ ! -r "$config_file" ]; then
         config_file="${DESKTOP_SHELL_DEFAULT_CONFIG:?DESKTOP_SHELL_DEFAULT_CONFIG is not set}"
       fi
       DESKTOP_SHELL_BAR_SHOW_VRAM="$(jq -er '
         if type != "object" then error("configuration must be an object")
+        elif .bar.showVram != null and (.bar.showVram | type) != "boolean" then
+          error("bar.showVram must be a boolean or null")
         elif .bar.showVram == false then "0" else "1" end
       ' "$config_file")" || exit 1
-      metrics_json
+      vram_json
     else
       [ "$#" -eq 3 ] || exit 2
+      desktop_shell_state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/desktop-shell"
+      system_proc_root="${DESKTOP_SHELL_PROC_ROOT:-/proc}"
+      mkdir -p "$desktop_shell_state_dir"
       battery_analysis "$3"
     fi
     exit
