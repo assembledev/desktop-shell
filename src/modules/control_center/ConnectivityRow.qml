@@ -17,7 +17,7 @@ ShellTaskButton {
   leftPadding: 54
   rightPadding: 12
   onClicked: detailRequested()
-  Button {
+  ShellButtonBase {
     id: radio
     parent: row
     x: 12

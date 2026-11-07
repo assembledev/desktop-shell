@@ -117,7 +117,7 @@ Scope {
             Repeater {
               id: choices
               model: root.profiles
-              delegate: Button {
+              delegate: ShellButtonBase {
                 id: choice
                 required property var modelData
                 readonly property bool selected: root.current.selectedProfile === modelData.id

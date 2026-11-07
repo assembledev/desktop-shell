@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "ShellSymbols.js" as Symbols
 
-Button {
+ShellButtonBase {
   id: button
   required property var colors
   property string label: ""

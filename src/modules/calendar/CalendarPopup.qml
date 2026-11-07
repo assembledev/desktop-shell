@@ -402,8 +402,6 @@ Scope {
                 opacity: root.currentMonth ? 0 : 1
                 flatAction: true
                 verticalPadding: 2
-                Keys.onReturnPressed: click()
-                Keys.onEnterPressed: click()
                 onClicked: root.resetToToday()
               }
             }
@@ -417,7 +415,5 @@ Scope {
     colors: theme
     Layout.preferredWidth: 34
     Layout.preferredHeight: 30
-    Keys.onReturnPressed: click()
-    Keys.onEnterPressed: click()
   }
 }

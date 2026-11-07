@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Button {
+ShellButtonBase {
   id: task
   required property var colors
   property string title: ""

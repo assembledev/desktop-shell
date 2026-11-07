@@ -3,7 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../common"
 
-Button {
+ShellButtonBase {
   id: action
   required property var colors
   property string iconText
@@ -18,8 +18,6 @@ Button {
   padding: 0
   Accessible.name: label
   Accessible.role: Accessible.Button
-  Keys.onReturnPressed: click()
-  Keys.onEnterPressed: click()
   scale: down ? 0.97 : 1
 
   background: Rectangle {

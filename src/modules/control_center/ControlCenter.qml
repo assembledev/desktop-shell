@@ -4168,7 +4168,7 @@ Scope {
     }
   }
 
-  component DeviceChoiceRow: Button {
+  component DeviceChoiceRow: ShellButtonBase {
     id: deviceRow
     property string glyph
     property var node

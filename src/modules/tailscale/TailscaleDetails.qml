@@ -290,7 +290,7 @@ Scope {
                 visible: root.model.data.files.length > 0
                 Layout.fillWidth: true; spacing: 8
                 Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: theme.borderMuted }
-                Button {
+                ShellButtonBase {
                   id: received
                   Layout.fillWidth: true; implicitHeight: 40; padding: 8; hoverEnabled: true
                   Accessible.name: "Received files, " + root.model.data.files.length
@@ -515,7 +515,7 @@ Scope {
       }
     }
   }
-  component CopyButton: Button {
+  component CopyButton: ShellButtonBase {
     id: button
     property string value: ""
     readonly property bool copied: root.copied === value && value.length > 0
@@ -557,7 +557,7 @@ Scope {
       Text { width: parent.width; elide: Text.ElideRight; text: fileRow.subtitle; color: theme.textSecondary; font.family: theme.uiFontFamily; font.pixelSize: 11 }
     }
   }
-  component PeerRow: Button {
+  component PeerRow: ShellButtonBase {
     id: row
     required property var peer
     Layout.fillWidth: true; implicitHeight: Math.max(52, peerLabel.implicitHeight + 16); padding: 8; hoverEnabled: true

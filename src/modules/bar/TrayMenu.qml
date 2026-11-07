@@ -374,7 +374,7 @@ Scope {
             elide: Text.ElideRight
           }
 
-          Button {
+          ShellButtonBase {
             id: backButton
             visible: root.depth > 1
             enabled: root.expanded
@@ -387,8 +387,6 @@ Scope {
             hoverEnabled: true
             Accessible.name: "Back to previous menu"
             scale: down ? 0.88 : (hovered ? 1.04 : 1)
-            Keys.onReturnPressed: click()
-            Keys.onEnterPressed: click()
             onClicked: root.leaveSubmenu()
 
             Behavior on scale {

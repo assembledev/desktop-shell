@@ -277,7 +277,7 @@ Scope {
       font.family: theme.uiFontFamily
       font.pixelSize: 13
     }
-    Button {
+    ShellButtonBase {
       id: copyButton
       visible: row.copyable
       enabled: row.value.length > 0

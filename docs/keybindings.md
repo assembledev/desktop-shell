@@ -156,6 +156,9 @@ hl.bind("SUPER + SHIFT + 2", hl.dsp.window.move({ workspace = 2, follow = false 
 
 The shell reads the resulting workspace state from Hyprland.
 
+Shell action buttons support Space, Return, and keypad Enter, including
+checkable actions. Holding Enter activates once per physical press.
+
 The power menu starts on Lock when opened from a keyboard command. Up/Down
 move between available actions; Tab/Shift+Tab traverse them, and Enter or
 Space activates the focused action. Calendar controls support Tab and
