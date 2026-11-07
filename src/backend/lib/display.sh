@@ -22,7 +22,7 @@ display_profiles_init() {
 display_snapshot_json() {
   local monitors
 
-  ensure_hypr_env
+  ensure_hypr_env || return
   monitors="$(hyprctl monitors all -j)" || return
 
   jq -ce '
@@ -278,7 +278,7 @@ display_apply_layout() {
     end] | join(" ")
   ' <<<"$layout")" || return
 
-  ensure_hypr_env
+  ensure_hypr_env || return
   hyprctl eval "$lua" || return
 
   primary="$(jq -r '.primary // empty' <<<"$layout")"
@@ -499,6 +499,6 @@ display_reset() (
     '.profiles = [.profiles[] | select(.topology != $topology)]' \
     "$display_profiles_file" >"$profiles_tmp"
   mv -f "$profiles_tmp" "$display_profiles_file"
-  ensure_hypr_env
+  ensure_hypr_env || return
   hyprctl reload >/dev/null
 )

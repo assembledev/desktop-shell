@@ -4,7 +4,7 @@
 lock_confirmation_timeout_seconds=10
 
 keyboard_json() {
-  ensure_hypr_env
+  ensure_hypr_env || return
   hyprctl devices -j 2>/dev/null |
     jq -c '
         (.keyboards // [] | map(select(.main == true))[0]) as $kb
@@ -17,7 +17,7 @@ keyboard_json() {
 }
 
 keyboard_set_layout() {
-  ensure_hypr_env
+  ensure_hypr_env || return
   keyboard="${1:-}"
   index="${2:-}"
   [ -n "$keyboard" ] || exit 0
@@ -115,7 +115,7 @@ focus_restore() {
 
 lock_ipc() {
   local method="$1"
-  ensure_hypr_env
+  ensure_hypr_env || return
   timeout "${2:-$lock_confirmation_timeout_seconds}s" \
     quickshell ipc --path "${DESKTOP_SHELL_QML}"/lock.qml call screenLock "$method"
 }
@@ -128,14 +128,14 @@ lock_env() {
 
 lock_run() {
   lock_env
-  ensure_hypr_env
+  ensure_hypr_env || return
   exec quickshell \
     --no-duplicate \
     --path "${DESKTOP_SHELL_QML}"/lock.qml
 }
 
 lock_prepare_keyboard() {
-  ensure_hypr_env
+  ensure_hypr_env || return
   lock_keyboard_snapshot="$(keyboard_json 2>/dev/null || true)"
   lock_restore_keyboard="$(printf '%s\n' "$lock_keyboard_snapshot" | jq -r '.name // ""' 2>/dev/null || true)"
   lock_restore_index="$(printf '%s\n' "$lock_keyboard_snapshot" | jq -r '.index // 0' 2>/dev/null || printf '0\n')"

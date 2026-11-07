@@ -11,6 +11,7 @@ export HOME="$test_root/home"
 export XDG_CONFIG_HOME="$test_root/config"
 export XDG_STATE_HOME="$test_root/state"
 export XDG_RUNTIME_DIR="$test_root/runtime"
+export HYPRLAND_INSTANCE_SIGNATURE=test WAYLAND_DISPLAY=wayland-test
 export DESKTOP_SHELL_DEFAULT_CONFIG="$default_config"
 export DESKTOP_SHELL_SYS_ROOT="$test_root/sys"
 export DESKTOP_SHELL_PROC_ROOT="$test_root/proc"
@@ -1007,3 +1008,5 @@ bash "$source_root/tests/network.sh" "$source_root"
 bash "$source_root/tests/network-controls.sh" "$source_root"
 
 bash "$source_root/tests/tailscale.sh" "$source_root"
+
+bash "$source_root/tests/hypr-environment.sh" "$source_root"

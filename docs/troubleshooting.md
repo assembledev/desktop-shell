@@ -58,6 +58,14 @@ Escape handling and window pop-outs require the shell's
 when it manages Hyprland; an external compositor configuration needs the loader
 shown in the installation guide.
 
+Compositor commands use the complete session environment when both
+`HYPRLAND_INSTANCE_SIGNATURE` and `WAYLAND_DISPLAY` are present. If either is
+missing, discovery uses Hyprland's instance inventory and an IPC liveness check
+to recover its matching value. An existing value restricts the selection;
+multiple matching live instances or no reachable match cause an error. Run the
+command from the intended compositor session, or supply one of its identifiers
+explicitly when several sessions share a runtime directory.
+
 ## Applications do not launch
 
 The launcher reads installed desktop entries and launches them through UWSM.

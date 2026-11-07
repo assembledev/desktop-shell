@@ -118,7 +118,7 @@ cli_help_all() {
 
 runtime_json() {
   local reply code
-  ensure_hypr_env
+  ensure_hypr_env || return
   if reply="$(timeout --kill-after=1s 5s quickshell ipc --path "${DESKTOP_SHELL_QML}/shell.qml" call "$@" 2>/dev/null)"; then
     :
   else

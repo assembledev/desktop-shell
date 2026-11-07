@@ -633,7 +633,7 @@ case "${1:-help}" in
       *) exit 2 ;;
     esac
     if ! quickshell ipc --path "${DESKTOP_SHELL_QML}"/shell.qml call windowSwitcher direction "$direction" >/dev/null 2>&1; then
-      ensure_hypr_env
+      ensure_hypr_env || exit 1
       hyprctl dispatch "hl.dsp.focus({ direction = \"$direction\" })" >/dev/null
     fi
     ;;
@@ -906,7 +906,7 @@ case "${1:-help}" in
   cursor)
     case "${2:-near-top}" in
       near-top)
-        ensure_hypr_env
+        ensure_hypr_env || exit 1
         y="$(hyprctl cursorpos -j 2>/dev/null | jq -r '.y // 9999' || printf 9999)"
         if [ "$y" -le 45 ] 2>/dev/null; then
           printf 'yes\n'

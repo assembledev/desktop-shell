@@ -30,7 +30,7 @@ read_current_wallpaper() {
 
 preview_wallpaper() {
   local path="$1" tries=25 snapshot monitors monitor
-  ensure_hypr_env
+  ensure_hypr_env || return
   if [ ! -f "$path" ] || [ ! -r "$path" ]; then
     printf 'desktop-shell: Wallpaper image is not readable\n' >&2
     return 1

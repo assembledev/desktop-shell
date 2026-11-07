@@ -41,7 +41,7 @@ brightness_backlight_values() {
 
 brightness_focused_output() {
   if command -v ensure_hypr_env >/dev/null 2>&1; then
-    ensure_hypr_env
+    ensure_hypr_env || return
   fi
   hyprctl monitors -j 2>/dev/null |
     jq -r '[.[] | select(.focused == true) | .name][0] // empty' 2>/dev/null

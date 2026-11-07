@@ -80,8 +80,7 @@ doctor() {
       failures=$((failures + 1))
     fi
   done
-  ensure_hypr_env
-  if doctor_probe hyprctl version >/dev/null; then
+  if ensure_hypr_env && doctor_probe hyprctl version >/dev/null; then
     printf 'hyprland: reachable\n'
   else
     printf 'hyprland: not reachable\n'
