@@ -11,6 +11,11 @@ The file is generated; change the Nix options rather than editing it. Inspect
 the active path and JSON with `desktop-shell config path` and
 `desktop-shell config show`.
 
+Runtime options `bar.compact`, `bar.showVram`, `bar.workspaceIcons`, and
+`browserTabs.enable` accept JSON booleans. Missing or `null` values use the
+option default. Strings, numbers, arrays, and objects are rejected before
+configuration values reach the backend; `doctor` uses the same validation.
+
 ## Minimal configuration
 
 ```nix

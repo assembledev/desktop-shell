@@ -387,6 +387,12 @@ fi
 grep -F 'config: invalid' "$test_root/doctor-output" >/dev/null
 grep -Fx 'hyprland: reachable' "$test_root/doctor-output" >/dev/null
 grep -Fx 'service: active' "$test_root/doctor-output" >/dev/null
+printf '{"bar":{"compact":"false"}}\n' >"$config_fixture"
+if lifecycle_cli doctor >"$test_root/doctor-output" 2>&1; then
+  printf 'doctor must reject non-boolean configuration values\n' >&2
+  exit 1
+fi
+grep -F 'config: invalid' "$test_root/doctor-output" >/dev/null
 printf '{}\n' >"$config_fixture"
 lifecycle_cli doctor >"$test_root/doctor-output"
 grep -F 'config: ok' "$test_root/doctor-output" >/dev/null
@@ -1010,3 +1016,5 @@ bash "$source_root/tests/network-controls.sh" "$source_root"
 bash "$source_root/tests/tailscale.sh" "$source_root"
 
 bash "$source_root/tests/hypr-environment.sh" "$source_root"
+
+bash "$source_root/tests/config-booleans.sh" "$source_root"

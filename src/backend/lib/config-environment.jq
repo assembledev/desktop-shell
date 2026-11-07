@@ -1,19 +1,24 @@
 # Fixed variable names only; values are transported as data, never shell code.
 def config_string: if type == "string" then . else "" end;
 def config_integer: if type == "number" and floor == . then tostring else "" end;
+def config_boolean($path; $default):
+  getpath($path) |
+  if . == null then $default
+  elif type == "boolean" then .
+  else error(($path | join(".")) + " must be a boolean or null") end;
 
 if type != "object" then error("configuration must be an object") else . end |
 {
   DESKTOP_SHELL_WORKSPACES_JSON: (.workspaces.items // [] | tojson),
   DESKTOP_SHELL_SCROLLING_WORKSPACE: (.workspaces.scrolling | config_integer),
   DESKTOP_SHELL_OUTPUT: (.output | config_string),
-  DESKTOP_SHELL_BAR_COMPACT: (if .bar.compact // false then "1" else "0" end),
-  DESKTOP_SHELL_BAR_SHOW_VRAM: (if .bar.showVram == false then "0" else "1" end),
-  DESKTOP_SHELL_BAR_WORKSPACE_ICONS: (if .bar.workspaceIcons == false then "0" else "1" end),
+  DESKTOP_SHELL_BAR_COMPACT: (if config_boolean(["bar", "compact"]; false) then "1" else "0" end),
+  DESKTOP_SHELL_BAR_SHOW_VRAM: (if config_boolean(["bar", "showVram"]; true) then "1" else "0" end),
+  DESKTOP_SHELL_BAR_WORKSPACE_ICONS: (if config_boolean(["bar", "workspaceIcons"]; true) then "1" else "0" end),
   DESKTOP_SHELL_BATTERY_LOW: ((.battery.lowPercentage // 30) | config_integer),
   DESKTOP_SHELL_BATTERY_CRITICAL: ((.battery.criticalPercentage // 15) | config_integer),
   DESKTOP_SHELL_KEYBOARD_LABELS_JSON: (.keyboard.layoutLabels // ["EN"] | tojson),
-  DESKTOP_SHELL_BROWSER_TABS: (if .browserTabs.enable // false then "1" else "0" end),
+  DESKTOP_SHELL_BROWSER_TABS: (if config_boolean(["browserTabs", "enable"]; false) then "1" else "0" end),
   DESKTOP_SHELL_BROWSER_ENTRY_ID: (.browserTabs.desktopEntryId | config_string),
   DESKTOP_SHELL_BROWSER_NAME: (.browserTabs.displayName | config_string),
   DESKTOP_SHELL_BROWSER_ICON: (.browserTabs.icon | config_string),
