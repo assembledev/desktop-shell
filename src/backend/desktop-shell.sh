@@ -399,7 +399,7 @@ esac
 if [ "${1:-}" = alttab ] && [ -n "${DESKTOP_SHELL_QML:-}" ] && command -v quickshell >/dev/null 2>&1; then
   action="${2:-next}"
   case "$action" in
-    next | prev)
+    next | prev | left | right | up | down)
       if quickshell ipc --path "${DESKTOP_SHELL_QML}/shell.qml" call windowSwitcher alttab "$action" >/dev/null 2>&1; then
         exit 0
       fi
@@ -605,7 +605,7 @@ case "${1:-help}" in
   alttab)
     action="${2:-next}"
     case "$action" in
-      next | prev)
+      next | prev | left | right | up | down)
         method="alttab"
         args="$action"
         ;;

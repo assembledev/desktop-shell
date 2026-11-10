@@ -13,7 +13,7 @@ Desktop: audio, wifi, network, tailscale, media, dnd, notifications, profile, di
 Devices: brightness, volume, bluetooth, power, network-control
 Inspection: config, system status-json, browser-tabs, ipc
 Wallpaper: list-json, current, set <path>, preview <path>, apply
-Navigation: alttab <next|prev|commit|cancel>, direction <l|r|u|d>
+Navigation: alttab <next|prev|left|right|up|down|commit|cancel>, direction <l|r|u|d>
 
 Use desktop-shell <command> --help or desktop-shell help <command>.
 Use desktop-shell help-all for all command topics.
@@ -96,7 +96,7 @@ HELP
       printf '%s\n' 'Lifecycle: start [--foreground], stop, restart, status, logs [--follow], doctor' 'status exits 3 while inactive. restart affects only desktop-shell.service.'
       ;;
     launcher | cheatsheet | lock | bar | focus | open | close | toggle | pick | wifi-page | bluetooth-page | audio-page | display-page | alttab | direction | lock-preview | wallpaper-close)
-      printf '%s\n' 'Surfaces:' '  open | close | toggle; wifi-page | bluetooth-page | audio-page | display-page' '  launcher <open|focus|close|toggle>; cheatsheet <open|close|toggle>' '  clipboard <open|close|toggle>; pick; wallpaper-close' '  bar <show|hide|calendar>; focus <on|off|restore>; lock [lock|status|focus]' '  lock-preview <open|close|toggle>' '  alttab <next|prev|commit|cancel>; direction <l|r|u|d>' 'Named surface commands start the service when necessary; lock waits for compositor confirmation.'
+      printf '%s\n' 'Surfaces:' '  open | close | toggle; wifi-page | bluetooth-page | audio-page | display-page' '  launcher <open|focus|close|toggle>; cheatsheet <open|close|toggle>' '  clipboard <open|close|toggle>; pick; wallpaper-close' '  bar <show|hide|calendar>; focus <on|off|restore>; lock [lock|status|focus]' '  lock-preview <open|close|toggle>' '  alttab <next|prev|left|right|up|down|commit|cancel>; direction <l|r|u|d>' 'Named surface commands start the service when necessary; lock waits for compositor confirmation.'
       ;;
     list-json | current | set | preview | apply)
       printf '%s\n' 'Wallpaper: list-json | current | set <path> | preview <path> | apply' 'set applies and saves; preview is transient; apply restores the saved selection.'

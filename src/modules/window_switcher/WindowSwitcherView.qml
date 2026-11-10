@@ -471,11 +471,18 @@ Scope {
       stateRefreshQueued = true;
   }
 
-  function advance(action) {
+  function moveSelection(action) {
     const candidates = orderedWindows();
     if (candidates.length === 0) {
       cancel();
       return false;
+    }
+
+    if (["left", "right", "up", "down"].indexOf(action) >= 0) {
+      if (!windowByAddress(selectedAddress))
+        selectedAddress = addressOf(candidates[0]);
+      moveSpatialSelection(action);
+      return true;
     }
 
     let index = candidates.findIndex(function(win) {
@@ -506,7 +513,7 @@ Scope {
         taskHost.requestTask(root, placement.screen);
       originalAddress = addressOf(activeWindow);
       selectedAddress = originalAddress;
-      if (!advance(requestedAction))
+      if (!moveSelection(requestedAction))
         return;
       sessionActive = true;
       presentationTimer.restart();
@@ -517,7 +524,7 @@ Scope {
       return;
     if (taskHost)
       taskHost.requestTask(root, placement.screen);
-    advance(requestedAction);
+    moveSelection(requestedAction);
   }
 
   function commitSelection() {
@@ -679,7 +686,7 @@ Scope {
         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
           root.commit();
         else if (event.key === Qt.Key_Tab)
-          root.advance((event.modifiers & Qt.ShiftModifier) ? "prev" : "next");
+          root.moveSelection((event.modifiers & Qt.ShiftModifier) ? "prev" : "next");
         else
           return;
 

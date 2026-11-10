@@ -65,6 +65,9 @@ case "$5/$6" in
   notifications/list) printf '[]\n' ;;
   notifications/clear) cat "$COMMAND_TEST_DND" ;;
   notifications/dismiss) printf '{"error":{"code":"not-found","message":"No such notification"}}\n' ;;
+  windowSwitcher/alttab)
+    printf '%s\n' "$7" >>"$COMMAND_TEST_CALLS"
+    ;;
   launcher/profileReady) printf 'true\n' ;;
   launcher/applyProfile) : ;;
   launcher/profileStatus) cat "$COMMAND_TEST_PROFILE" ;;
@@ -101,6 +104,11 @@ expect_exit 2 cli wifi connect
 expect_exit 2 cli media next one two
 expect_exit 2 cli dnd on extra
 [ ! -e "$COMMAND_TEST_CALLS" ]
+for direction in left right up down; do
+  : >"$COMMAND_TEST_CALLS"
+  DESKTOP_SHELL_CONFIG="$command_test_root/broken.json" cli alttab "$direction"
+  test "$(cat "$COMMAND_TEST_CALLS")" = "$(printf 'windowSwitcher/alttab\n%s' "$direction")"
+done
 cli audio status-json | jq -e '.ready and (.outputs|length == 1)' >/dev/null
 cli audio devices-json | jq -e '.defaultInput.id == "44"' >/dev/null
 cli audio streams-json | jq -e 'length == 0' >/dev/null

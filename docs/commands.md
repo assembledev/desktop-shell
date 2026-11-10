@@ -139,6 +139,10 @@ Timing out does not cancel application launches or undo window moves.
 ```console
 $ desktop-shell alttab next
 $ desktop-shell alttab prev
+$ desktop-shell alttab left
+$ desktop-shell alttab right
+$ desktop-shell alttab up
+$ desktop-shell alttab down
 $ desktop-shell alttab commit
 $ desktop-shell alttab cancel
 $ desktop-shell direction l
@@ -150,6 +154,11 @@ $ desktop-shell direction d
 Bind `next` and `prev` to Alt-Tab presses and `commit` to Alt release. A
 direction command moves the switcher selection while the overview is open and
 otherwise asks Hyprland to focus in that direction.
+
+The `alttab left|right|up|down` actions open the overview and move its highlight
+using the overview's arrow navigation. Selection stops at a boundary. Focus
+changes when the selection is committed. Gesture controls can send directional
+steps followed by `alttab commit` on release or `alttab cancel` on interruption.
 
 ### Other surfaces
 
