@@ -314,7 +314,8 @@ Scope {
       anchors.bottom: parent.bottom
       anchors.bottomMargin: 18
       width: contentWidth
-      height: 250 + (applyFeedback.visible ? applyFeedback.implicitHeight + 8 : 0)
+      // Reserve feedback space so applying never moves the carousel or layer surface.
+      height: 250 + applyFeedback.implicitHeight + 8
       opacity: surfaceTransition.progress
       scale: 0.92 + surfaceTransition.progress * 0.08
       transformOrigin: Item.Bottom
@@ -355,7 +356,7 @@ Scope {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        height: applyFeedback.visible ? applyFeedback.y : searchWrapper.y
+        height: applyFeedback.y
         enabled: shell.applyPath.length === 0
         focus: true
         clip: true
@@ -568,7 +569,7 @@ Scope {
         anchors.bottom: searchWrapper.top
         anchors.bottomMargin: 8
         visible: shell.applyPath.length > 0 || shell.applyError.length > 0
-        text: shell.applyPath.length > 0 ? "Applying wallpaper…" : shell.applyError
+        text: shell.applyError.length > 0 ? shell.applyError : "Applying wallpaper…"
         color: shell.applyError.length > 0 ? theme.danger : theme.textSecondary
         elide: Text.ElideRight
       }
