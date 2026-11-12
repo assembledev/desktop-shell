@@ -7,7 +7,7 @@ wallpaper picker, and lock screen that work together. Desktop Shell reads live
 state from Hyprland and the desktop's services. NixOS and Home Manager handle
 installation and configuration.
 
-https://github.com/user-attachments/assets/14bcbe04-3493-41c1-a380-b65dd58fe4a0
+https://github.com/user-attachments/assets/3f7f7d29-517b-40e5-9a03-b76e9b3c9cc1
 
 ## Install
 
