@@ -69,7 +69,8 @@ On NixOS, the footer shows the running closure's local-store registration time
 and whether it matches a retained system generation (`switch`) or differs
 (`test`). This is inferred from current store state, not a rebuild history.
 `desktop-shell system status-json` exposes the same read-only result through
-the host Nix CLI. An unavailable metadata API leaves the date unavailable.
+the host Nix CLI and local Nix daemon, without network access. If the daemon or
+its metadata API is unavailable, the date remains unavailable.
 
 ### Network
 

@@ -24,11 +24,10 @@ system_status_json() {
     done
   done
 
-  # Read the host's existing store metadata without opening the daemon or
-  # recording a rebuild. Older Nix versions may leave the timestamp unavailable.
+  # The daemon provides a consistent view while the host updates its store.
+  # Immutable local-store reads can miss registrations still in SQLite's WAL.
   timestamp="$(
-    nix path-info --extra-experimental-features read-only-local-store \
-      --store 'local?read-only=true' --json --json-format 1 "$running" 2>/dev/null |
+    nix path-info --offline --store daemon --json --json-format 1 "$running" 2>/dev/null |
       jq -er --arg path "$running" '.[$path].registrationTime // empty' 2>/dev/null
   )" || timestamp=null
   case "$timestamp" in

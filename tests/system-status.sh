@@ -19,14 +19,15 @@ printf '#!%s\n' "$(command -v bash)" >"$test_root/bin/nix"
 cat >>"$test_root/bin/nix" <<'EOF'
 set -eu
 test "$1" = path-info
-test "$2" = --extra-experimental-features
-test "$3" = read-only-local-store
-test "$4" = --store
-test "$5" = 'local?read-only=true'
-test "$6" = --json
-test "$7" = --json-format
-test "$8" = 1
-jq -n --arg path "$9" '{($path): {registrationTime: 1791522859}}'
+# Query the live host store through its daemon, without network access.
+# Immutable local-store reads can miss registrations still in SQLite's WAL.
+test "$2" = --offline
+test "$3" = --store
+test "$4" = daemon
+test "$5" = --json
+test "$6" = --json-format
+test "$7" = 1
+jq -n --arg path "$8" '{($path): {registrationTime: 1791522859}}'
 EOF
 chmod +x "$test_root/bin/nix"
 export PATH="$test_root/bin:$PATH"
