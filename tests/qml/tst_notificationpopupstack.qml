@@ -10,6 +10,8 @@ TestCase {
   visible: true
   when: windowShown
 
+  property var activated: []
+
   ListModel {
     id: source
   }
@@ -26,6 +28,14 @@ TestCase {
       model: rows
       delegate: Rectangle {
         required property int popupId
+        property bool closing: false
+        property bool hasDefaultAction: true
+        function activateDefault() {
+          if (!hasDefaultAction)
+            return;
+          closing = true;
+          suite.activated = suite.activated.concat([popupId]);
+        }
         width: stack.width
         height: 86
         implicitHeight: 86
@@ -40,7 +50,40 @@ TestCase {
 
   function init() {
     source.clear();
+    activated = [];
     wait(0);
+  }
+
+  function test_activationIsOldestFirstAndSkipsClosingCards() {
+    add(1);
+    add(2);
+    add(3);
+    stack.activateOldest(repeater);
+    stack.activateOldest(repeater);
+    stack.activateOldest(repeater);
+    stack.activateOldest(repeater);
+    compare(activated, [1, 2, 3]);
+  }
+
+  function test_activationIgnoresExpiredDismissedAndOtherOutput() {
+    add(1);
+    add(2);
+    add(3);
+    repeater.itemAt(2).closing = true; // Expiring or dismissed, still animating.
+    source.insert(0, {popupId: 4, outputName: "two"});
+    stack.activateOldest(repeater);
+    compare(activated, [2]);
+    source.clear(); // History entries are not in the popup model.
+    stack.activateOldest(repeater);
+    compare(activated, [2]);
+  }
+
+  function test_oldestWithoutDefaultActionDoesNotActivateNewerPopup() {
+    add(1);
+    add(2);
+    repeater.itemAt(1).hasDefaultAction = false;
+    stack.activateOldest(repeater);
+    compare(activated, []);
   }
 
   function test_arrivalAnimatesExistingCardDown() {

@@ -24,6 +24,7 @@ Scope {
   readonly property var screen: placement.screen
 
   signal notificationPopupsCloseRequested(string outputName)
+  signal notificationPopupActivateRequested(string outputName)
 
   Theme {
     id: theme
@@ -2532,6 +2533,11 @@ Scope {
   Connections {
     target: Hyprland
     function onRawEvent(event) {
+      const activatePrefix = "desktop-shell:activate-notification-popup:";
+      if (event.name === "custom" && String(event.data || "").startsWith(activatePrefix)) {
+        root.notificationPopupActivateRequested(String(event.data).slice(activatePrefix.length));
+        return;
+      }
       const prefix = "desktop-shell:dismiss-notification-popups:";
       if (event.name === "custom" && String(event.data || "").startsWith(prefix))
         root.notificationPopupsCloseRequested(String(event.data).slice(prefix.length));
@@ -2733,6 +2739,14 @@ Scope {
       WlrLayershell.namespace: "quickshell:notificationPopups"
       WlrLayershell.layer: WlrLayer.Overlay
       WlrLayershell.keyboardFocus: popupKeyboardHover.hovered ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
+      Connections {
+        target: root
+        function onNotificationPopupActivateRequested(outputName) {
+          if (popupWindow.visible && String(popupWindow.modelData.name) === outputName)
+            popupColumn.activateOldest(popupRepeater);
+        }
+      }
 
       anchors {
         top: true
@@ -4608,6 +4622,15 @@ Scope {
     scale: 0.96
     transformOrigin: Item.TopRight
 
+    function activateDefault() {
+      const action = root.defaultNotificationAction(notification);
+      if (closing || !action)
+        return;
+      // Mark it first: action invocation may synchronously remove the toast.
+      close(true);
+      root.invokeNotificationAction(action);
+    }
+
     function close(removeNotification) {
       if (closing)
         return;
@@ -4719,7 +4742,7 @@ Scope {
       enabled: toast.hasDefaultAction
       hoverEnabled: enabled
       cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-      onClicked: root.invokeDefaultNotificationAction(toast.notification)
+      onClicked: toast.activateDefault()
     }
 
     ColumnLayout {

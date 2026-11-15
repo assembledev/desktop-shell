@@ -138,6 +138,25 @@ returns to its overview; Escape closes the panel.
 
 The Lua integration installs this binding automatically.
 
+## Notification action
+
+Bind `desktopShell.notifications.activateOldest()` to act on the oldest visible
+notification popup on the focused output. It invokes the same default action as
+clicking the popup body and dismisses the notification. Each tap handles one
+popup; closing, expired, dismissed, and Control Center history entries are
+excluded. If the oldest popup has no default action, nothing happens; Escape
+can hide the popups. Action buttons are never chosen implicitly.
+
+For a bare Super tap, use Hyprland's modifier-only release binding:
+
+```lua
+hl.bind("Super_L", function() desktopShell.notifications.activateOldest() end, { release = true })
+hl.bind("Super_R", function() desktopShell.notifications.activateOldest() end, { release = true })
+```
+
+The key choice belongs to the compositor configuration. A regular key or chord
+can call the same function without `release = true`.
+
 ## Workspace bindings
 
 The workspace list is configurable, but Desktop Shell does not generate

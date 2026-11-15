@@ -430,4 +430,16 @@ test("Escape passes through when there is no focused output", function()
   equal(#s.events, 0)
 end)
 
+test("notification activation is scoped to the current output", function()
+  local s = setup()
+  s.api.notifications.activateOldest()
+  equal(s.events[1], "desktop-shell:activate-notification-popup:ONE")
+  s.monitor = { name = "TWO" }
+  s.api.notifications.activateOldest()
+  equal(s.events[2], "desktop-shell:activate-notification-popup:TWO")
+  s.monitor = nil
+  s.api.notifications.activateOldest()
+  equal(#s.events, 2)
+end)
+
 print("Hyprland Lua: " .. tests .. " tests passed")

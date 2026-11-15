@@ -2,6 +2,14 @@
 local directory = debug.getinfo(1, "S").source:sub(2):match("(.*/)")
 local desktopShell = {
   windowPopout = dofile(directory .. "window-popout.lua"),
+  notifications = {
+    activateOldest = function()
+      local monitor = hl.get_active_monitor()
+      if monitor then
+        hl.dispatch(hl.dsp.event("desktop-shell:activate-notification-popup:" .. monitor.name))
+      end
+    end,
+  },
 }
 
 dofile(directory .. "popup-escape.lua")
