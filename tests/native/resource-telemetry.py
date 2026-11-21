@@ -121,6 +121,7 @@ print((root/"gpu-data").read_text())
                 lambda: snapshot()["ram"]["ramText"] == "6.0/8G",
                 "RAM failed to refresh while GPU blocked",
             )
+            ipc("refresh")
             assert calls() == 1 and not snapshot()["gpu"]["hasVram"], (
                 "overlapping GPU collectors"
             )

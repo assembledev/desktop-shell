@@ -7,7 +7,7 @@ ShellRoot {
   id: suite
   RamState { id: ram; path: Quickshell.env("RAM_FIXTURE"); interval: 100 }
   RamState { id: realRam; path: "/proc/meminfo"; active: true }
-  VramState { id: gpu; backend: Quickshell.env("GPU_FIXTURE"); interval: 150 }
+  VramState { id: gpu; backend: Quickshell.env("GPU_FIXTURE") }
   IpcHandler {
     target: "test"
     function activate(ramVisible: bool, vramVisible: bool): void { ram.active = ramVisible; gpu.active = vramVisible; }
