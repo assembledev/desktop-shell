@@ -71,12 +71,16 @@ center owns one notification server and shared event models.
 `RamState.qml` reads `/proc/meminfo` asynchronously inside Quickshell. It
 publishes `MemTotal - MemAvailable` every five seconds while at least one
 landscape bar is shown, and refreshes when that consumer becomes visible.
+The RAM hover card uses the same sample for used and total memory, and shows
+estimated reclaimable headroom when `MemAvailable` exceeds `MemFree`. It shows
+swap occupancy when swap is configured. While the card is open, the shared
+RAM state also reads the three processes with the highest resident set size
+(RSS) every five seconds. RSS includes shared pages. Clicking a PID copies it.
 `VramState.qml` has a separate 30-second collector and runs only when a visible
 consumer enables VRAM. Its NVIDIA query is bounded to three seconds and skips
 runtime-suspended GPUs. Hiding stops new queries; a bounded query already in
 flight can finish, and its result is ignored while hidden. A slow or failed
-GPU query does not delay RAM. The bar
-collectors read no CPU counters and write no sampling history. The existing clock
+GPU query does not delay RAM. The resource collectors keep no sampling history. The existing clock
 refreshes both after a resume or event-loop gap, on its next second tick.
 Visibility means shown bar surfaces; occlusion by a separate session lock is
 not observable through this visibility contract.
@@ -92,8 +96,8 @@ The host owns UPower refresh and critical-action policy; see
 
 `ScreenPlacement.qml` captures the output when a surface opens and invalidates
 it when that output disappears. `BarOverlayWindow.qml` owns the layer surface
-and input focus. Pointer opens stay keyboard-inert until the pointer enters the
-card; keyboard opens acquire focus immediately. Interactive cards use a native
+and input focus. Interactive pointer opens stay keyboard-inert until the pointer
+enters the card. Keyboard opens acquire focus immediately. Interactive cards use a native
 Hyprland focus grab with only the card accepting input. Bars on every output
 and visible tray shelves remain reachable. Outside clicks dismiss through the
 grab; closing releases input immediately even while the card fades. External
@@ -115,6 +119,10 @@ cell as their horizontal anchor and the shelf bottom as their attachment edge;
 the shelf's surface offset is converted to output coordinates once. The control
 center remains a right drawer, full tools keep their own placement, and passive
 notifications and OSD items follow their separate presentation contracts.
+Each bar uses one output-sized overlay below the bar for RAM and battery.
+The selected card owns its layout and pointer input. On a handoff, the
+outgoing card fades before the next one opens on the same layer. Moving the
+pointer onto the card keeps it open without taking keyboard focus.
 
 Display changes are one validated transaction through Hyprland's Lua monitor
 API. Before applying, the backend records the previous layout in the runtime

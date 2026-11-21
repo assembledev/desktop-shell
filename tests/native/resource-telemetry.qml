@@ -11,7 +11,8 @@ ShellRoot {
   IpcHandler {
     target: "test"
     function activate(ramVisible: bool, vramVisible: bool): void { ram.active = ramVisible; gpu.active = vramVisible; }
+    function showDetails(visible: bool): void { ram.detailsVisible = visible; }
     function refresh(): void { ram.refresh(); gpu.refresh(); }
-    function snapshot(): string { return JSON.stringify({ram:ram.data, gpu:gpu.data, real:realRam.data.available}); }
+    function snapshot(): string { return JSON.stringify({ram:ram.data, gpu:gpu.data, real:realRam.data.available, processes:ram.topProcesses}); }
   }
 }

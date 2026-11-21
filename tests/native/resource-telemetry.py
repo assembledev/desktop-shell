@@ -1,4 +1,4 @@
-"""Exercise real asynchronous procfs reads and independent GPU process lifetime."""
+"""Exercise asynchronous memory reads and visibility-gated process collectors."""
 
 import json
 import os
@@ -35,6 +35,21 @@ print((root/"gpu-data").read_text())
     (root / "delay").write_text("0.7")
     (root / "gpu-data").write_text('{"hasVram":true,"vram":0.25,"vramText":"1.0/4G"}')
 
+    ps = root / "ps"
+    ps.write_text(
+        f"#!{sys.executable}\n"
+        + """import os, pathlib, sys
+root = pathlib.Path(os.environ["GPU_FIXTURE_ROOT"])
+assert sys.argv[1:] == ["-e", "-ww", "-o", "pid=,rss=,comm=", "--sort=-rss,pid"]
+with (root / "ps-calls").open("a") as f: f.write("call\\n")
+print((root / "ps-data").read_text(), end="")
+"""
+    )
+    ps.chmod(0o700)
+    (root / "ps-data").write_text(
+        " 231 1024 browser\n 661 768 editor\n 414 512 helper\n 954 32 shell\n"
+    )
+
     def memory(available):
         temporary = root / "meminfo.tmp"
         temporary.write_text(f"MemTotal: 8388608 kB\nMemAvailable: {available} kB\n")
@@ -42,7 +57,7 @@ print((root/"gpu-data").read_text())
 
     memory(4194304)
     env = {
-        "PATH": os.environ["PATH"],
+        "PATH": str(root) + os.pathsep + os.environ["PATH"],
         "LANG": "C.UTF-8",
         "QT_QPA_PLATFORM": "offscreen",
         "HOME": str(root / "home"),
@@ -157,6 +172,24 @@ print((root/"gpu-data").read_text())
                 lambda: snapshot()["ram"]["available"],
                 "memory reader failed to recover",
             )
+            assert not (root / "ps-calls").exists(), "hidden details sampled processes"
+            ipc("showDetails", "true")
+            wait_for(
+                lambda: snapshot()["processes"] is not None,
+                "process list did not load",
+            )
+            assert [row["pid"] for row in snapshot()["processes"]] == [231, 661, 414]
+            (root / "ps-data").write_text(" 661 1536 editor\n 231 1024 browser\n")
+            wait_for(
+                lambda: len(snapshot()["processes"]) == 2,
+                "process list did not refresh",
+            )
+            ipc("showDetails", "false")
+            time.sleep(0.15)
+            stopped_ps = (root / "ps-calls").read_text()
+            time.sleep(0.25)
+            assert snapshot()["processes"] is None
+            assert (root / "ps-calls").read_text() == stopped_ps
             (root / "gpu-data").write_text("not-json")
             ipc("activate", "true", "true")
             wait_for(lambda: calls() > stopped, "GPU did not restart")
@@ -198,7 +231,7 @@ print((root/"gpu-data").read_text())
             ]
             assert not errors, "\n".join(errors)
             print(
-                "PASS resource telemetry: real procfs, visibility, refresh, GPU isolation, cancellation, recovery"
+                "PASS resource telemetry: real procfs, visibility, process ranking and refresh, GPU isolation and recovery"
             )
         except Exception:
             print((root / "shell.log").read_text())

@@ -13,6 +13,8 @@ PanelWindow {
   required property bool requested
   required property bool presented
   required property string surfaceNamespace
+  // Hover cards own their dismissal and receive pointer input within the card.
+  property bool hoverOnly: false
   property bool keyboardReady: false
   property bool keyboardRequested: false
   property Item popupContent: null
@@ -25,7 +27,7 @@ PanelWindow {
   // the card. Passive previews and stationary bar triggers keep their focus.
   Loader {
     id: grabLoader
-    active: root.requested && !root.suspended && root.backingWindowVisible
+    active: root.requested && !root.hoverOnly && !root.suspended && root.backingWindowVisible
       && root.popupContent !== null && (root.keyboardRequested || root.keyboardReady)
       && Boolean(Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE"))
     sourceComponent: HyprlandFocusGrab {
@@ -44,7 +46,7 @@ PanelWindow {
 
   mask: Region {
     item: root.requested && !root.suspended
-      ? (root.nativeGrabActive ? root.popupContent : root.contentItem) : null
+      ? (root.hoverOnly || root.nativeGrabActive ? root.popupContent : root.contentItem) : null
   }
 
   // The layer starts below the bar so passive mapping cannot cover its
@@ -58,7 +60,7 @@ PanelWindow {
 
   WlrLayershell.namespace: root.surfaceNamespace
   WlrLayershell.layer: WlrLayer.Overlay
-  WlrLayershell.keyboardFocus: !root.requested || root.suspended ? WlrKeyboardFocus.None
+  WlrLayershell.keyboardFocus: !root.requested || root.suspended || root.hoverOnly ? WlrKeyboardFocus.None
     : root.nativeGrabActive ? WlrKeyboardFocus.OnDemand
     : root.keyboardRequested ? WlrKeyboardFocus.Exclusive
     : root.keyboardReady ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -81,6 +83,7 @@ PanelWindow {
   // A caller opened by a keyboard command can explicitly acquire focus.
   HoverHandler {
     parent: root.popupContent || root.contentItem
+    enabled: !root.hoverOnly
     onHoveredChanged: {
       if (hovered && root.requested && !root.suspended)
         root.keyboardReady = true;

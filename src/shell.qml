@@ -81,6 +81,7 @@ ShellRoot {
   BarState {
     id: barState
     metricsVisible: bars.instances.some(bar => bar.metricsVisible)
+    ramDetailsVisible: bars.instances.some(bar => bar.ramDetailsVisible)
     vramVisible: bars.instances.some(bar => bar.vramVisible)
     onPowerRequested: action => {
       const screen = commandPlacement.capture();

@@ -13,8 +13,10 @@ Scope {
   property string stateDir: Quickshell.env("CONTROL_CENTER_STATE_DIR")
   property string preferencesDir: Quickshell.env("DESKTOP_SHELL_PREFERENCES_DIR")
   property bool metricsVisible: false
+  property bool ramDetailsVisible: false
   property bool vramVisible: false
-  readonly property var metrics: ({ ram: ram.data.ram, ramText: ram.data.ramText,
+  readonly property var topProcesses: ram.topProcesses
+  readonly property var metrics: ({ ram: ram.data.ram, ramText: ram.data.ramText, ramDetails: ram.data.details,
     hasVram: vram.data.hasVram, vram: vram.data.vram, vramText: vram.data.vramText })
   property double previousClockTick: 0
   property var notificationStatus: ({ text: "", class: "normal", tooltip: "Control center" })
@@ -142,7 +144,7 @@ Scope {
     onTriggered: root.updateRecordingElapsed()
   }
 
-  RamState { id: ram; active: root.metricsVisible }
+  RamState { id: ram; active: root.metricsVisible; detailsVisible: root.ramDetailsVisible }
   VramState { id: vram; backend: root.backend; active: root.metricsVisible && root.vramVisible }
 
   Connections {

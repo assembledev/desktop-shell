@@ -71,6 +71,9 @@ Scope {
   readonly property string clockTimeText: Qt.formatDateTime(clock.date, "HH:mm")
   readonly property string clockDateText: Qt.formatDateTime(clock.date, "ddd, MMM d")
   readonly property bool metricsVisible: root.barOpen && !root.portraitMode && barWindow.backingWindowVisible
+  readonly property bool ramHovered: metricsVisible && desktopRam.visible && desktopRam.hovered
+  readonly property bool batteryHovered: battery.available && (portraitMode ? portraitBattery.hovered : Boolean(batterySegmentLoader.item?.hovered))
+  readonly property bool ramDetailsVisible: detailPopupKind === "ram" && detailPopupTransition.presented
   readonly property bool vramVisible: root.metricsVisible && root.showVram
   readonly property var metrics: sharedState.metrics
   readonly property var battery: batteryState.data
@@ -80,10 +83,11 @@ Scope {
   readonly property bool dnd: sharedState.dnd
   property bool powerMenuOpen: false
   property bool canHibernate: false
-  property bool batterySegmentHovered: false
-  property bool batteryPanelHovered: false
+  property string detailPopupKind: ""
+  property string detailPopupPendingKind: ""
+  property bool detailPopupOpen: false
+  property bool detailPopupHovered: false
   property bool batteryAnalysisPinned: false
-  property bool batteryAnalysisOpen: false
   readonly property bool recording: sharedState.recording
   readonly property double recordingStartedAt: sharedState.recordingStartedAt
   readonly property string recordingElapsed: sharedState.recordingElapsed
@@ -158,11 +162,6 @@ Scope {
   MotionTransition {
     id: trayShelfTransition
     requested: root.barOpen && root.trayShelfOpen && root.trayOverflowCount > 0 && (!root.activeTask || root.activeTask === trayMenuPopup)
-  }
-
-  MotionTransition {
-    id: batteryAnalysisTransition
-    requested: root.battery.available && root.batteryAnalysisOpen && root.barOpen && !root.activeTask
   }
 
   MotionTransition {
@@ -342,14 +341,36 @@ Scope {
     return value === undefined || value === null || String(value).length === 0 ? "--" : String(value);
   }
 
-  function updateBatteryAnalysisOpen() {
-    if (batterySegmentHovered || batteryPanelHovered || batteryAnalysisPinned) {
-      batteryCloseTimer.stop();
-      batteryAnalysisOpen = true;
-    } else {
-      batteryCloseTimer.restart();
+  function updateDetailPopup() {
+    if (!barOpen || activeTask) return;
+    if (ramHovered || batteryHovered || (battery.available && batteryAnalysisPinned)) {
+      detailPopupCloseTimer.stop();
+      const kind = ramHovered ? "ram" : "battery";
+      if (detailPopupTransition.presented && detailPopupKind !== kind) {
+        detailPopupPendingKind = kind;
+        detailPopupOpen = false;
+      } else {
+        detailPopupKind = kind;
+        detailPopupPendingKind = "";
+        detailPopupOpen = true;
+      }
+    } else if (detailPopupHovered) {
+      detailPopupCloseTimer.stop();
+    } else if (detailPopupOpen || detailPopupPendingKind) {
+      detailPopupCloseTimer.restart();
     }
   }
+
+  function closeDetailPopup() {
+    detailPopupCloseTimer.stop();
+    detailPopupPendingKind = "";
+    detailPopupOpen = false;
+    detailPopupHovered = false;
+  }
+
+  onRamHoveredChanged: updateDetailPopup()
+  onBatteryHoveredChanged: updateDetailPopup()
+  onActiveTaskChanged: if (activeTask) closeDetailPopup()
 
   onBarOpenChanged: {
     if (!barOpen) {
@@ -358,7 +379,7 @@ Scope {
       trayShelfPinned = false;
       trayShelfOpen = false;
       batteryAnalysisPinned = false;
-      batteryAnalysisOpen = false;
+      closeDetailPopup();
     }
   }
 
@@ -368,10 +389,8 @@ Scope {
     root.trayShelfHovered = false;
     root.trayShelfPinned = false;
     root.trayShelfOpen = false;
-    root.batterySegmentHovered = false;
-    root.batteryPanelHovered = false;
     root.batteryAnalysisPinned = false;
-    root.batteryAnalysisOpen = false;
+    root.closeDetailPopup();
   }
 
   onPowerMenuOpenChanged: {
@@ -418,21 +437,16 @@ Scope {
     target: root.batteryState
     function onAvailableChanged() {
       if (!root.batteryState.available) {
-        root.batterySegmentHovered = false;
-        root.batteryPanelHovered = false;
-        root.batteryAnalysisOpen = false;
+        root.batteryAnalysisPinned = false;
+        if (root.detailPopupKind === "battery") root.closeDetailPopup();
       }
     }
   }
 
   Timer {
-    id: batteryCloseTimer
+    id: detailPopupCloseTimer
     interval: 140
-    repeat: false
-    onTriggered: {
-      if (!root.batterySegmentHovered && !root.batteryPanelHovered && !root.batteryAnalysisPinned)
-        root.batteryAnalysisOpen = false;
-    }
+    onTriggered: root.closeDetailPopup()
   }
 
   Timer {
@@ -724,6 +738,7 @@ Scope {
               }
 
               BarSegment {
+                id: desktopRam
                 icon: "󰟜"
                 label: String(root.metrics.ramText || "--").split("/")[0]
                 iconColor: theme.resource
@@ -748,10 +763,6 @@ Scope {
                   label: batteryState.label
                   iconColor: root.batteryColor()
                   textColor: root.batteryTextColor()
-                  onHoveredChanged: {
-                    root.batterySegmentHovered = hovered;
-                    root.updateBatteryAnalysisOpen();
-                  }
                 }
               }
             }
@@ -1060,13 +1071,9 @@ Scope {
                 textColor: root.batteryTextColor()
                 clickable: true
                 targetHeight: root.portraitSecondaryHeight
-                onHoveredChanged: {
-                  root.batterySegmentHovered = hovered;
-                  root.updateBatteryAnalysisOpen();
-                }
                 onClicked: {
                   root.batteryAnalysisPinned = !root.batteryAnalysisPinned;
-                  root.updateBatteryAnalysisOpen();
+                  root.updateDetailPopup();
                 }
               }
             }
@@ -1176,70 +1183,79 @@ Scope {
   }
 
   BarPopupPlacement {
-    id: batteryPlacement
-    trigger: root.portraitMode ? portraitBattery : batterySegmentLoader
+    id: detailPopupPlacement
+    trigger: root.detailPopupKind === "ram" ? desktopRam : (root.portraitMode ? portraitBattery : batterySegmentLoader)
     screenWidth: root.screen?.width || 0
     screenHeight: root.screen?.height || 0
     barHeight: root.barHeight
-    preferredWidth: 232
+    preferredWidth: root.detailPopupKind === "ram" ? 280 : 232
     gap: theme.barPopoverGap
-    active: root.batteryAnalysisOpen
-    onAnchorLost: { root.batteryAnalysisPinned = false; root.batteryAnalysisOpen = false; }
+    active: root.detailPopupOpen
+    onAnchorLost: root.closeDetailPopup()
   }
 
-  PanelWindow {
-    id: batteryAnalysisWindow
-    screen: root.screen
-    visible: batteryAnalysisTransition.presented
-    color: "transparent"
-    exclusionMode: ExclusionMode.Ignore
-    implicitHeight: batteryAnalysisBox.height + theme.barPopoverGap + 12
-    WlrLayershell.namespace: "quickshell:batteryAnalysis"
-    WlrLayershell.layer: WlrLayer.Overlay
+  MotionTransition {
+    id: detailPopupTransition
+    requested: root.detailPopupOpen && root.barOpen && !root.activeTask
+    exitSpeedMultiplier: root.detailPopupPendingKind ? 2.5 : 1
 
-    anchors {
-      top: true
-      left: true
-      right: true
+    onDismissed: {
+      if (!root.detailPopupPendingKind) return;
+      root.detailPopupKind = root.detailPopupPendingKind;
+      root.detailPopupOpen = true;
+      root.detailPopupPendingKind = "";
     }
+  }
 
-    margins {
-      top: root.barHeight
-    }
-
-    mask: Region {
-      item: batteryAnalysisBox
-    }
+  BarOverlayWindow {
+    barSurface: barWindow
+    requested: detailPopupTransition.requested
+    presented: detailPopupTransition.presented || root.detailPopupPendingKind.length > 0
+    surfaceNamespace: "quickshell:batteryAnalysis"
+    popupContent: detailPopupBox
+    hoverOnly: true
 
     Rectangle {
-      id: batteryAnalysisBox
+      id: detailPopupBox
+      readonly property bool showingRam: root.detailPopupKind === "ram"
+      x: detailPopupPlacement.x
+      y: detailPopupPlacement.y
+      width: detailPopupPlacement.width
+      height: Math.min(showingRam ? ramCard.implicitHeight : batteryAnalysisColumn.implicitHeight + 20, detailPopupPlacement.maximumHeight)
       clip: true
-      width: batteryPlacement.width
-      height: Math.min(batteryAnalysisColumn.implicitHeight + 20, batteryPlacement.maximumHeight)
-      x: batteryPlacement.x
-      y: batteryPlacement.y
       radius: 12
       color: theme.surface
       border.color: theme.borderSubtle
       border.width: 1
-      opacity: batteryAnalysisTransition.progress
-      scale: 0.9 + batteryAnalysisTransition.progress * 0.1
+      opacity: detailPopupTransition.progress
+      scale: 0.9 + detailPopupTransition.progress * 0.1
       transformOrigin: Item.Top
       transform: Translate {
-        y: (1 - batteryAnalysisTransition.progress) * -10
+        y: (1 - detailPopupTransition.progress) * -10
       }
 
-      MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.NoButton
-        onContainsMouseChanged: {
-          root.batteryPanelHovered = containsMouse;
-          root.updateBatteryAnalysisOpen();
+      HoverHandler {
+        onHoveredChanged: {
+          root.detailPopupHovered = hovered;
+          root.updateDetailPopup();
         }
       }
 
+      RamDetails {
+        id: ramCard
+        // Keep both layouts ready so crossing the bar changes contents and bounds together.
+        opacity: detailPopupBox.showingRam ? 1 : 0
+        enabled: detailPopupBox.showingRam
+        anchors.fill: parent
+        colors: theme
+        details: root.metrics.ramDetails ?? null
+        processes: detailPopupTransition.requested && detailPopupTransition.progress < 1 ? null : (root.sharedState.topProcesses ?? null)
+        onCopyPid: pid => Quickshell.execDetached(["wl-copy", "--", pid])
+      }
+
       Flickable {
+        opacity: detailPopupBox.showingRam ? 0 : 1
+        enabled: !detailPopupBox.showingRam
         anchors.fill: parent
         contentWidth: width
         contentHeight: batteryAnalysisColumn.implicitHeight + 20
