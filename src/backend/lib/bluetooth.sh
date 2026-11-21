@@ -89,6 +89,10 @@ bluetooth_private_mode() {
   bluetooth_set_adapter_property pairable off
 }
 
+bluetooth_has_rfkill() {
+  [ -n "$(rfkill --noheadings --output ID list bluetooth 2>/dev/null)" ]
+}
+
 bluetooth_pairing_mode() {
   bluetooth_set_adapter_property pairable on
   if ! bluetooth_set_adapter_property discoverable on; then

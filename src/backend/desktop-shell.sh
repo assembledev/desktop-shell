@@ -749,18 +749,27 @@ case "${1:-help}" in
         bluetooth_devices_json
         ;;
       on)
+        if bluetooth_has_rfkill; then
+          rfkill unblock bluetooth
+        fi
         bluetoothctl power on
         bluetooth_private_mode
         ;;
       off)
         bluetooth_private_mode
-        bluetoothctl power off
+        if bluetooth_has_rfkill; then
+          rfkill block bluetooth
+        else
+          bluetoothctl power off
+        fi
         ;;
       session)
         bluetooth_pairing_session
         ;;
       session-close)
-        bluetooth_private_mode
+        if bluetooth_status_json | jq -e '.enabled' >/dev/null; then
+          bluetooth_private_mode
+        fi
         ;;
       discover)
         # Kept interactive so the owning QML process can stop discovery through

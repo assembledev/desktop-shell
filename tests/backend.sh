@@ -768,6 +768,31 @@ mapfile -t captured_bluetoothctl_args <"$bluetoothctl_args"
 test "${captured_bluetoothctl_args[0]}" = "discoverable off"
 test "${captured_bluetoothctl_args[1]}" = "pairable off"
 
+bluetooth_power_args="$test_root/bluetooth-power-args"
+export DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS="$bluetooth_power_args"
+{
+  printf '#!%s\n' "$(command -v bash)"
+  cat <<'EOF'
+printf 'rfkill %s\n' "$*" >>"$DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS"
+if [ "$1" = --noheadings ]; then
+  printf '1\n'
+fi
+EOF
+} >"$test_bin/rfkill"
+chmod +x "$test_bin/rfkill"
+PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" bluetooth off
+PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" bluetooth on
+diff -u <(printf '%s\n' \
+  'discoverable off' 'pairable off' 'rfkill --noheadings --output ID list bluetooth' 'rfkill block bluetooth' \
+  'rfkill --noheadings --output ID list bluetooth' 'rfkill unblock bluetooth' 'power on' 'discoverable off' 'pairable off') \
+  "$bluetooth_power_args"
+
+printf '#!%s\nexit 0\n' "$(command -v bash)" >"$test_bin/rfkill"
+: >"$bluetooth_power_args"
+PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" bluetooth off
+diff -u <(printf '%s\n' 'discoverable off' 'pairable off' 'power off') "$bluetooth_power_args"
+export DESKTOP_SHELL_TEST_BLUETOOTHCTL_ARGS="$bluetoothctl_args"
+
 : >"$bluetoothctl_args"
 test "$(printf 'close\n' | PATH="$test_bin:$PATH" bluetooth_pairing_session)" = ready
 mapfile -t captured_bluetoothctl_args <"$bluetoothctl_args"
@@ -775,6 +800,10 @@ test "${captured_bluetoothctl_args[0]}" = "pairable on"
 test "${captured_bluetoothctl_args[1]}" = "discoverable on"
 test "${captured_bluetoothctl_args[2]}" = "discoverable off"
 test "${captured_bluetoothctl_args[3]}" = "pairable off"
+
+printf '#!%s\ntest "$1" = show || exit 1\nprintf "Powered: no\\n"\n' \
+  "$(command -v bash)" >"$test_bin/bluetoothctl"
+PATH="$test_bin:$PATH" bash "$source_root/src/backend/desktop-shell.sh" bluetooth session-close
 
 printf '#!%s\nprintf "Failed to set discoverable off: org.bluez.Error.Busy\\n"\nexit 1\n' \
   "$(command -v bash)" >"$test_bin/bluetoothctl"
