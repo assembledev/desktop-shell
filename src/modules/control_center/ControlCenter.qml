@@ -25,6 +25,7 @@ Scope {
 
   signal notificationPopupsCloseRequested(string outputName)
   signal notificationPopupActivateRequested(string outputName)
+  signal focusBarVisibilityRequested(bool visible)
 
   Theme {
     id: theme
@@ -146,6 +147,8 @@ Scope {
   property var notificationPopupById: ({})
   property bool focusMode: false
   property bool focusBarOpen: false
+  readonly property bool canHideFocusBar: focusMode && focusBarOpen && !open
+    && !focusEdges.instances.some(edge => edge.hovered)
   property bool outputExpanded: false
   property bool inputExpanded: false
   readonly property int popupTimeout: 6500
@@ -1059,9 +1062,25 @@ Scope {
   function setFocusMode(enabled) {
     focusMode = enabled;
     focusFile.setText(enabled ? "1" : "0");
-    focusProc.exec([backend, "focus", enabled ? "on" : "off"]);
-    if (!enabled)
-      focusBarOpen = false;
+  }
+
+  onFocusModeChanged: {
+    focusBarOpen = false;
+    focusBarVisibilityRequested(!focusMode);
+  }
+
+  onCanHideFocusBarChanged: {
+    if (canHideFocusBar)
+      focusHideTimer.restart();
+    else
+      focusHideTimer.stop();
+  }
+
+  function revealFocusBar() {
+    if (!focusMode)
+      return;
+    focusBarOpen = true;
+    focusBarVisibilityRequested(true);
   }
 
   function setDnd(enabled) {
@@ -1701,7 +1720,6 @@ Scope {
     updateNotificationCount();
     refreshAll();
     displayRestoreProc.running = true;
-    focusProc.exec([backend, "focus", "restore"]);
   }
 
   onPageChanged: {
@@ -1752,12 +1770,8 @@ Scope {
       pendingPassword = "";
       connectionTargetSsid = "";
     }
-    if (focusMode && open) {
-      focusBarOpen = true;
-      barProc.exec([backend, "bar", "show"]);
-    } else if (focusMode && focusBarOpen) {
-      focusHideTimer.restart();
-    }
+    if (open)
+      revealFocusBar();
     if (open && page === "bluetooth")
       beginBluetoothSession();
     else if (!open)
@@ -2470,23 +2484,31 @@ Scope {
     }
   }
 
-  Process {
-    id: focusProc
-  }
-
-  Process {
-    id: barProc
+  Timer {
+    id: focusHideTimer
+    interval: 1800
+    onTriggered: {
+      if (!root.canHideFocusBar)
+        return;
+      if (cursorProc.running)
+        restart();
+      else
+        cursorProc.exec([backend, "cursor", "near-top"]);
+    }
   }
 
   Process {
     id: cursorProc
     stdout: StdioCollector {
       onStreamFinished: {
-        if (text.trim() === "yes") {
+        // A focus change or a new hide delay can supersede this cursor check.
+        if (!root.canHideFocusBar || focusHideTimer.running)
+          return;
+        if (text.trim() === "yes")
           focusHideTimer.restart();
-        } else if (!root.open) {
+        else {
           root.focusBarOpen = false;
-          barProc.exec([backend, "bar", "hide"]);
+          root.focusBarVisibilityRequested(false);
         }
       }
     }
@@ -2796,10 +2818,11 @@ Scope {
   }
 
   Variants {
+    id: focusEdges
     model: shellConfig.barScreens
     PanelWindow {
-      id: focusWindow
       required property var modelData
+      readonly property bool hovered: focusHover.containsMouse
       screen: modelData
       visible: root.focusMode
       color: "transparent"
@@ -2828,21 +2851,7 @@ Scope {
         id: focusHover
         anchors.fill: focusHitbox
         hoverEnabled: true
-        onEntered: {
-          root.focusBarOpen = true;
-          barProc.exec([backend, "bar", "show"]);
-          focusHideTimer.stop();
-        }
-        onExited: focusHideTimer.restart()
-      }
-
-      Timer {
-        id: focusHideTimer
-        interval: 1800
-        onTriggered: {
-          if (!focusHover.containsMouse && !root.open)
-            cursorProc.exec([backend, "cursor", "near-top"]);
-        }
+        onEntered: root.revealFocusBar()
       }
 
       Rectangle {

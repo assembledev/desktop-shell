@@ -117,6 +117,7 @@ ShellRoot {
     taskHost: root
     id: controlCenter
     barSurface: root.barFor(screen)?.surface || null
+    onFocusBarVisibilityRequested: visible => barState.barOpen = visible
   }
   BatteryNotifications {
     data: barState.batteryState.data
