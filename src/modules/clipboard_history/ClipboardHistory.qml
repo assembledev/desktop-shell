@@ -475,6 +475,8 @@ Scope {
             onTextChanged: root.applyFilter()
 
             Keys.onDownPressed: {
+              if (list.count === 0)
+                return;
               inputIntent.claimKeyboard();
               list.forceActiveFocus();
               list.incrementCurrentIndex();
@@ -489,6 +491,7 @@ Scope {
           id: list
           Layout.fillWidth: true
           Layout.fillHeight: true
+          visible: count > 0
           clip: true
           spacing: 4
           model: filteredModel
@@ -575,6 +578,7 @@ Scope {
           ScrollBar.vertical: ScrollBar {
             id: scrollBar
             policy: ScrollBar.AsNeeded
+            visible: list.contentHeight > list.height
             width: 8
             padding: 2
             minimumSize: 0.1
@@ -746,12 +750,14 @@ Scope {
 
         Text {
           Layout.fillWidth: true
+          Layout.fillHeight: filteredModel.count === 0
           visible: root.loading || filteredModel.count === 0 || root.message.length > 0
           text: root.message.length > 0 ? root.message : root.loading ? "Loading..." : "Clipboard is empty"
           color: theme.textSecondary
           font.family: theme.uiFontFamily
           font.pixelSize: 13
           horizontalAlignment: Text.AlignHCenter
+          verticalAlignment: Text.AlignVCenter
         }
       }
     }
