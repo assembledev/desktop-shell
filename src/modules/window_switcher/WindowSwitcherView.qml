@@ -55,6 +55,7 @@ Scope {
   readonly property var desktopApplications: DesktopEntries.applications.values || []
 
   readonly property var applicationIdentities: LauncherSearch.applicationIdentityIndex(desktopApplications)
+  readonly property var workspaceWindowIndex: HyprlandWindow.indexWindowsByWorkspace(windows, validWindow)
 
   function addressOf(win) {
     return String(win?.address || "");
@@ -97,9 +98,7 @@ Scope {
   }
 
   function windowsForWorkspace(workspace) {
-    return (windows || []).filter(function(win) {
-      return validWindow(win) && Number(win.workspace?.id || 0) === Number(workspace);
-    });
+    return workspaceWindowIndex[Number(workspace)] || [];
   }
 
   function isScrollingWorkspace(workspace) {

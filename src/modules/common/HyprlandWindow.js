@@ -32,3 +32,17 @@ function dataForToplevel(toplevel) {
     floating: Boolean(ipc.floating)
   });
 }
+
+function indexWindowsByWorkspace(windows, isEligible) {
+  const groups = Object.create(null);
+  for (const win of windows || []) {
+    if (!isEligible(win))
+      continue;
+
+    const workspace = Number(win.workspace?.id || 0);
+    if (!groups[workspace])
+      groups[workspace] = [];
+    groups[workspace].push(win);
+  }
+  return groups;
+}

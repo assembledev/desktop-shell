@@ -67,7 +67,8 @@ Scope {
   property var windows: []
   property var activeWindow: ({})
   property var apps: []
-  readonly property var windowIndex: LauncherSearch.indexWindows(apps, windows)
+  readonly property var windowIndexApps: LauncherSearch.prepareWindowIndexApps(apps)
+  readonly property var windowIndex: LauncherSearch.indexWindows(windowIndexApps, windows)
   property var filtered: []
   property var usageHistory: ({})
   property var pendingHistoryRecords: ({})

@@ -272,24 +272,57 @@ function tabMatchScore(query, tab) {
   return best;
 }
 
+function prepareWindowIndexApps(applications) {
+  return (applications || []).map(function(app) {
+    return { entry: app, key: desktopEntryFileId(app), identity: appTechnicalIdentity(app) };
+  });
+}
+
 // Identity depends on applications and clients, never on the typed query.
-function indexWindows(applications, clients) {
+function indexWindows(preparedApps, clients) {
   const candidates = Object.create(null);
   const byApp = Object.create(null);
-  const preparedClients = (clients || []).map(function(win) {
-    return { window: win, classes: windowClasses(win) };
-  });
+  const clientsByClass = Object.create(null);
+  for (let order = 0; order < (clients || []).length; order++) {
+    const win = clients[order];
+    if (!win || win.hidden)
+      continue;
+    const classes = windowClasses(win);
+    const prepared = { window: win, classes: classes, order: order };
+    for (const cls of classes) {
+      if (!clientsByClass[cls])
+        clientsByClass[cls] = [];
+      clientsByClass[cls].push(prepared);
+    }
+  }
 
-  for (const app of applications || []) {
-    const identity = appTechnicalIdentity(app);
+  for (const application of preparedApps) {
+    const app = application.entry;
+    const identity = application.identity;
     const matched = [];
-    byApp[desktopEntryFileId(app)] = matched;
-    for (const prepared of preparedClients) {
-      const win = prepared.window;
-      const identityScore = win && !win.hidden ? technicalIdentityScore(identity, prepared.classes) : -1;
-      if (identityScore < 0)
-        continue;
+    byApp[application.key] = matched;
+    const startupMatches = clientsByClass[identity.startup];
+    const idMatches = identity.id === identity.startup ? null : clientsByClass[identity.id];
+    const execMatches = identity.exec === identity.startup || identity.exec === identity.id
+      ? null : clientsByClass[identity.exec];
+    if (!startupMatches && !idMatches && !execMatches)
+      continue;
 
+    // A window can match multiple identity fields. Preserve client order and
+    // app order so display ordering and equal-score ties stay stable.
+    const groups = [startupMatches, idMatches, execMatches].filter(Boolean);
+    let ordered = groups[0];
+    if (groups.length > 1) {
+      const unique = new Set(ordered);
+      for (let group = 1; group < groups.length; group++) {
+        for (const prepared of groups[group])
+          unique.add(prepared);
+      }
+      ordered = Array.from(unique).sort(function(a, b) { return a.order - b.order; });
+    }
+    for (const prepared of ordered) {
+      const win = prepared.window;
+      const identityScore = technicalIdentityScore(identity, prepared.classes);
       matched.push(win);
       const address = String(win?.address || "");
       const key = address.length > 0
